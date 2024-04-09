@@ -1,0 +1,14 @@
+{
+    "config": {
+        "token": "",
+        "clientId": "",
+        "guildId": ""
+    },
+    "mysql": {
+        "host": "",
+        "user": "",
+        "password": "",
+        "database": ""
+    },
+    "mongodb_link": ""
+}
