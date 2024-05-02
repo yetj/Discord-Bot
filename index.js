@@ -6,6 +6,8 @@ const { createPool } = require("mysql");
 const { config, mysql, mongodb_link } = require("./config.json");
 const mongoose = require("mongoose");
 
+//process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
+
 /*
 const express = require('express');
 const app = express();
@@ -21,6 +23,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildPresences,
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.MessageContent,
   ],
@@ -30,7 +33,9 @@ const client = new Client({
     Partials.Reaction,
     Partials.User,
     Partials.GuildMember,
+    Partials.ThreadMember,
   ],
+  allowedMentions: { parse: ["everyone", "users", "roles"] },
 });
 
 client.inviteLink = `https://discord.com/api/oauth2/authorize?client_id=817396326605127711&permissions=2193080970448&scope=bot%20applications.commands`;
