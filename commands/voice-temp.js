@@ -83,7 +83,8 @@ module.exports = {
 
       let message = "";
       message += `> **Channel:** <#${newDatabase.channel_id}>\n`;
-      message += `> **New channel name:** ${newDatabase.new_channel_name}\n`;
+      message += `> **Parent category:** **<#${newDatabase.new_channel_category}>** - \`${newDatabase.new_channel_category}\`\n`;
+      message += `> **New channel name:** \`${newDatabase.new_channel_name}\``;
 
       const embedMessage = new EmbedBuilder()
         .setColor("#009900")
@@ -133,9 +134,9 @@ module.exports = {
           message += `\n-----\n`;
         }
 
-        message += `> **Channel:** <#${configuredChannel.channel_id}> - ${configuredChannel.channel_id}\n`;
-        message += `> **Parent category:** <#${configuredChannel.new_channel_category}> - ${configuredChannel.new_channel_category}\n`;
-        message += `> **New channel name:** ${configuredChannel.new_channel_name}\n`;
+        message += `> **Channel:** <#${configuredChannel.channel_id}> - \`${configuredChannel.channel_id}\`\n`;
+        message += `> **Parent category:** **<#${configuredChannel.new_channel_category}>** - \`${configuredChannel.new_channel_category}\`\n`;
+        message += `> **New channel name:** \`${configuredChannel.new_channel_name}\``;
       });
 
       const embedMessage = new EmbedBuilder()
@@ -175,14 +176,17 @@ module.exports = {
             Math.floor(Math.random() * (9999 - 1000) + 1000)
           );
 
-          const createdChannel = await newState.guild.channels.create({
-            name: newChannelName,
-            type: ChannelType.GuildVoice,
-            parent: configuredNewChannel.new_channel_category,
-          });
+          const createdChannel = await newChannel.clone({ name: newChannelName });
 
           if (createdChannel) {
-            await createdChannel.setPosition(1);
+            const category = await newState.guild.channels.cache.get(
+              configuredNewChannel.new_channel_category
+            );
+            const newPosition = category.children.cache.size;
+
+            console.log("size ", category.children.cache.size);
+            await createdChannel.setParent(configuredNewChannel.new_channel_category);
+            await createdChannel.setPosition(newPosition - 1);
             await newState.member.voice.setChannel(createdChannel);
 
             const newDatabase = await new VoiceTempChannels({
