@@ -1,82 +1,86 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const getDisplayName = require("../utils/getDisplayName.js");
 
 module.exports = {
-	data: new SlashCommandBuilder()
-		.setName('regear')
-		.setDescription('Displays regears without reacion.')
-		.addBooleanOption(option => option.setName('guildhouse').setDescription('Is it Guild House?')),
-	async execute(interaction) {
-		interaction.channel.messages.fetch({force: true}).then(async msg => {
-			// get only messages with attachments and without reactions
-			const messages = msg.filter(m => m.attachments.size > 0 && m.reactions.cache.size == 0).sort((a,b) => a.createdTimestamp - b.createdTimestamp)
+  data: new SlashCommandBuilder()
+    .setName("regear")
+    .setDescription("Displays regears without reacion.")
+    .addStringOption((option) =>
+      option.setName("custom_string").setDescription("Custom string (default: H C)")
+    ),
+  async execute(interaction) {
+    const custom_string = interaction.options.getString("custom_string");
 
-			const guildhouse = interaction.options.getBoolean('guildhouse');
+    const allMessages = await interaction.channel.messages.fetch({ force: true });
 
-			var content = "Player name | Player mention | Location (post link)"
-			
-			await messages.forEach(async post => {
-				
-				if (post.member && post.member.nickname) {
-					if (content.length > 0) {
-						content += `\n`
-					}
+    const filteredMessages = await allMessages.filter(
+      (m) => m.attachments.size > 0 && m.reactions.cache.size == 0
+    );
 
-					content += `${post.member.nickname}> \`<@${post.member.user.id}>\` [${guildhouse && guildhouse === true ? 'G' : ''}H C](https://discord.com/channels/${interaction.guildId}/${interaction.channel.id}/${post.id})`
-				}
-				else {
-					const mm = interaction.guild.members.cache.get(post.author.id)
+    const sortedMessages = await filteredMessages.sort(
+      (a, b) => a.createdTimestamp - b.createdTimestamp
+    );
 
-					if (mm) {
-						if (content.length > 0) {
-							content += `\n`
-						}
-						content += `${mm.nickname ? mm.nickname : mm.user.username}> \`<@${post.member.user.id}>\` [${guildhouse && guildhouse === true ? 'G' : ''}H C](https://discord.com/channels/${interaction.guildId}/${interaction.channel.id}/${post.id})`
-					}
-					else {
-						if (content.length > 0) {
-							content += `\n`
-						}
-						content += `?????> \`<@${post.member.user.id}>\` [${guildhouse && guildhouse === true ? 'G' : ''}H C](https://discord.com/channels/${interaction.guildId}/${interaction.channel.id}/${post.id})`
-					}
-				}
-			});
+    await interaction.deferReply({ ephemeral: true });
 
-			if (messages.size === 0) {
-				content = "All regears are done!"
-			}
+    if (sortedMessages.size == 0) {
+      return await interaction.followUp({ content: `> All regears are done!`, ephemeral: true });
+    }
 
-			const charsPerPage = 4000
+    let content = "";
 
-			if (content.length > charsPerPage) {
+    const finalString = custom_string?.length > 0 ? custom_string : "H C";
 
-				let pages = Math.ceil(content.length / charsPerPage)
+    let page = 1;
+    let messageNum = 0;
 
-				for (let i=0;i<pages;i++) {
-					let content_partial = content.substring(charsPerPage * i, charsPerPage * (i+1))
+    //sortedMessages.forEach(async (message, index, array) => {
+    //for await (message of sortedMessages) {
+    sortedMessages.map(async (message) => {
+      const member = await interaction.guild.members.fetch(message.author.id, { force: true });
 
-					const embed = new EmbedBuilder()
-					.setColor('#22cc11')
-					.setTitle('Regears to do:')
-					.setDescription(`${content_partial}`)
-					.setFooter({ text: `Page ${i+1} of ${pages}`});
+      if (!member) {
+        console.log("no member: ", message);
+        return;
+      }
 
-					if (i==0) {
-						await interaction.reply({ embeds: [embed], ephemeral: true }).catch(console.error)
-					}
-					else {
-						await interaction.followUp({ embeds: [embed], ephemeral: true }).catch(console.error)
-					}
-				}
-			}
-			else {
-				const embed = new EmbedBuilder()
-				.setColor('#22cc11')
-				.setTitle('Regears to do:')
-				.setDescription(`${content}`)
+      if (content.length == 0) {
+        content = "Player name | Player mention | Location (post link)";
+      }
 
-				interaction.reply({ embeds: [embed], ephemeral: true }).catch(console.error)
-			}
+      content += `\n${getDisplayName(member)}> \`<@${
+        member.id
+      }>\` [${finalString}](https://discord.com/channels/${interaction.guildId}/${
+        interaction.channel.id
+      }/${message.id})`;
 
-		}).catch(console.error)
-	}
+      if (content.length > 3800) {
+        const embed = new EmbedBuilder()
+          .setColor("#22cc11")
+          .setTitle("Regears to do:")
+          .setDescription(`${content}`)
+          .setFooter({ text: `Page ${page}` });
+
+        content = "";
+        page++;
+
+        await interaction.followUp({ embeds: [embed], ephemeral: true }).catch(console.error);
+      }
+
+      if (messageNum++ === sortedMessages.size - 1) {
+        if (content.length > 0) {
+          const embed = new EmbedBuilder()
+            .setColor("#22cc11")
+            .setTitle("Regears to do:")
+            .setDescription(`${content}`);
+
+          if (page > 1) {
+            embed.setFooter({ text: `Page ${page}` });
+          }
+
+          await interaction.followUp({ embeds: [embed], ephemeral: true });
+        }
+      }
+    });
+  },
 };

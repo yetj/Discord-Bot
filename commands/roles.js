@@ -219,6 +219,11 @@ module.exports = {
               .setMinLength(1)
               .setDescription("Separator for nicknames - default: ,")
           )
+          .addBooleanOption((option) =>
+            option
+              .setName("check_only_display_name")
+              .setDescription("Should bot check only display name?")
+          )
     )
     .addSubcommand(
       (
@@ -867,6 +872,8 @@ module.exports = {
     } else if (interaction.options.getSubcommand() === "check_if_member_exists") {
       const members = interaction.options.getString("members");
       const separator = interaction.options.getString("separator") ?? ",";
+      const check_only_display_name =
+        interaction.options.getBoolean("check_only_display_name") ?? false;
 
       let promises = [];
       let memberList = [];
@@ -887,14 +894,25 @@ module.exports = {
           memberSplitted = memberSplitted.slice(2, -1);
         }
 
-        const member = interaction.guild.members.cache.find(
-          (m) =>
-            m.user.id == memberSplitted ||
-            m.nickname == memberSplitted ||
-            (m.user.username == username && m.user.discriminator == discriminator) ||
-            (m.user.username == memberSplitted && m.user.discriminator == "0") ||
-            (m.user.globalName == memberSplitted && m.user.discriminator == "0")
-        );
+        let member = null;
+
+        if (check_only_display_name === true) {
+          member = interaction.guild.members.cache.find(
+            (m) =>
+              m.nickname == memberSplitted ||
+              (m.nickname == null && m.user.globalName == memberSplitted) ||
+              (m.nickname == null && m.user.globalName == null && m.user.username == memberSplitted)
+          );
+        } else {
+          member = interaction.guild.members.cache.find(
+            (m) =>
+              m.user.id == memberSplitted ||
+              m.nickname == memberSplitted ||
+              (m.user.username == username && m.user.discriminator == discriminator) ||
+              (m.user.username == memberSplitted && m.user.discriminator == "0") ||
+              (m.user.globalName == memberSplitted && m.user.discriminator == "0")
+          );
+        }
 
         if (member) {
           memberList.push(member);
@@ -931,6 +949,10 @@ module.exports = {
           await interaction.followUp({ embeds: [embed] });
         }
       });
+
+      if (!post.length) {
+        post = "All members found!";
+      }
 
       const embed = new EmbedBuilder()
         .setColor("#2222cc")

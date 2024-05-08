@@ -1,7 +1,7 @@
 module.exports = {
-    name: 'guildMemberRemove',
-	async execute(client, member) {
-
+  name: "guildMemberRemove",
+  async execute(client, member) {
+    /*
         var results = client.sync.filter(el => el.source == member.guild.id)
 
         if (results.length > 0) {
@@ -59,5 +59,6 @@ module.exports = {
                 console.error(err)
             }
         }
-	},
-}
+        */
+  },
+};

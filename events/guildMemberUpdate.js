@@ -1,7 +1,7 @@
 module.exports = {
-    name: 'guildMemberUpdate',
-	async execute(client, oldMember, newMember) {
-
+  name: "guildMemberUpdate",
+  async execute(client, oldMember, newMember) {
+    /*
         const removedRoles = oldMember.roles.cache.filter(role => !newMember.roles.cache.has(role.id))
         const addedRoles = newMember.roles.cache.filter(role => !oldMember.roles.cache.has(role.id))
 
@@ -139,5 +139,6 @@ module.exports = {
                 console.error(err)
             }
         }
-	},
-}
+        */
+  },
+};

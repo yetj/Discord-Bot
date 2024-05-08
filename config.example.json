@@ -1,8 +1,7 @@
 {
     "config": {
         "token": "",
-        "clientId": "",
-        "guildId": ""
+        "clientId": ""
     },
     "mysql": {
         "host": "",

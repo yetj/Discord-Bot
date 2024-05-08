@@ -1,6 +1,7 @@
 module.exports = {
-    name: "guildMemberAdd",
-    async execute(client, member) {
+  name: "guildMemberAdd",
+  async execute(client, member) {
+    /*
         var results = client.sync.filter((el) => el.gid == member.guild.id);
 
         if (results.length > 0) {
@@ -179,5 +180,6 @@ module.exports = {
                 console.error(err);
             }
         }
-    },
+        */
+  },
 };
