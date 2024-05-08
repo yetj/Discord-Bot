@@ -34,8 +34,6 @@ module.exports = {
     let page = 1;
     let messageNum = 0;
 
-    //sortedMessages.forEach(async (message, index, array) => {
-    //for await (message of sortedMessages) {
     sortedMessages.map(async (message) => {
       const member = await interaction.guild.members.fetch(message.author.id, { force: true });
 
