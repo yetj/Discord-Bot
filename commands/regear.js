@@ -3,7 +3,7 @@ const getDisplayName = require("../utils/getDisplayName.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("regearv2")
+    .setName("regear")
     .setDescription("Displays regears without reacion.")
     .addStringOption((option) =>
       option.setName("custom_string").setDescription("Custom string (default: H C)")
