@@ -79,7 +79,7 @@ module.exports = {
     for (let i = contentArray.length - 1; i >= 0; i--) {
       content += contentArray[i];
 
-      if (content.length > 380) {
+      if (content.length > 3800) {
         const embed = new EmbedBuilder()
           .setColor("#22cc11")
           .setTitle("Regears:")
