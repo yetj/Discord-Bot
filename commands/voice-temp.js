@@ -184,8 +184,9 @@ module.exports = {
             );
             const newPosition = category.children.cache.size;
 
-            console.log("size ", category.children.cache.size);
-            await createdChannel.setParent(configuredNewChannel.new_channel_category);
+            await createdChannel.setParent(configuredNewChannel.new_channel_category, {
+              lockPermissions: false,
+            });
             await createdChannel.setPosition(newPosition - 1);
             await newState.member.voice.setChannel(createdChannel);
 
