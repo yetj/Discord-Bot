@@ -859,7 +859,7 @@ module.exports = {
       let results;
 
       try {
-        results = await Sync.find({ source: newMember.guild.id });
+        results = await Sync.find({ source: member.guild.id });
       } catch (err) {
         console.error(`[g34gf] `, err);
       }
