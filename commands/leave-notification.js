@@ -3,6 +3,7 @@ const {
   PermissionFlagsBits,
   ChannelType,
   EmbedBuilder,
+  AuditLogEvent,
 } = require("discord.js");
 const LeaveNotification = require("../dbmodels/leave-notification.js");
 const getDisplayName = require("../utils/getDisplayName.js");
@@ -160,6 +161,27 @@ module.exports = {
         const notifications = await LeaveNotification.find({ gid: member.guild.id });
 
         if (notifications && notifications.length > 0) {
+          const logs = await member.guild.fetchAuditLogs({
+            limit: 1,
+            type: AuditLogEvent.MemberKick,
+          });
+          const kickLog = logs.entries.first();
+
+          let message = `has left the server.`;
+
+          if (kickLog) {
+            if (kickLog.createdAt > member.joinedAt) {
+              const { executor, target, reason } = kickLog;
+              if (target.id === member.id) {
+                if (reason) {
+                  message = `has been kicked by **${executor}** with a reason: \`${reason}\`.`;
+                } else {
+                  message = `has been kicked by **${executor}**.`;
+                }
+              }
+            }
+          }
+
           notifications.forEach((notification) => {
             if (member.roles.cache.has(notification.role_id)) {
               member.guild.channels
@@ -172,10 +194,10 @@ module.exports = {
                       await channel.send(
                         `> *<@&${notification.role_id_to_be_mentioned}> **${getDisplayName(
                           member
-                        )}** has left the server.*`
+                        )}** ${message}*`
                       );
                     } else {
-                      await channel.send(`> ***${getDisplayName(member)}** has left the server.*`);
+                      await channel.send(`> ***${getDisplayName(member)}** ${message}*`);
                     }
                   } catch (err) {
                     console.error(`[f34f3] Couldn't post message: `, err.message);
