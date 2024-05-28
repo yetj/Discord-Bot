@@ -395,4 +395,50 @@ module.exports = {
       });
     }
   },
+  async autoload(client) {
+    client.on("roleDelete", async (role) => {
+      const guildId = role.guild.id;
+      const roleId = role.id;
+      const roleName = role.name;
+
+      try {
+        const results = await CustomRoleManager.find({
+          $and: [{ gid: guildId }, { $or: [{ role_manager: roleId }, { role_add: roleId }] }],
+        });
+
+        results.forEach(async (entry) => {
+          const guild = await client.guilds.cache.get(entry.gid);
+
+          if (guild) {
+            guild.systemChannel.send(
+              `> *Removed **Custom Role Manager** configuration for role **${roleName}** due to role removal.*`
+            );
+
+            console.log(
+              `[CRM] Removed Custom Role Manager configuration for role "${roleName}" due to role removal on guild "${guild.name}".`
+            );
+          }
+        });
+
+        await CustomRoleManager.deleteMany({
+          $and: [{ gid: guildId }, { $or: [{ role_manager: roleId }, { role_add: roleId }] }],
+        });
+      } catch (err) {
+        console.error("[g33ff] ERROR: ", err);
+      }
+    });
+
+    client.on("guildDelete", async (guild) => {
+      try {
+        const results = CustomRoleManager.find({ gid: guild.id });
+
+        if (results) {
+          await CustomRoleManager.deleteMany({ gid: guild.id });
+          console.log(`[CRM] Guild "${guild.name}" removed as bot was removed from the guild.`);
+        }
+      } catch (err) {
+        console.error("[g5g3f] ERROR: ", err);
+      }
+    });
+  },
 };
