@@ -104,6 +104,32 @@ module.exports = {
             .setMinLength(1)
             .setDescription("Separator for users and roles - default: space")
         )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("role_list")
+        .setDescription("List all members with a role")
+        .addRoleOption((option) =>
+          option.setName("role").setDescription("Role that members have.").setRequired(true)
+        )
+        .addStringOption((option) =>
+          option
+            .setName("list_type")
+            .setDescription("Way how nicnkames should be displayed on the list")
+            .addChoices(
+              { name: "Display name", value: "display_name" },
+              { name: "Only IDs", value: "ids" },
+              { name: "Mention", value: "mention" },
+              { name: "Discord Name (TAG)", value: "username" }
+            )
+            .setRequired(true)
+        )
+        .addStringOption((option) =>
+          option
+            .setName("skip_bots")
+            .setDescription("Skip listing bots (default: yes)")
+            .addChoices({ name: "Yes", value: "yes" }, { name: "No", value: "no" })
+        )
     ),
   async execute(interaction) {
     if (
@@ -268,6 +294,114 @@ module.exports = {
       await interaction.deferReply({ ephemeral: true });
 
       module.exports.multiRoleManage(interaction, users, roles, "remove", separator);
+    } else if (interaction.options.getSubcommand() === "role_list") {
+      const role = interaction.options.getRole("role");
+      const list_type = interaction.options.getString("list_type");
+      const skip_bots = interaction.options.getString("skip_bots") ?? "yes";
+
+      try {
+        const configuredCustomRoleManager = await CustomRoleManager.find({
+          gid: interaction.guildId,
+          role_add: role.id,
+        });
+
+        let hasPermsToManageRole = false;
+        if (!configuredCustomRoleManager) {
+          return await interaction.followUp({
+            content: `> *Role ${role} doesn't have a manager.*`,
+            ephemeral: true,
+          });
+        }
+
+        const interationUser = await interaction.guild.members.fetch(interaction.user.id, {
+          cache: true,
+          force: true,
+        });
+
+        configuredCustomRoleManager.forEach((crm) => {
+          if (interationUser.roles.cache.has(crm.role_manager)) {
+            hasPermsToManageRole = true;
+          }
+        });
+
+        if (!hasPermsToManageRole) {
+          return await interaction.followUp({
+            content: `> *You don't have permissions to manage role ${role}.*`,
+            ephemeral: true,
+          });
+        }
+      } catch (err) {
+        console.error("[f34ca] CRM: ", err);
+        return await interaction.followUp({
+          content: `[f34ca] Something went wrong. Try again later.`,
+          ephemeral: true,
+        });
+      }
+
+      const allMembers = await interaction.guild.members.fetch({ cache: true, force: true });
+
+      const filteredMembers = await allMembers.filter((m) => {
+        if (skip_bots === "no") {
+          return m.roles.cache.has(role.id);
+        } else {
+          return m.roles.cache.has(role.id) && m.user.bot === false;
+        }
+      });
+
+      await interaction.deferReply();
+
+      let post = "";
+      let page = 1;
+
+      if (filteredMembers.size) {
+        filteredMembers.forEach(async (member) => {
+          if (list_type == "ids") {
+            post += `${member.user.id}\n`;
+          } else if (list_type == "display_name") {
+            if (member.nickname) {
+              post += `${member.nickname}\n`;
+            } else if (member.user.globalName) {
+              post += `${member.user.globalName}\n`;
+            } else {
+              post += `${member.user.username}\n`;
+            }
+          } else if (list_type == "username") {
+            post += `${member.user.username}\n`;
+          } else {
+            post += `${member}\n`;
+          }
+
+          if (post.length > 950) {
+            const embed = new EmbedBuilder()
+              .setColor("#1111cc")
+              .setTitle("CRM Members")
+              .setDescription(`Found **${filteredMembers.size}** member(s) with role ${role}`)
+              .addFields([{ name: "List of members:", value: `${post}`, inline: true }])
+              .setFooter({ text: `Page ${page}` });
+
+            page++;
+
+            post = "";
+            await interaction.followUp({ embeds: [embed], ephemeral: true });
+          }
+        });
+
+        const embed = new EmbedBuilder()
+          .setColor("#1111cc")
+          .setTitle("CRM Members")
+          .setDescription(`Found **${filteredMembers.size}** member(s) with role ${role}`)
+          .addFields([{ name: "List of members:", value: `${post}`, inline: true }])
+          .setFooter({ text: `Page ${page}` });
+
+        await interaction.followUp({ embeds: [embed], ephemeral: true });
+      } else {
+        const embed = new EmbedBuilder()
+          .setColor("#1111cc")
+          .setTitle("CRM Members")
+          .setDescription(`NOT found any member with role ${role}`);
+
+        await interaction.followUp({ embeds: [embed], ephemeral: true });
+      }
     }
   },
   async multiRoleManage(interaction, users, roles, type, separator) {
