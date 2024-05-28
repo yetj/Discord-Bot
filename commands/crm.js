@@ -299,6 +299,8 @@ module.exports = {
       const list_type = interaction.options.getString("list_type");
       const skip_bots = interaction.options.getString("skip_bots") ?? "yes";
 
+      await interaction.deferReply({ ephemeral: true });
+
       try {
         const configuredCustomRoleManager = await CustomRoleManager.find({
           gid: interaction.guildId,
@@ -347,8 +349,6 @@ module.exports = {
           return m.roles.cache.has(role.id) && m.user.bot === false;
         }
       });
-
-      await interaction.deferReply();
 
       let post = "";
       let page = 1;
