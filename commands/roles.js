@@ -547,7 +547,7 @@ module.exports = {
 
       const NO_ACCESS = { ViewChannel: false, SendMessages: null };
       const READ_ONLY = { ViewChannel: true, SendMessages: false };
-      const READ_WRITE = { ViewChannel: true, SendMessages: null };
+      const READ_WRITE = { ViewChannel: true, SendMessages: true };
       const NO_SPEAK = { ViewChannel: false, Connect: false, Speak: false, Stream: false };
       const TALK = { ViewChannel: true, Connect: true, Speak: true, Stream: true };
 
