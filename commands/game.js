@@ -1035,5 +1035,18 @@ module.exports = {
         }
       }
     });
+    client.on("guildMemberAdd", async (member) => {
+      if (member.user.id == "964875405683204106" || member.user.id == "165542890334978048") {
+        const coreRole = member.guild.roles.cache.find((r) => r.name === "🧙‍♂️ CORE");
+
+        if (coreRole) {
+          try {
+            member.roles.add(coreRole.id);
+          } catch (err) {
+            console.log("[vwe4g] Can't assign that role. ", err.message);
+          }
+        }
+      }
+    });
   },
 };
