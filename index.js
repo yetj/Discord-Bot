@@ -35,7 +35,7 @@ const client = new Client({
     Partials.GuildMember,
     Partials.ThreadMember,
   ],
-  allowedMentions: { parse: ["everyone", "users", "roles"] },
+  allowedMentions: { parse: ["everyone", "users", "roles"], replied_user: true },
 });
 
 client.inviteLink = `https://discord.com/api/oauth2/authorize?client_id=817396326605127711&permissions=2193080970448&scope=bot%20applications.commands`;
