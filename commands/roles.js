@@ -1028,8 +1028,6 @@ module.exports = {
                   if (list_type == "shadow_mention") {
                     setTimeout(p.delete(), 500);
                   }
-
-                  interaction.deleteReply();
                 });
             }
             post = "";
@@ -1054,8 +1052,6 @@ module.exports = {
               if (list_type == "shadow_mention") {
                 setTimeout(p.delete(), 500);
               }
-
-              interaction.deleteReply();
             });
         }
       } else {
@@ -1067,8 +1063,13 @@ module.exports = {
         if (embed_post && list_type != "shadow_mention") {
           await interaction.followUp({ embeds: [embed] });
         } else {
-          await interaction.followUp(`## Members\n> NOT found any member with a role ${role}`);
+          await interaction.channel.send({
+            content: `## Members\n> NOT found any member with a role ${role}`,
+          });
         }
+      }
+      if (!embed_post) {
+        interaction.deleteReply();
       }
     }
   },
