@@ -243,15 +243,17 @@ module.exports = {
                 { name: "Display name", value: "display_name" },
                 { name: "Only IDs", value: "ids" },
                 { name: "Mention", value: "mention" },
-                { name: "Discord Name (TAG)", value: "username" }
+                { name: "Discord Name (TAG)", value: "username" },
+                { name: "Formated IDs", value: "formated_ids" },
+                { name: "Shadow mention", value: "shadow_mention" }
               )
               .setRequired(true)
           )
-          .addStringOption((option) =>
-            option
-              .setName("skip_bots")
-              .setDescription("Skip listing bots (default: yes)")
-              .addChoices({ name: "Yes", value: "yes" }, { name: "No", value: "no" })
+          .addBooleanOption((option) =>
+            option.setName("skip_bots").setDescription("Skip listing bots (default: yes)")
+          )
+          .addBooleanOption((option) =>
+            option.setName("embed").setDescription("Post it as an embed message (default: yes).")
           )
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
@@ -967,12 +969,13 @@ module.exports = {
     } else if (interaction.options.getSubcommand() === "list_members_with_role") {
       const role = interaction.options.getRole("role");
       const list_type = interaction.options.getString("list_type");
-      const skip_bots = interaction.options.getString("skip_bots") ?? "yes";
+      const skip_bots = interaction.options.getBoolean("skip_bots") ?? true;
+      const embed_post = interaction.options.getBoolean("embed") ?? true;
 
       const allMembers = await interaction.guild.members.fetch({ cache: true, force: true });
 
       const filteredMembers = await allMembers.filter((m) => {
-        if (skip_bots === "no") {
+        if (skip_bots === false) {
           return m.roles.cache.has(role.id);
         } else {
           return m.roles.cache.has(role.id) && m.user.bot === false;
@@ -998,6 +1001,8 @@ module.exports = {
             }
           } else if (list_type == "username") {
             post += `${member.user.username}\n`;
+          } else if (list_type == "formated_ids") {
+            post += `\`<@${member.user.id}>\`\n`;
           } else {
             post += `${member}\n`;
           }
@@ -1013,7 +1018,24 @@ module.exports = {
             page++;
 
             post = "";
-            await interaction.followUp({ embeds: [embed] });
+
+            if (embed_post && list_type != "shadow_mention") {
+              await interaction.followUp({ embeds: [embed] });
+            } else {
+              await interaction
+                .followUp({
+                  content: `## Members\n> Found **${filteredMembers.size}** member(s) with role ${role}\n**List of members:**\n${post}\n*Page ${page}*`,
+                })
+                .then((p) => {
+                  if (list_type == "shadow_mention") {
+                    setTimeout(() => {
+                      p.delete();
+                    }, 1000);
+                  }
+
+                  interaction.deleteReply();
+                });
+            }
           }
         });
 
@@ -1024,14 +1046,34 @@ module.exports = {
           .addFields([{ name: "List of members:", value: `${post}`, inline: true }])
           .setFooter({ text: `Page ${page}` });
 
-        await interaction.followUp({ embeds: [embed] });
+        if (embed_post && list_type != "shadow_mention") {
+          await interaction.followUp({ embeds: [embed] });
+        } else {
+          await interaction.channel
+            .send({
+              content: `## Members\n> Found **${filteredMembers.size}** member(s) with role ${role}\n**List of members:**\n${post}\n*Page ${page}*`,
+            })
+            .then((p) => {
+              if (list_type == "shadow_mention") {
+                setTimeout(() => {
+                  p.delete();
+                }, 1000);
+              }
+
+              interaction.deleteReply();
+            });
+        }
       } else {
         const embed = new EmbedBuilder()
           .setColor("#cc2222")
           .setTitle("Members")
-          .setDescription(`NOT found any member with role ${role}`);
+          .setDescription(`NOT found any member with a role ${role}`);
 
-        await interaction.followUp({ embeds: [embed] });
+        if (embed_post && list_type != "shadow_mention") {
+          await interaction.followUp({ embeds: [embed] });
+        } else {
+          await interaction.followUp(`## Members\n> NOT found any member with a role ${role}`);
+        }
       }
     }
   },
