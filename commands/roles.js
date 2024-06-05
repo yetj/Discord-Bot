@@ -1018,19 +1018,21 @@ module.exports = {
             page++;
 
             if (embed_post && list_type != "shadow_mention") {
+              post = "";
               await interaction.followUp({ embeds: [embed] });
             } else {
+              const content = `## Members\n> Found **${filteredMembers.size}** member(s) with role ${role}\n**List of members:**\n${post}\n*Page ${page}*`;
+              post = "";
               await interaction.channel
                 .send({
-                  content: `## Members\n> Found **${filteredMembers.size}** member(s) with role ${role}\n**List of members:**\n${post}\n*Page ${page}*`,
+                  content: `${content}`,
                 })
                 .then(async (p) => {
                   if (list_type == "shadow_mention") {
-                    setTimeout(p.delete(), 500);
+                    setTimeout(p.delete(), 300);
                   }
                 });
             }
-            post = "";
           }
         });
 
@@ -1039,7 +1041,7 @@ module.exports = {
           .setTitle("Members")
           .setDescription(`Found **${filteredMembers.size}** member(s) with role ${role}`)
           .addFields([{ name: "List of members:", value: `${post}`, inline: true }])
-          .setFooter({ text: `Page ${page}` });
+          .setFooter({ text: `Page ${page + 1}` });
 
         if (embed_post && list_type != "shadow_mention") {
           await interaction.followUp({ embeds: [embed] });
@@ -1050,7 +1052,7 @@ module.exports = {
             })
             .then((p) => {
               if (list_type == "shadow_mention") {
-                setTimeout(p.delete(), 500);
+                setTimeout(p.delete(), 300);
               }
             });
         }
@@ -1068,7 +1070,8 @@ module.exports = {
           });
         }
       }
-      if (!embed_post) {
+
+      if (!embed_post || list_type != "shadow_mention") {
         interaction.deleteReply();
       }
     }
