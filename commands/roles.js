@@ -1017,25 +1017,22 @@ module.exports = {
 
             page++;
 
-            post = "";
-
             if (embed_post && list_type != "shadow_mention") {
               await interaction.followUp({ embeds: [embed] });
             } else {
-              await interaction
-                .followUp({
+              await interaction.channel
+                .send({
                   content: `## Members\n> Found **${filteredMembers.size}** member(s) with role ${role}\n**List of members:**\n${post}\n*Page ${page}*`,
                 })
-                .then((p) => {
+                .then(async (p) => {
                   if (list_type == "shadow_mention") {
-                    setTimeout(() => {
-                      p.delete();
-                    }, 1000);
+                    setTimeout(p.delete(), 500);
                   }
 
                   interaction.deleteReply();
                 });
             }
+            post = "";
           }
         });
 
@@ -1055,9 +1052,7 @@ module.exports = {
             })
             .then((p) => {
               if (list_type == "shadow_mention") {
-                setTimeout(() => {
-                  p.delete();
-                }, 1000);
+                setTimeout(p.delete(), 500);
               }
 
               interaction.deleteReply();
