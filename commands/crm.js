@@ -607,6 +607,19 @@ module.exports = {
       } catch (err) {
         console.error("[g5g3f] ERROR: ", err);
       }
+
+      try {
+        const results = CustomRoleManagerLogs.find({ gid: guild.id });
+
+        if (results) {
+          await CustomRoleManagerLogs.deleteMany({ gid: guild.id });
+          console.log(
+            `[CRM] Logs of guild "${guild.name}" removed as bot was removed from the guild.`
+          );
+        }
+      } catch (err) {
+        console.error("[mj902g] ERROR: ", err);
+      }
     });
   },
 };
