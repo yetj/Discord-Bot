@@ -4,7 +4,8 @@ const {
   EmbedBuilder,
   ChannelType,
 } = require("discord.js");
-const CustomRoleManager = require("../dbmodels/crm.js");
+const { CustomRoleManager, CustomRoleManagerLogs } = require("../dbmodels/crm.js");
+const getDisplayName = require("../utils/getDisplayName.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -315,13 +316,13 @@ module.exports = {
           });
         }
 
-        const interationUser = await interaction.guild.members.fetch(interaction.user.id, {
+        const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
           cache: true,
           force: true,
         });
 
         configuredCustomRoleManager.forEach((crm) => {
-          if (interationUser.roles.cache.has(crm.role_manager)) {
+          if (interactionUser.roles.cache.has(crm.role_manager)) {
             hasPermsToManageRole = true;
           }
         });
@@ -483,7 +484,7 @@ module.exports = {
         });
       }
 
-      const interationUser = await interaction.guild.members.fetch(interaction.user.id, {
+      const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
         cache: true,
         force: true,
       });
@@ -494,7 +495,7 @@ module.exports = {
       });
 
       configuredCustomRoleManager.forEach((crm) => {
-        if (interationUser.roles.cache.has(crm.role_manager)) {
+        if (interactionUser.roles.cache.has(crm.role_manager)) {
           hasPermsToManageRole = true;
         }
       });
@@ -518,6 +519,39 @@ module.exports = {
 
         await interaction.followUp({
           content: `> *Role ${role} removed from ${user}.*`,
+          ephemeral: true,
+        });
+      }
+
+      try {
+        let full_cmd = "";
+
+        const options = interaction.options._hoistedOptions;
+
+        options.forEach((option) => {
+          if (full_cmd.length) {
+            full_cmd += ` | `;
+          }
+          full_cmd += `\`${option.name}\`: \`${option.value}\``;
+        });
+
+        const newDatabaseLog = await new CustomRoleManagerLogs({
+          gid: interaction.guildId,
+          user: interaction.user.id,
+          user_name: getDisplayName(interactionUser),
+          command: interaction.options.getSubcommand(),
+          full_command: full_cmd,
+          role: role.id,
+          role_name: role.name,
+          victim: user.id,
+          victim_name: getDisplayName(userToManage),
+        });
+
+        await newDatabaseLog.save();
+      } catch (err) {
+        console.error(err);
+        await interaction.followUp({
+          content: `> [y45gf3] Error while adding logs in Custom Role Manager. Please try again later.`,
           ephemeral: true,
         });
       }
