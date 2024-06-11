@@ -384,7 +384,9 @@ module.exports = {
           (m) =>
             m.user.id == memberSplitted ||
             m.nickname == memberSplitted ||
-            (m.user.username == username && m.user.discriminator == discriminator)
+            (m.user.username == username && m.user.discriminator == discriminator) ||
+            (m.user.username == memberSplitted && m.user.discriminator == "0") ||
+            (m.user.globalName == memberSplitted && m.user.discriminator == "0")
         );
 
         if (member) {
@@ -440,7 +442,7 @@ module.exports = {
           `Removed role ${role} from ${promises.length} member(s) separated by "${separator}"`
         )
         .addFields([
-          { name: "Found members:", value: `${post}`, inline: true },
+          { name: "Found members:", value: `${post.length > 0 ? post : "-"}`, inline: true },
           {
             name: "NOT Found members:",
             value: `${
@@ -982,7 +984,7 @@ module.exports = {
         }
       });
 
-      await interaction.deferReply();
+      await interaction.deferReply({ ephemeral: true });
 
       let post = "";
       let page = 1;
@@ -1071,7 +1073,7 @@ module.exports = {
         }
       }
 
-      if (!embed_post || list_type != "shadow_mention") {
+      if (!embed_post && list_type != "shadow_mention") {
         interaction.deleteReply();
       }
     }
