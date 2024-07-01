@@ -8,7 +8,7 @@ module.exports = {
     if (server) {
       const channel = await server.channels.cache.find((c) => c.id === "1257343922972131389");
       if (channel) {
-        channel.post(`> Bot has joined the server: **${guild.name}** (#${guild.id})`);
+        channel.send(`> Bot has joined the server: **${guild.name}** (#${guild.id})`);
       }
     }
 
