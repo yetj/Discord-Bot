@@ -3,20 +3,12 @@ module.exports = {
   async execute(client, guild) {
     console.log(`> Bot has left the server: ${guild.name} (#${guild.id})`);
 
-    /*
-        client.db.query(`DELETE FROM sync WHERE gid = '${guild.id}' OR source = '${guild.id}'`, (err, result) => {
-            if (err) {
-                console.error(err)
-            }
-            console.log(`>>> Removed sync servers connected with this server`)
-        })
-
-        client.db.query("SELECT * FROM sync", (err, result, fields) => {
-            if (err) {
-                console.error(err)
-            }
-            client.sync = JSON.parse(JSON.stringify(result));
-        })
-        */
+    const server = await client.guilds.cache.get("934748817339846667");
+    if (server) {
+      const channel = await server.channels.cache.find((c) => c.id === "1257343922972131389");
+      if (channel) {
+        channel.post(`> Bot has left the server: **${guild.name}** (#${guild.id})`);
+      }
+    }
   },
 };
