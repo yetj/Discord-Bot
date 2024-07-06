@@ -38,7 +38,7 @@ const client = new Client({
   allowedMentions: { parse: ["everyone", "users", "roles"], replied_user: true },
 });
 
-client.inviteLink = `https://discord.com/api/oauth2/authorize?client_id=817396326605127711&permissions=2193080970448&scope=bot%20applications.commands`;
+client.inviteLink = `https://discord.com/oauth2/authorize?client_id=817396326605127711&permissions=1759218604441591&integration_type=0&scope=bot+applications.commands`;
 
 // START MySQL
 client.db = createPool(mysql);
