@@ -1013,7 +1013,9 @@ module.exports = {
             const embed = new EmbedBuilder()
               .setColor("#2222cc")
               .setTitle("Members")
-              .setDescription(`Found **${filteredMembers.size}** member(s) with role ${role}`)
+              .setDescription(
+                `Found **${filteredMembers.size}** member(s) with role **${role.name}**`
+              )
               .addFields([{ name: "List of members:", value: `${post}`, inline: true }])
               .setFooter({ text: `Page ${page}` });
 
@@ -1023,7 +1025,7 @@ module.exports = {
               post = "";
               await interaction.followUp({ embeds: [embed] });
             } else {
-              const content = `## Members\n> Found **${filteredMembers.size}** member(s) with role ${role}\n**List of members:**\n${post}\n*Page ${page}*`;
+              const content = `## Members\n> Found **${filteredMembers.size}** member(s) with role **${role.name}**\n**List of members:**\n${post}\n*Page ${page}*`;
               post = "";
               await interaction.channel
                 .send({
@@ -1041,7 +1043,7 @@ module.exports = {
         const embed = new EmbedBuilder()
           .setColor("#2222cc")
           .setTitle("Members")
-          .setDescription(`Found **${filteredMembers.size}** member(s) with role ${role}`)
+          .setDescription(`Found **${filteredMembers.size}** member(s) with role **${role.name}**`)
           .addFields([{ name: "List of members:", value: `${post}`, inline: true }])
           .setFooter({ text: `Page ${page + 1}` });
 
@@ -1050,7 +1052,7 @@ module.exports = {
         } else {
           await interaction.channel
             .send({
-              content: `## Members\n> Found **${filteredMembers.size}** member(s) with role ${role}\n**List of members:**\n${post}\n*Page ${page}*`,
+              content: `## Members\n> Found **${filteredMembers.size}** member(s) with role **${role.name}**\n**List of members:**\n${post}\n*Page ${page}*`,
             })
             .then((p) => {
               if (list_type == "shadow_mention") {
@@ -1062,13 +1064,13 @@ module.exports = {
         const embed = new EmbedBuilder()
           .setColor("#cc2222")
           .setTitle("Members")
-          .setDescription(`NOT found any member with a role ${role}`);
+          .setDescription(`NOT found any member with a role **${role.name}**`);
 
         if (embed_post && list_type != "shadow_mention") {
           await interaction.followUp({ embeds: [embed] });
         } else {
           await interaction.channel.send({
-            content: `## Members\n> NOT found any member with a role ${role}`,
+            content: `## Members\n> NOT found any member with a role **${role.name}**`,
           });
         }
       }
