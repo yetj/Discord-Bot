@@ -129,6 +129,13 @@ module.exports = {
           .addBooleanOption((option) =>
             option.setName("remove").setDescription("Instead of adding remove roles from roles?")
           )
+          .addBooleanOption((option) =>
+            option
+              .setName("setroles")
+              .setDescription(
+                "Instead of adding set roles that should be assigned and others will be removed?"
+              )
+          )
           .addStringOption((option) =>
             option
               .setName("separator")
@@ -648,6 +655,7 @@ module.exports = {
       const roles_to_add = interaction.options.getString("roles_to_add");
       const separator = interaction.options.getString("separator") ?? " ";
       const remove = interaction.options.getBoolean("remove") ?? false;
+      const setroles = interaction.options.getBoolean("setroles") ?? false;
 
       await interaction.guild.members.fetch({ cache: true, force: true });
 
@@ -696,11 +704,17 @@ module.exports = {
           const membersWithRole = roleData.members;
 
           membersWithRole.forEach((member) => {
-            for (role_to_add of rolesToAdd) {
-              if (remove) {
-                promises.push(member.roles.remove(role_to_add));
-              } else {
-                promises.push(member.roles.add(role_to_add));
+            if (remove && setroles) {
+              promises.push(member.roles.set([]));
+            } else if (setroles) {
+              promises.push(member.roles.set(rolesToAdd));
+            } else {
+              for (role_to_add of rolesToAdd) {
+                if (remove) {
+                  promises.push(member.roles.remove(role_to_add));
+                } else {
+                  promises.push(member.roles.add(role_to_add));
+                }
               }
             }
           });
@@ -709,7 +723,11 @@ module.exports = {
         }
       }
 
-      if (remove) {
+      if (remove && setroles) {
+        await interaction.reply({
+          content: `> *Removing ALL roles from members. Please wait...*\n${messageReply}`,
+        });
+      } else if (remove) {
         await interaction.reply({
           content: `> *Removing roles from members. Please wait...*\n${messageReply}`,
         });
@@ -721,7 +739,17 @@ module.exports = {
 
       await Promise.all(promises);
 
-      if (remove) {
+      if (remove && setroles) {
+        await interaction.followUp(
+          `> *Removed ALL roles from **${promises.length / rolesToAdd.length}** member(s)*`
+        );
+      } else if (setroles) {
+        await interaction.followUp(
+          `> *Set **${rolesToAdd.length}** role(s) to **${
+            promises.length / rolesToAdd.length
+          }** member(s)*`
+        );
+      } else if (remove) {
         await interaction.followUp(
           `> *Removed **${rolesToAdd.length}** role(s) from **${
             promises.length / rolesToAdd.length
