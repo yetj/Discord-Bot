@@ -1021,9 +1021,6 @@ module.exports = {
       let post = "";
       let page = 1;
 
-      console.log("all ", allMembers);
-      console.log("filtered", filteredMembers);
-
       if (filteredMembers.size) {
         filteredMembers.forEach(async (member) => {
           if (list_type == "ids") {
