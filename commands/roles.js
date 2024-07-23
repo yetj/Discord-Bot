@@ -262,6 +262,9 @@ module.exports = {
           .addBooleanOption((option) =>
             option.setName("embed").setDescription("Post it as an embed message (default: yes).")
           )
+          .addBooleanOption((option) =>
+            option.setName("result_as_file").setDescription("Add response as a file? (default: no)")
+          )
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
   async execute(interaction) {
@@ -318,7 +321,7 @@ module.exports = {
       memberList.forEach(async (member) => {
         post += `${member}\n`;
 
-        if (post.length > 950) {
+        if (post.length > 1950) {
           const embed = new EmbedBuilder()
             .setColor("#2222cc")
             .setTitle("Roles")
@@ -416,7 +419,7 @@ module.exports = {
       memberList.forEach(async (member) => {
         post += `${member}\n`;
 
-        if (post.length > 950) {
+        if (post.length > 1950) {
           const embed = new EmbedBuilder()
             .setColor("#2222cc")
             .setTitle("Roles")
@@ -497,7 +500,7 @@ module.exports = {
       membersWithRemovedRole.forEach(async (member) => {
         post += `${member}\n`;
 
-        if (post.length > 950) {
+        if (post.length > 1950) {
           const embed = new EmbedBuilder()
             .setColor("#2222cc")
             .setTitle("Roles")
@@ -965,7 +968,7 @@ module.exports = {
       memberListNotFound.forEach(async (member) => {
         post += `${member}\n`;
 
-        if (post.length > 950) {
+        if (post.length > 1950) {
           const embed = new EmbedBuilder()
             .setColor("#2222cc")
             .setTitle("Roles")
@@ -1001,6 +1004,7 @@ module.exports = {
       const list_type = interaction.options.getString("list_type");
       const skip_bots = interaction.options.getBoolean("skip_bots") ?? true;
       const embed_post = interaction.options.getBoolean("embed") ?? true;
+      const result_as_file = interaction.options.getBoolean("result_as_file") ?? false;
 
       const allMembers = await interaction.guild.members.fetch({ cache: true, force: true });
 
@@ -1016,6 +1020,9 @@ module.exports = {
 
       let post = "";
       let page = 1;
+
+      console.log("all ", allMembers);
+      console.log("filtered", filteredMembers);
 
       if (filteredMembers.size) {
         filteredMembers.forEach(async (member) => {
@@ -1037,7 +1044,7 @@ module.exports = {
             post += `${member}\n`;
           }
 
-          if (post.length > 950) {
+          if (post.length > 1950 && !result_as_file) {
             const embed = new EmbedBuilder()
               .setColor("#2222cc")
               .setTitle("Members")
@@ -1068,25 +1075,45 @@ module.exports = {
           }
         });
 
+        let files = [];
+
         const embed = new EmbedBuilder()
           .setColor("#2222cc")
           .setTitle("Members")
-          .setDescription(`Found **${filteredMembers.size}** member(s) with role **${role.name}**`)
-          .addFields([{ name: "List of members:", value: `${post}`, inline: true }])
-          .setFooter({ text: `Page ${page + 1}` });
+          .setDescription(`Found **${filteredMembers.size}** member(s) with role **${role.name}**`);
+
+        if (result_as_file) {
+          const buffer = Buffer.from(post, "utf-8");
+          files = [
+            {
+              attachment: buffer,
+              name: `member_list.log`,
+            },
+          ];
+        } else {
+          embed.addFields([{ name: "List of members:", value: `${post}`, inline: true }]);
+          embed.setFooter({ text: `Page ${page + 1}` });
+        }
 
         if (embed_post && list_type != "shadow_mention") {
-          await interaction.followUp({ embeds: [embed] });
+          await interaction.followUp({ embeds: [embed], files });
         } else {
-          await interaction.channel
-            .send({
-              content: `## Members\n> Found **${filteredMembers.size}** member(s) with role **${role.name}**\n**List of members:**\n${post}\n*Page ${page}*`,
-            })
-            .then((p) => {
-              if (list_type == "shadow_mention") {
-                setTimeout(p.delete(), 300);
-              }
+          if (result_as_file) {
+            await interaction.channel.send({
+              content: `## Members\n> Found **${filteredMembers.size}** member(s) with role **${role.name}**\n**List of members added to the file.`,
+              files,
             });
+          } else {
+            await interaction.channel
+              .send({
+                content: `## Members\n> Found **${filteredMembers.size}** member(s) with role **${role.name}**\n**List of members:**\n${post}\n*Page ${page}*`,
+              })
+              .then((p) => {
+                if (list_type == "shadow_mention") {
+                  setTimeout(p.delete(), 300);
+                }
+              });
+          }
         }
       } else {
         const embed = new EmbedBuilder()
