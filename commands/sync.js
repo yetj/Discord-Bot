@@ -369,7 +369,7 @@ module.exports = {
               );
             }
 
-            if (found.update_nick === 1) {
+            if (found.update_nick === true) {
               if (found.prefix.length > 0) {
                 let newNickname = found.prefix + member.displayName;
                 if (newNickname.length > 32) {
@@ -577,7 +577,7 @@ module.exports = {
                       }
                     }
 
-                    if (result.update_nick === 1) {
+                    if (result.update_nick === true) {
                       try {
                         let newNickname = result.prefix + sourceMember.displayName;
                         if (newNickname.length > 32) {
@@ -635,7 +635,7 @@ module.exports = {
                       assigned = true;
                     }
 
-                    if (result.update_nick === 1) {
+                    if (result.update_nick === true) {
                       try {
                         let newNickname = result.prefix + sourceMember.displayName;
                         if (newNickname.length > 32) {
@@ -801,7 +801,7 @@ module.exports = {
                       }
                     }
 
-                    if (result.update_nick === 1) {
+                    if (result.update_nick === true) {
                       try {
                         let newNickname = result.prefix + newMember.displayName;
                         if (newNickname.length > 32) {
