@@ -45,7 +45,7 @@ module.exports = {
       subcommand
         .setName("remove")
         .setDescription("Remove server")
-        .addIntegerOption((option) =>
+        .addStringOption((option) =>
           option.setName("id").setDescription("ID of the connection").setRequired(true)
         )
     )
@@ -59,7 +59,7 @@ module.exports = {
       subcommand
         .setName("reload")
         .setDescription("Reload synchronization for specific entry")
-        .addIntegerOption((option) =>
+        .addStringOption((option) =>
           option.setName("id").setDescription("ID of the connection").setRequired(true)
         )
         .addBooleanOption((option) =>
@@ -207,7 +207,7 @@ module.exports = {
         );
       }
     } else if (interaction.options.getSubcommand() === "remove") {
-      const id = interaction.options.getInteger("id");
+      const id = interaction.options.getString("id");
 
       let sync = null;
 
@@ -273,7 +273,7 @@ module.exports = {
 
       await interaction.reply({ embeds: [embed] });
     } else if (interaction.options.getSubcommand() === "reload") {
-      const id = interaction.options.getInteger("id");
+      const id = interaction.options.getString("id");
       const remove_existing_members = interaction.options.getBoolean("remove_existing_members");
       const force_update_all_members = interaction.options.getBoolean("force_update_all_members");
       const skip_updating_members_with_role = interaction.options.getRole(
@@ -318,6 +318,8 @@ module.exports = {
           member._roles.includes(found.role_source)
         );
       });
+
+      const destinationServer = interaction.client.guilds.cache.get(found.gid);
       await destinationServer.members.fetch({ force: true }).then((fetchedMembers) => {
         membersWithDestinationRole = fetchedMembers.filter((member) =>
           member._roles.includes(found.role_gid)
