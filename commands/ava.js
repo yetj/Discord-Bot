@@ -366,7 +366,7 @@ module.exports = {
     // check if have admin perms for setup commands
     if (
       !interaction.memberPermissions.has(PermissionFlagsBits.Administrator) &&
-      ["setup_add", "setup_show", "setup_remove", "plus_one_category_remove"].indexOf(
+      ["setup", "setup_show", "setup_remove", "plus_one_category_remove"].indexOf(
         interaction.options.getSubcommand()
       ) !== -1
     ) {
