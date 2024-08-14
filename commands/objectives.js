@@ -63,7 +63,7 @@ module.exports = {
         )
     )
     .addSubcommand((subcommand) =>
-      subcommand.setName("setup_reload_summary").setDescription("Reload objective summary")
+      subcommand.setName("reload_summary").setDescription("Reload objective summary")
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -192,7 +192,6 @@ module.exports = {
         "setup",
         "setup_show",
         "setup_remove",
-        "setup_reload_summary",
         "setup_objective_create",
         "setup_objective_remove",
       ].indexOf(interaction.options.getSubcommand()) !== -1
@@ -496,50 +495,6 @@ module.exports = {
           `[h4cdfa] Error while showing Objective Settings. Please try again later.`
         );
       }
-    } else if (interaction.options.getSubcommand() == "setup_reload_summary") {
-      await interaction.deferReply({ ephemeral: true });
-
-      try {
-        let manager_perms = false;
-
-        if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
-          manager_perms = true;
-        }
-
-        const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
-          cache: true,
-          force: true,
-        });
-
-        if (!manager_perms) {
-          const managerRoles = await ObjectivesSettings.find({
-            gid: interaction.guildId,
-            option: SETTINGS_OPTIONS.manager_role.value,
-          });
-
-          await managerRoles.forEach((mgr) => {
-            if (interactionUser.roles.cache.has(mgr.value)) {
-              manager_perms = true;
-            }
-          });
-        }
-
-        if (!manager_perms) {
-          return await interaction.reply({
-            content: `> *You don't have permissions to change status of this Objective.*`,
-            ephemeral: true,
-          });
-        }
-
-        this.updateSummary(interaction, false);
-
-        await interaction.followUp({ content: `> *Objective Summary reloaded.*`, ephemeral: true });
-      } catch (err) {
-        console.error(err);
-        return await interaction.followUp(
-          `[h45k8] Error while manually updating Objective summary. Please try again later.`
-        );
-      }
     } else if (interaction.options.getSubcommand() == "setup_objective_create") {
       const objective_name = interaction.options.getString("objective_name").trim();
       const thumbnail_url = interaction.options.getString("thumbnail_url") ?? "";
@@ -699,7 +654,7 @@ module.exports = {
           gid: interaction.guildId,
         }).sort({ option: 1 });
 
-        settingsList[SETTINGS_OPTIONS.manager_role.value] = [];
+        settings[SETTINGS_OPTIONS.manager_role.value] = [];
 
         await objectivesSettings.forEach((setting) => {
           if (setting.option == SETTINGS_OPTIONS.upcoming_objectives_channel.value) {
@@ -851,6 +806,50 @@ module.exports = {
         console.error(err);
         return await interaction.followUp(
           `[g45d2f] Error while checking if objective already exist. Please try again later.`
+        );
+      }
+    } else if (interaction.options.getSubcommand() == "reload_summary") {
+      await interaction.deferReply({ ephemeral: true });
+
+      try {
+        let manager_perms = false;
+
+        if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
+          manager_perms = true;
+        }
+
+        const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
+          cache: true,
+          force: true,
+        });
+
+        if (!manager_perms) {
+          const managerRoles = await ObjectivesSettings.find({
+            gid: interaction.guildId,
+            option: SETTINGS_OPTIONS.manager_role.value,
+          });
+
+          await managerRoles.forEach((mgr) => {
+            if (interactionUser.roles.cache.has(mgr.value)) {
+              manager_perms = true;
+            }
+          });
+        }
+
+        if (!manager_perms) {
+          return await interaction.reply({
+            content: `> *You don't have permissions to change status of this Objective.*`,
+            ephemeral: true,
+          });
+        }
+
+        this.updateSummary(interaction, false);
+
+        await interaction.followUp({ content: `> *Objective Summary reloaded.*`, ephemeral: true });
+      } catch (err) {
+        console.error(err);
+        return await interaction.followUp(
+          `[h45k8] Error while manually updating Objective summary. Please try again later.`
         );
       }
     }
