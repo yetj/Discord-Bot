@@ -26,17 +26,15 @@ module.exports = {
 
     let onlineWithRoleList = [];
 
-    channel.members
-      .sort((a, b) => getDisplayName(b) - getDisplayName(a))
-      .each((m) => {
-        if (role) {
-          if (m.roles.cache.has(role.id)) {
-            onlineWithRoleList.push(getDisplayName(m));
-          }
-        } else {
+    channel.members.each((m) => {
+      if (role) {
+        if (m.roles.cache.has(role.id)) {
           onlineWithRoleList.push(getDisplayName(m));
         }
-      });
+      } else {
+        onlineWithRoleList.push(getDisplayName(m));
+      }
+    });
 
     let message = ``;
 
@@ -45,7 +43,9 @@ module.exports = {
       message += `Online members with Role **${role.name}**: ${onlineWithRoleList.length}\n`;
 
       if (onlineWithRoleList.length > 0) {
-        message += `> ${onlineWithRoleList.sort().join("\n> ")}`;
+        message += `> ${onlineWithRoleList
+          .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
+          .join("\n> ")}`;
       } else {
         message += `> *No members to show*`;
       }
@@ -55,7 +55,9 @@ module.exports = {
       message += `Online members on channel ${channel}: **${channel.members.size}**\n`;
 
       if (onlineWithRoleList.length > 0) {
-        message += `> ${onlineWithRoleList.sort().join("\n> ")}`;
+        message += `> ${onlineWithRoleList
+          .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
+          .join("\n> ")}`;
       } else {
         message += `> *No members to show*`;
       }
