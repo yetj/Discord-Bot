@@ -20,7 +20,7 @@ module.exports = {
     } catch (error) {
       console.error(error);
 
-      if (interaction.replied) {
+      if (interaction.replied || interaction.deferred) {
         await interaction.followUp({
           content: `> *There was an error while executing this command! 🙄\n> Error message: \`${error.message}\`*`,
           ephemeral: true,
