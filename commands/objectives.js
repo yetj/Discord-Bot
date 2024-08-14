@@ -699,6 +699,8 @@ module.exports = {
           gid: interaction.guildId,
         }).sort({ option: 1 });
 
+        settingsList[SETTINGS_OPTIONS.manager_role.value] = [];
+
         await objectivesSettings.forEach((setting) => {
           if (setting.option == SETTINGS_OPTIONS.upcoming_objectives_channel.value) {
             settings[setting.option] = setting.value;
