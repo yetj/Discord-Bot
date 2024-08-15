@@ -120,6 +120,20 @@ module.exports = {
         .addStringOption((option) =>
           option.setName("additional_note").setDescription("Additional note")
         )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("update")
+        .setDescription("Update existing objective")
+        .addStringOption((option) =>
+          option.setName("message_id").setDescription("Message ID").setRequired(true)
+        )
+        .addStringOption((option) =>
+          option
+            .setName("unlock_in")
+            .setDescription("Unlock in (use format HH:MM for example, 1:40 or 0:40)")
+            .setRequired(true)
+        )
     ),
   async autocomplete(interaction) {
     const focusedOption = interaction.options.getFocused(true);
@@ -806,6 +820,147 @@ module.exports = {
         console.error(err);
         return await interaction.followUp(
           `[g45d2f] Error while checking if objective already exist. Please try again later.`
+        );
+      }
+    } else if (interaction.options.getSubcommand() == "update") {
+      const message_id = interaction.options.getString("message_id").trim();
+      const unlock_in = interaction.options.getString("unlock_in").trim();
+
+      await interaction.deferReply({ ephemeral: true });
+
+      try {
+        let manager_perms = false;
+
+        if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
+          manager_perms = true;
+        }
+
+        const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
+          cache: true,
+          force: true,
+        });
+
+        if (!manager_perms) {
+          const managerRoles = await ObjectivesSettings.find({
+            gid: interaction.guildId,
+            option: SETTINGS_OPTIONS.manager_role.value,
+          });
+
+          await managerRoles.forEach((mgr) => {
+            if (interactionUser.roles.cache.has(mgr.value)) {
+              manager_perms = true;
+            }
+          });
+        }
+
+        if (!manager_perms) {
+          return await interaction.reply({
+            content: `> *You don't have permissions to update this Objective.*`,
+            ephemeral: true,
+          });
+        }
+
+        // check if time is correct
+        let hours = 0;
+        let minutes = 0;
+
+        let timecheck = new RegExp(
+          /^((([01]\d|2[0-3]|\d):)?([0-5]\d|[5-9])|([01]\d|2[0-3]|\d):\d)$/
+        );
+
+        if (timecheck.test(unlock_in) == true) {
+          if (unlock_in.includes(":")) {
+            [hours, minutes] = unlock_in.split(":");
+          } else {
+            minutes = unlock_in;
+          }
+        } else {
+          return await interaction.followUp({
+            content: `> *Plaese provide time for **Unlock in** in a valid format.*`,
+            ephemeral: true,
+          });
+        }
+
+        let objective_time = new Date();
+        objective_time.setHours(objective_time.getHours() + parseInt(hours));
+        objective_time.setMinutes(objective_time.getMinutes() + parseInt(minutes));
+
+        const isObjectiveExist = await Objectives.findOne({
+          $and: [{ gid: interaction.guild.id }, { message_id: message_id }],
+        });
+
+        if (!isObjectiveExist) {
+          return await interaction.followUp({
+            content: `> *This Objective doesn't exist*`,
+            ephemeral: true,
+          });
+        }
+
+        // check if objective is taken/not taken already or if time already passed
+        if (isObjectiveExist.taken !== null || isObjectiveExist.time < new Date().getTime()) {
+          return await interaction.followUp({
+            content: `> *This Objective can't be edited anymore*`,
+            ephemeral: true,
+          });
+        }
+
+        await Objectives.updateOne({ _id: isObjectiveExist._id }, { time: objective_time });
+
+        let desc = ``;
+        desc += `**Map:** ${isObjectiveExist.map_name}\n`;
+        desc += `**Time:** <t:${Math.round(objective_time.getTime() / 1000)}:R>\n`;
+        desc += `**Reporter:** <@${isObjectiveExist.user}> - ${isObjectiveExist.user_name}\n`;
+        desc += `**Taken:** 🟡 *no info*\n`;
+
+        if (isObjectiveExist.additional_note.length > 0) {
+          desc += `**Note:** *${isObjectiveExist.additional_note}*`;
+        }
+
+        const embedMessage = new EmbedBuilder()
+          .setColor("#fff900")
+          .setTitle(`${isObjectiveExist.objective}`)
+          .setDescription(desc);
+
+        // check if this objective type have a thumbnail
+        const objectiveType = await ObjectivesTypes.findOne({
+          gid: interaction.guildId,
+          name: isObjectiveExist.objective,
+        });
+
+        if (objectiveType && objectiveType.thumbnail_url.length > 5) {
+          embedMessage.setThumbnail(objectiveType.thumbnail_url);
+        }
+
+        const actionButtons = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId("taken").setLabel("Taken").setStyle("Success"),
+          new ButtonBuilder().setCustomId("not_taken").setLabel("Not taken").setStyle("Danger")
+        );
+
+        try {
+          const oldPost = await interaction.client.channels.cache
+            .get(isObjectiveExist.channel_id)
+            .messages.fetch(isObjectiveExist.message_id);
+
+          if (oldPost) {
+            await oldPost.edit({
+              embeds: [embedMessage],
+              components: [actionButtons],
+            });
+          }
+        } catch (err) {
+          console.error(err);
+        }
+
+        this.updateSummary(interaction, false);
+
+        await interaction.followUp({
+          content: `> *Objective time updated - https://discord.com/channels/${interaction.guild.id}/${isObjectiveExist.channel_id}/${isObjectiveExist.message_id}*`,
+          ephemeral: true,
+        });
+      } catch (err) {
+        console.error(err);
+        return await interaction.followUp(
+          `[mi90vf3] Error while manually updating Objective. Please try again later.`
         );
       }
     } else if (interaction.options.getSubcommand() == "reload_summary") {
