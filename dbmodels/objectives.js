@@ -32,6 +32,7 @@ const ObjectivesSchema = new mongoose.Schema({
   reminder: { type: Boolean, default: true },
   reminder_time: { type: Number, default: 15 },
   added: { type: Date, default: Date.now },
+  wrong: { type: Boolean, default: false },
 });
 
 const Objectives = mongoose.model("Objectives", ObjectivesSchema);

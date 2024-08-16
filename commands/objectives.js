@@ -134,7 +134,31 @@ module.exports = {
             .setDescription("Unlock in (use format HH:MM for example, 1:40 or 0:40)")
             .setRequired(true)
         )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("stats")
+        .setDescription("Show objective stats")
+        .addUserOption((option) =>
+          option.setName("user").setDescription("Check stats for sepcific user.")
+        )
     ),
+  // .addSubcommand((subcommand) =>
+  //   subcommand
+  //     .setName("top_stats")
+  //     .setDescription("Show TOP objective stats")
+  //     .addNumberOption((option) =>
+  //       option.setName("days").setDescription("Check stats for last X days (default: 30 days).")
+  //     )
+  //     .addNumberOption((option) =>
+  //       option.setName("top").setDescription("Show top X results (default: 10 | max: 30).")
+  //     )
+  //     .addBooleanOption((option) =>
+  //       option
+  //         .setName("show_only_taken")
+  //         .setDescription("Show in stats only taken objectives (default: yes).")
+  //     )
+  // )
   async autocomplete(interaction) {
     const focusedOption = interaction.options.getFocused(true);
     let choices = [];
@@ -661,6 +685,30 @@ module.exports = {
         );
       }
 
+      // check if user doesn't have more than 3 wrong entries in last 30 days
+      try {
+        const historyDataForWrongObjectives = new Date();
+        historyDataForWrongObjectives.setDate(historyDataForWrongObjectives.getDate() - 30);
+
+        const wrongCount = await Objectives.countDocuments({
+          gid: interaction.guildId,
+          user: interaction.user.id,
+          wrong: true,
+          time: { $gte: historyDataForWrongObjectives },
+        });
+
+        if (wrongCount >= 3) {
+          return await interaction.followUp(
+            `> ⛔***You've added 3 or more wrong Objectives in last 30 days.***\n> ⛔***You are not allowed to add new objectives now!***`
+          );
+        }
+      } catch (err) {
+        console.error(err);
+        return await interaction.followUp(
+          `[ndun923] Error while checking user. Please try again later.`
+        );
+      }
+
       let settings = {};
 
       try {
@@ -711,12 +759,13 @@ module.exports = {
                 $lte: objective_time_after,
               },
             },
+            { wrong: { $ne: true } },
           ],
         });
 
         if (isObjectiveExist) {
           return await interaction.followUp({
-            content: `> *This Objective is already added by <@${isObjectiveExist.user}> here: https://discord.com/channels/${interaction.guild.id}/${isObjectiveExist.channel_id}/${isObjectiveExist.message_id} *`,
+            content: `> *This Objective is already added by <@${isObjectiveExist.user}> here: https://discord.com/channels/${interaction.guild.id}/${isObjectiveExist.channel_id}/${isObjectiveExist.message_id}*`,
             ephemeral: true,
           });
         }
@@ -798,7 +847,8 @@ module.exports = {
 
         const actionButtons = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId("taken").setLabel("Taken").setStyle("Success"),
-          new ButtonBuilder().setCustomId("not_taken").setLabel("Not taken").setStyle("Danger")
+          new ButtonBuilder().setCustomId("not_taken").setLabel("Not taken").setStyle("Danger"),
+          new ButtonBuilder().setCustomId("wrong").setLabel("⚠️ Wrong").setStyle("Secondary")
         );
 
         const messagePosted = await channelHandle.send({
@@ -886,7 +936,11 @@ module.exports = {
         objective_time.setMinutes(objective_time.getMinutes() + parseInt(minutes));
 
         const isObjectiveExist = await Objectives.findOne({
-          $and: [{ gid: interaction.guild.id }, { message_id: message_id }],
+          $and: [
+            { gid: interaction.guild.id },
+            { message_id: message_id },
+            { wrong: { $ne: true } },
+          ],
         });
 
         if (!isObjectiveExist) {
@@ -933,7 +987,8 @@ module.exports = {
 
         const actionButtons = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId("taken").setLabel("Taken").setStyle("Success"),
-          new ButtonBuilder().setCustomId("not_taken").setLabel("Not taken").setStyle("Danger")
+          new ButtonBuilder().setCustomId("not_taken").setLabel("Not taken").setStyle("Danger"),
+          new ButtonBuilder().setCustomId("wrong").setLabel("⚠️ Wrong").setStyle("Secondary")
         );
 
         try {
@@ -1007,6 +1062,91 @@ module.exports = {
           `[h45k8] Error while manually updating Objective summary. Please try again later.`
         );
       }
+    } else if (interaction.options.getSubcommand() == "stats") {
+      // statystyki usera
+      const user = interaction.options.getUser("user") ?? null;
+
+      const userId = user ? user.id : interaction.user.id;
+
+      const statsUser = await interaction.guild.members.fetch(userId, { force: true });
+
+      if (!statsUser) {
+        return await interaction.reply({ content: `> *Can't find this user.*`, ephemeral: true });
+      }
+
+      try {
+        const generalStats = await Objectives.aggregate([
+          { $match: { user: statsUser.user.id, gid: interaction.guildId } },
+          {
+            $group: {
+              _id: null,
+              totalObjectives: { $sum: 1 }, // łączna liczba objective
+              takenTrue: { $sum: { $cond: [{ $eq: ["$taken", true] }, 1, 0] } }, // ile taken = true
+              takenFalse: { $sum: { $cond: [{ $eq: ["$taken", false] }, 1, 0] } }, // ile taken = false
+              takenNull: { $sum: { $cond: [{ $eq: ["$taken", null] }, 1, 0] } }, // ile taken = null
+              wrongCount: { $sum: { $cond: [{ $eq: ["$wrong", true] }, 1, 0] } }, // ile wrong = true
+            },
+          },
+        ]);
+
+        const detailedStats = await Objectives.aggregate([
+          { $match: { user: statsUser.user.id, gid: interaction.guildId } },
+          {
+            $group: {
+              _id: "$objective", // grupowanie według rodzaju `objective`
+              totalObjectives: { $sum: 1 }, // łączna liczba objective dla danego typu
+              takenTrue: { $sum: { $cond: [{ $eq: ["$taken", true] }, 1, 0] } }, // ile taken = true
+              takenFalse: { $sum: { $cond: [{ $eq: ["$taken", false] }, 1, 0] } }, // ile taken = false
+              takenNull: { $sum: { $cond: [{ $eq: ["$taken", null] }, 1, 0] } }, // ile taken = null
+              wrongCount: { $sum: { $cond: [{ $eq: ["$wrong", true] }, 1, 0] } }, // ile wrong = true
+            },
+          },
+        ]);
+
+        const embedMessage = new EmbedBuilder()
+          .setColor("#c4a10f")
+          .setTitle(`${getDisplayName(statsUser)}'s Objective stats`);
+
+        if (!generalStats || !generalStats.length) {
+          embedMessage.setDescription(`> *No stats for this user.*`);
+          return await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+        }
+
+        let generalStatsText = ``;
+        generalStatsText += `## **General Stats**\n`;
+        generalStatsText += `> 🔄️ **Count:** ${generalStats[0].totalObjectives}\n`;
+        generalStatsText += `> 🟡 **No info:** ${generalStats[0].takenNull}\n`;
+        generalStatsText += `> 🟢 **Taken:** ${generalStats[0].takenTrue}\n`;
+        generalStatsText += `> 🔴 **Not taken:** ${generalStats[0].takenFalse}\n`;
+        generalStatsText += `> ⚠️ **Wrong:** ${generalStats[0].wrongCount}\n`;
+        generalStatsText += `## **Detailed Stats**\n`;
+
+        detailedStats.forEach((stat) => {
+          let detailedStatsText = ``;
+          detailedStatsText += `> 🔄️ **Count:** ${stat.totalObjectives}\n`;
+          detailedStatsText += `> 🟡 **No info:** ${stat.takenNull}\n`;
+          detailedStatsText += `> 🟢 **Taken:** ${stat.takenTrue}\n`;
+          detailedStatsText += `> 🔴 **Not taken:** ${stat.takenFalse}\n`;
+          detailedStatsText += `> ⚠️ **Wrong:** ${stat.wrongCount}\n`;
+
+          embedMessage.addFields({
+            name: `**${stat._id}**`,
+            value: detailedStatsText,
+            inline: true,
+          });
+        });
+
+        embedMessage.setDescription(generalStatsText);
+
+        await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply(
+          `[mi90vf3] Error while manually updating Objective. Please try again later.`
+        );
+      }
+    } else if (interaction.options.getSubcommand() == "top_stats") {
+      // top X statystyk z ostatnich X dni
     }
   },
   async autoload(client) {
@@ -1054,6 +1194,7 @@ module.exports = {
           gid: interaction.guildId,
           message_id: interaction.message.id,
           channel_id: interaction.channelId,
+          wrong: { $ne: true },
         });
 
         if (!entryDB) {
@@ -1063,7 +1204,7 @@ module.exports = {
           });
         }
 
-        if (entryDB.time.getTime() > new Date().getTime() - 60) {
+        if (entryDB.time.getTime() > new Date().getTime() && clickedButton !== "wrong") {
           return await interaction.reply({
             content: `> *You can't change status of the objective before objectime timer.*`,
             ephemeral: true,
@@ -1154,6 +1295,28 @@ module.exports = {
 
           await interaction.update({ embeds: [embedMessage], components: [] });
           this.updateSummary(interaction, true);
+        } else if (clickedButton === "wrong") {
+          await Objectives.updateOne(
+            { _id: entryDB._id },
+            {
+              wrong: true,
+            }
+          );
+
+          let desc = ``;
+          desc += `**Reporter:** <@${entryDB.user}> - ${entryDB.user_name}\n`;
+          desc += `**Wrong:** *true*\n`;
+          desc += `**Status changed by:** <@${interaction.user.id}> - ${getDisplayName(
+            interactionUser
+          )}\n`;
+
+          const embedMessage = new EmbedBuilder()
+            .setColor("#e91a1d")
+            .setTitle(`Wrong!`)
+            .setDescription(desc);
+
+          await interaction.update({ embeds: [embedMessage], components: [] });
+          this.updateSummary(interaction, true);
         }
       } catch (err) {
         console.error(err);
@@ -1212,6 +1375,7 @@ module.exports = {
               $gte: summaryTimeBefore,
             },
           },
+          { wrong: { $ne: true } },
         ],
       }).sort({ time: 1 });
 
