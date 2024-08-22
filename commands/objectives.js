@@ -179,6 +179,7 @@ module.exports = {
       }
 
       const filtered = choices.filter((choice) => choice.name.startsWith(focusedOption.value));
+
       await interaction.respond(
         filtered.map((choice) => ({ name: choice.name, value: choice.value }))
       );
@@ -215,7 +216,9 @@ module.exports = {
         console.error(err);
       }
 
-      const filtered = choices.filter((choice) => choice.name.includes(focusedOption.value));
+      const filtered = choices.filter((choice) =>
+        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase())
+      );
       const limitedResults = filtered.slice(0, 20);
       await interaction.respond(
         limitedResults.map((choice) => ({ name: choice.name, value: choice.value }))
