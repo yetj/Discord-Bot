@@ -60,13 +60,50 @@ const commands = [];
 const commandsPath = path.join(__dirname, "commands");
 const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith(".js"));
 
+// for (const file of commandFiles) {
+//   const filePath = path.join(commandsPath, file);
+//   const command = require(filePath);
+//   client.commands.set(command.data.name, command);
+//   commands.push(command.data.toJSON());
+//   if (command.autoload) {
+//     command.autoload(client);
+//   }
+// }
+
 for (const file of commandFiles) {
   const filePath = path.join(commandsPath, file);
-  const command = require(filePath);
-  client.commands.set(command.data.name, command);
-  commands.push(command.data.toJSON());
-  if (command.autoload) {
-    command.autoload(client);
+  const commandModule = require(filePath);
+
+  // Sprawdź, czy commandModule zawiera wiele komend
+  if (Array.isArray(commandModule)) {
+    commandModule.forEach((command) => {
+      client.commands.set(command.data.name, command);
+      commands.push(command.data.toJSON());
+      if (command.autoload) {
+        command.autoload(client);
+      }
+    });
+  } else {
+    // Obsługa pojedynczej komendy
+    if (commandModule.data && commandModule.execute) {
+      client.commands.set(commandModule.data.name, commandModule);
+      commands.push(commandModule.data.toJSON());
+      if (commandModule.autoload) {
+        commandModule.autoload(client);
+      }
+    } else {
+      // Obsługa wielu komend eksportowanych jako obiekt
+      for (const key in commandModule) {
+        const command = commandModule[key];
+        if (command.data && command.execute) {
+          client.commands.set(command.data.name, command);
+          commands.push(command.data.toJSON());
+          if (command.autoload) {
+            command.autoload(client);
+          }
+        }
+      }
+    }
   }
 }
 
