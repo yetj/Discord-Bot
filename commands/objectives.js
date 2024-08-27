@@ -654,9 +654,17 @@ module.exports = {
       objective_time.setMinutes(objective_time.getMinutes() + parseInt(minutes));
 
       let objective_time_before = new Date(objective_time);
-      objective_time_before.setMinutes(objective_time_before.getMinutes() - 5);
+      objective_time_before.setMinutes(objective_time_before.getMinutes() - 7);
       let objective_time_after = new Date(objective_time);
-      objective_time_after.setMinutes(objective_time_after.getMinutes() + 5);
+      objective_time_after.setMinutes(objective_time_after.getMinutes() + 7);
+
+      const time_now = new Date();
+      const time_reset_utc = new Date(
+        Date.UTC(time_now.getFullYear(), time_now.getMonth(), time_now.getDate(), 10, 0)
+      );
+      const time_reset_next_day_utc = new Date(
+        Date.UTC(time_now.getFullYear(), time_now.getMonth(), time_now.getDate() + 1, 10, 0)
+      );
 
       // check if map name is valid
       const aoMaps = aoMapNames();
@@ -691,7 +699,7 @@ module.exports = {
       // check if user doesn't have more than 3 wrong entries in last 30 days
       try {
         const historyDataForWrongObjectives = new Date();
-        historyDataForWrongObjectives.setDate(historyDataForWrongObjectives.getDate() - 30);
+        historyDataForWrongObjectives.setDate(historyDataForWrongObjectives.getDate() - 7);
 
         const wrongCount = await Objectives.countDocuments({
           gid: interaction.guildId,
@@ -702,7 +710,7 @@ module.exports = {
 
         if (wrongCount >= 3) {
           return await interaction.followUp(
-            `> ⛔***You've added 3 or more wrong Objectives in last 30 days.***\n> ⛔***You are not allowed to add new objectives now!***`
+            `> ⛔***You've added 3 or more wrong Objectives in last 7 days.***\n> ⛔***You are not allowed to add new objectives now!***`
           );
         }
       } catch (err) {
@@ -804,6 +812,15 @@ module.exports = {
           });
         }
 
+        let is_after_reset = false;
+
+        if (
+          (time_now < time_reset_utc && objective_time > time_reset_utc) ||
+          objective_time > time_reset_next_day_utc
+        ) {
+          is_after_reset = true;
+        }
+
         const newObjective = await new Objectives({
           gid: interaction.guildId,
           user: interactionUser.user.id,
@@ -815,6 +832,7 @@ module.exports = {
           additional_note: additional_note,
           time: objective_time,
           reminder: true,
+          is_after_reset: is_after_reset,
         });
 
         await newObjective.save();
@@ -828,6 +846,10 @@ module.exports = {
           interactionUser
         )}\n`;
         desc += `**Taken:** 🟡 *no info*\n`;
+
+        if (is_after_reset === true) {
+          desc += `⚠️ **After reset:** *true*`;
+        }
 
         if (additional_note.length > 0) {
           desc += `**Note:** *${additional_note}*`;
@@ -961,7 +983,10 @@ module.exports = {
           });
         }
 
-        await Objectives.updateOne({ _id: isObjectiveExist._id }, { time: objective_time });
+        await Objectives.updateOne(
+          { _id: isObjectiveExist._id },
+          { time: objective_time, is_after_reset: false }
+        );
 
         let desc = ``;
         desc += `**Map:** ${isObjectiveExist.map_name}\n`;
@@ -1320,6 +1345,7 @@ module.exports = {
 
           await interaction.update({ embeds: [embedMessage], components: [] });
           this.updateSummary(interaction, true);
+        } else if (clickedButton === "update_time") {
         }
       } catch (err) {
         console.error(err);
@@ -1390,6 +1416,13 @@ module.exports = {
             summary += `\n`;
           }
 
+          let additional_note = obj.additional_note;
+
+          if (obj.is_after_reset === true) {
+            summary += `⚠️`;
+            additional_note += ` *(After reset)*`;
+          }
+
           if (obj.taken === null) summary += `🟡 `;
           if (obj.taken === false) summary += `🔴 `;
           if (obj.taken === true) summary += `🟢 `;
@@ -1399,8 +1432,8 @@ module.exports = {
             obj.time.getTime() / 1000
           )}:R> <t:${Math.round(obj.time.getTime() / 1000)}:t>`;
 
-          if (obj.additional_note.length > 0) {
-            summary += ` - *${obj.additional_note}*`;
+          if (additional_note.length > 0) {
+            summary += ` - ${additional_note}`;
           }
         });
       }
@@ -1459,3 +1492,5 @@ module.exports = {
     }
   },
 };
+
+// module.exports = { ObjectivesAdminCommands, ObjectivesManagerCommands, ObjectivesCommands }
