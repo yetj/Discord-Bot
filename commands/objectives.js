@@ -4,6 +4,7 @@ const {
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
+  ChatInputCommandInteraction,
 } = require("discord.js");
 const { ObjectivesSettings, ObjectivesTypes, Objectives } = require("../dbmodels/objectives.js");
 const getDisplayName = require("../utils/getDisplayName.js");
@@ -225,6 +226,10 @@ module.exports = {
       );
     }
   },
+  /**
+   * @param {Object} param0
+   * @param {ChatInputCommandInteraction} param0.interaction
+   */
   async execute(interaction) {
     // check if have admin perms for setup commands
     if (
@@ -1282,32 +1287,21 @@ module.exports = {
           await interaction.update({ embeds: [embedMessage], components: [] });
           this.updateSummary(interaction, true);
         } else if (clickedButton === "not_taken") {
-          await Objectives.updateOne(
-            { _id: entryDB._id },
-            {
-              taken: false,
-              taken_user: interaction.user.id,
-              taken_user_name: getDisplayName(interactionUser),
-            }
-          );
+        } else if (clickedButton === "wrong") {
+          await interaction.deferUpdate();
 
           let desc = ``;
           desc += `**Map:** ${entryDB.map_name}\n`;
-          desc += `**Time:** <t:${Math.round(entryDB.time.getTime() / 1000)}:R> <t:${Math.round(
-            entryDB.time.getTime() / 1000
-          )}:t>\n`;
+          desc += `**Time:** <t:${Math.round(entryDB.time.getTime() / 1000)}:R>\n`;
           desc += `**Reporter:** <@${entryDB.user}> - ${entryDB.user_name}\n`;
-          desc += `**Taken:** 🔴 *not taken*\n`;
-          desc += `**Status changed by:** <@${interaction.user.id}> - ${getDisplayName(
-            interactionUser
-          )}\n`;
+          desc += `**Taken:** 🟡 *no info*\n`;
 
           if (entryDB.additional_note.length > 0) {
-            desc += `**Note:** *${additional_note}*`;
+            desc += `**Note:** *${entryDB.additional_note}*`;
           }
 
           const embedMessage = new EmbedBuilder()
-            .setColor("#e91a1d")
+            .setColor("#fff900")
             .setTitle(`${entryDB.objective}`)
             .setDescription(desc);
 
@@ -1321,9 +1315,37 @@ module.exports = {
             embedMessage.setThumbnail(objectiveType.thumbnail_url);
           }
 
-          await interaction.update({ embeds: [embedMessage], components: [] });
-          this.updateSummary(interaction, true);
-        } else if (clickedButton === "wrong") {
+          const timeoutId = setTimeout(
+            (interaction, embedMessage) => {
+              const actionButtons = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId("taken").setLabel("Taken").setStyle("Success"),
+                new ButtonBuilder()
+                  .setCustomId("not_taken")
+                  .setLabel("Not taken")
+                  .setStyle("Danger"),
+                new ButtonBuilder().setCustomId("wrong").setLabel("⚠️ Wrong").setStyle("Secondary")
+              );
+              interaction.editReply({ embeds: [embedMessage], components: [actionButtons] });
+            },
+            10 * 1000,
+            interaction,
+            embedMessage
+          );
+
+          const actionButtons = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId("taken").setLabel("Taken").setStyle("Success"),
+            new ButtonBuilder().setCustomId("not_taken").setLabel("Not taken").setStyle("Danger"),
+            new ButtonBuilder()
+              .setCustomId(`wrong_confirmation-${timeoutId}`)
+              .setLabel("⚠️ Are you sure it's wrong? Confirm!")
+              .setStyle("Danger")
+          );
+
+          await interaction.editReply({ embeds: [embedMessage], components: [actionButtons] });
+        } else if (clickedButton.startsWith("wrong_confirmation-")) {
+          const timeoutId = parseInt(clickedButton.split("-")[1]);
+          clearTimeout(timeoutId);
+
           await Objectives.updateOne(
             { _id: entryDB._id },
             {
@@ -1354,6 +1376,9 @@ module.exports = {
           ephemeral: true,
         });
       }
+    });
+    client.on("interactionCreate", async (interaction) => {
+      if (!interaction.isModalSubmit()) return;
     });
   },
   async updateSummary(interaction, auto) {
