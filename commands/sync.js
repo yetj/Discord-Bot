@@ -600,7 +600,8 @@ module.exports = {
                   );
 
                   if (destinationRole) {
-                    if (!destinationMember.roles.cache.has(result.role_gid)) {
+                    const hasRole = await destinationMember.roles.cache.has(result.role_gid);
+                    if (!hasRole) {
                       try {
                         await destinationMember.roles.add(destinationRole).catch(console.error);
                         assigned = true;
