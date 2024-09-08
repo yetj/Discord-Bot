@@ -237,7 +237,7 @@ module.exports = {
       try {
         await Sync.deleteOne({ _id: id });
 
-        await interaction.reply(`> *Removed sync with ID: *${id}**`);
+        await interaction.reply(`> *Removed sync with ID: **${id}***`);
       } catch (err) {
         console.error(`[t43da] `, err);
         await interaction.reply(
@@ -294,13 +294,15 @@ module.exports = {
         }
       });
 
-      const embed = new EmbedBuilder()
-        .setColor("#2222cc")
-        .setTitle("Server connection list")
-        .setDescription(`We've found ${found.length} connection(s)`)
-        .addFields(fields);
+      if (fields.length > 0) {
+        const embed = new EmbedBuilder()
+          .setColor("#2222cc")
+          .setTitle("Server connection list")
+          .setDescription(`We've found ${found.length} connection(s)`)
+          .addFields(fields);
 
-      await interaction.followUp({ embeds: [embed] });
+        await interaction.followUp({ embeds: [embed] });
+      }
     } else if (interaction.options.getSubcommand() === "reload") {
       const id = interaction.options.getString("id");
       const remove_existing_members = interaction.options.getBoolean("remove_existing_members");
@@ -575,25 +577,25 @@ module.exports = {
 
       try {
         results.forEach(async (result) => {
-          const destinationServer = client.guilds.cache.get(result.gid);
-          const sourceServer = client.guilds.cache.get(result.source);
+          const destinationServer = await client.guilds.cache.get(result.gid);
+          const sourceServer = await client.guilds.cache.get(result.source);
 
           if (sourceServer) {
-            const destinationMember = destinationServer.members.cache.get(member.user.id);
-            const sourceMember = sourceServer.members.cache.get(member.user.id);
+            const destinationMember = await destinationServer.members.cache.get(member.user.id);
+            const sourceMember = await sourceServer.members.cache.get(member.user.id);
 
             if (sourceMember) {
               let assigned = false;
               let nicknameChanged = false;
 
               if (result.same_role == 0) {
-                const sourceRole = sourceMember.roles.cache.find(
+                const sourceRole = await sourceMember.roles.cache.find(
                   (roles) => roles.id === result.role_source
                 );
 
                 if (sourceRole) {
                   // check if role still exists on destination server
-                  const destinationRole = destinationServer.roles.cache.find(
+                  const destinationRole = await destinationServer.roles.cache.find(
                     (roles) => roles.id === result.role_gid
                   );
 
@@ -629,25 +631,25 @@ module.exports = {
                     }
 
                     if (result.log_gid && (assigned === true || nicknameChanged === true)) {
-                      const log = destinationServer.channels.cache.find(
+                      const log = await destinationServer.channels.cache.find(
                         (channel) => channel.id === result.log_gid
                       );
 
                       if (log) {
                         if (assigned === true && nicknameChanged === true) {
-                          log.send(
+                          await log.send(
                             `**${destinationMember.toString()}** has joined and got role **${
                               destinationRole.name
                             }** plus his **nickname has been updated**`
                           );
                         } else if (assigned === true && nicknameChanged === false) {
-                          log.send(
+                          await log.send(
                             `**${destinationMember.toString()}** has joined and got role **${
                               destinationRole.name
                             }**`
                           );
                         } else if (assigned === false && nicknameChanged === true) {
-                          log.send(
+                          await log.send(
                             `**${destinationMember.toString()}** has joined and his **nickname has been updated**`
                           );
                         }
@@ -695,19 +697,19 @@ module.exports = {
 
                       if (log) {
                         if (assigned === true && nicknameChanged === true) {
-                          log.send(
+                          await log.send(
                             `**${destinationMember.toString()}** has joined and got automatically role **${
                               destinationRole.name
                             }** plus his **nickname has been updated**`
                           );
                         } else if (assigned === true && nicknameChanged === false) {
-                          log.send(
+                          await log.send(
                             `**${destinationMember.toString()}** has joined and got automatically role **${
                               destinationRole.name
                             }**`
                           );
                         } else if (assigned === false && nicknameChanged === true) {
-                          log.send(
+                          await log.send(
                             `**${destinationMember.toString()}** has joined and his **nickname has been updated**`
                           );
                         }
