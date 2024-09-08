@@ -59,9 +59,6 @@ module.exports = {
       subcommand.setName("list").setDescription("List synced connections with this current server")
     )
     .addSubcommand((subcommand) =>
-      subcommand.setName("refreshdb").setDescription("Refresh list from Database")
-    )
-    .addSubcommand((subcommand) =>
       subcommand
         .setName("reload")
         .setDescription("Reload synchronization for specific entry")
@@ -316,7 +313,11 @@ module.exports = {
       let found = null;
       try {
         found = await Sync.findOne({ gid: interaction.guildId, _id: id });
-      } catch (err) {}
+      } catch (err) {
+        return await interaction.reply(
+          `> *There was a problem with connecting to Database, try again later.*`
+        );
+      }
 
       if (!found) {
         return await interaction.reply(
@@ -325,7 +326,7 @@ module.exports = {
       }
 
       // check if bot is still on source server
-      const sourceServer = interaction.client.guilds.cache.get(found.source);
+      const sourceServer = await interaction.client.guilds.cache.get(found.source);
       if (!sourceServer) {
         try {
           await Sync.deleteMany({ source: found.source });
@@ -377,7 +378,7 @@ module.exports = {
       let rolesAdded = [];
       let rolesRemoved = [];
       let rolesSkipped = [];
-      //let promises = [];
+      let promises = [];
 
       const roleHandle = await destinationServer.roles.cache.find((r) => r.id === found.role_gid);
 
@@ -399,11 +400,12 @@ module.exports = {
             !skip_updating_members_with_role ||
             !memberX.roles.cache.find((r) => r.id === skip_updating_members_with_role.id)
           ) {
-            if (!memberX.roles.cache.find((r) => r.id === roleHandle.id)) {
-              await memberX.roles.add(roleHandle, "Synchronization").then().catch(console.error);
-              // promises.push(
-              //   memberX.roles.add(roleHandle, "Synchronization").then().catch(console.error)
-              // );
+            const hasRole = await memberX.roles.cache.find((r) => r.id === roleHandle.id);
+            if (!hasRole) {
+              //await memberX.roles.add(roleHandle, "Synchronization").then().catch(console.error);
+              promises.push(
+                memberX.roles.add(roleHandle, "Synchronization").then().catch(console.error)
+              );
             }
 
             if (found.update_nick === true) {
@@ -417,8 +419,8 @@ module.exports = {
 
                 if (!getDisplayName(memberX).includes(newNickname)) {
                   try {
-                    //promises.push(memberX.setNickname(newNickname));
-                    await memberX.setNickname(newNickname);
+                    promises.push(memberX.setNickname(newNickname));
+                    //await memberX.setNickname(newNickname);
                   } catch (err) {
                     console.error(
                       `[mn3jfd] Couldn't change player nickname to "${newNickname}". Reason: ${err.message}`
@@ -427,8 +429,8 @@ module.exports = {
                 }
               } else {
                 try {
-                  //promises.push(memberX.setNickname(getDisplayName(member)));
-                  await memberX.setNickname(getDisplayName(member));
+                  promises.push(memberX.setNickname(getDisplayName(member)));
+                  //await memberX.setNickname(getDisplayName(member));
                 } catch (err) {
                   console.error(
                     `[cadsg3] Couldn't change player nickname to "${getDisplayName(
@@ -490,10 +492,10 @@ module.exports = {
         //for (const member of rolesToRemove) {
         //rolesToRemove.forEach((member) => {
         for await (const [userId, member] of rolesToRemove.entries()) {
-          await member.roles.remove(roleHandle, "Synchronization").then().catch(console.error);
-          // promises.push(
-          //   member.roles.remove(roleHandle, "Synchronization").then().catch(console.error)
-          // );
+          //          await member.roles.remove(roleHandle, "Synchronization").then().catch(console.error);
+          promises.push(
+            member.roles.remove(roleHandle, "Synchronization").then().catch(console.error)
+          );
           rolesRemoved.push(getDisplayName(member));
 
           if (
@@ -565,11 +567,9 @@ module.exports = {
       await interaction.followUp({ embeds: [embed] });
       //await interaction.reply({ embeds: [embed], ephemeral: true });
 
-      //await Promise.all(promises);
-      interaction.followUp(
-        `> Hey ${interaction.member}! Synchronization \`#${id}\` of **${
-          rolesAdded.length + rolesRemoved.length
-        }** member(s) finished! All roles and nicknames updated...`
+      await Promise.all(promises);
+      await interaction.followUp(
+        `> Hey ${interaction.member}! Synchronization \`#${id}\` of **${promises.length}** member(s) finished! All roles and nicknames updated...`
       );
     }
   },
