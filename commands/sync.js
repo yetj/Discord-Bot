@@ -39,6 +39,11 @@ module.exports = {
               .addChannelTypes(ChannelType.GuildText)
           )
           .addStringOption((option) => option.setName("prefix").setDescription("Prefix"))
+          .addBooleanOption((option) =>
+            option
+              .setName("space_after_prefix")
+              .setDescription("Add space after prefix? (default: true)")
+          )
       //.addBooleanOption(option => option.setName('same_role').setDescription('Should bot ignore role_gid, and try to find the same role name as it is on source server?'))
     )
     .addSubcommand((subcommand) =>
@@ -94,6 +99,7 @@ module.exports = {
       const update_nick = interaction.options.getBoolean("update_nick");
       const log_gid = interaction.options.getChannel("log_gid");
       const prefix = interaction.options.getString("prefix");
+      const space_after_prefix = interaction.options.getBoolean("space_after_prefix") ?? true;
       //const same_role = interaction.options.getBoolean('same_role');
 
       // check if bot is added on source server
@@ -170,6 +176,7 @@ module.exports = {
         same_role: false,
         update_nick: update_nick,
         prefix: setPrefix,
+        space_after_prefix: space_after_prefix,
         created_by: interaction.member.id,
       });
 
@@ -189,9 +196,15 @@ module.exports = {
         }
 
         if (setPrefix === "") {
-          message += `**Prefix:** *not set*`;
+          message += `**Prefix:** *not set*\n`;
         } else {
-          message += `**Prefix:** *${setPrefix}*`;
+          message += `**Prefix:** *${setPrefix}*\n`;
+        }
+
+        if (space_after_prefix === false) {
+          message += `**Space after prefix:** *false*`;
+        } else {
+          message += `**Space after prefix:** *true*`;
         }
 
         const embed = new EmbedBuilder()
@@ -241,9 +254,11 @@ module.exports = {
         );
       }
 
+      await interaction.deferReply();
+
       let fields = [];
 
-      await found.forEach((el) => {
+      await found.forEach(async (el) => {
         const sourceServer = interaction.client.guilds.cache.get(el.source);
         const destinationServer = interaction.client.guilds.cache.get(el.gid);
         const sourceRole = sourceServer.roles.cache.find((r) => r.id === el.role_source);
@@ -251,6 +266,7 @@ module.exports = {
         const log_gid = destinationServer.channels.cache.find((c) => c.id === el.log_gid);
         const update_nick = el.update_nick;
         const prefix = el.prefix === "" ? "*not set*" : el.prefix;
+        const space_after_prefix = el.space_after_prefix;
         const logChannel = log_gid ? log_gid.toString() + " - #" + log_gid.id : "*not set*";
 
         fields.push({
@@ -261,8 +277,21 @@ module.exports = {
                 Destination role: **${destinationRole.name}** - *@${destinationRole.id}*
                 Update nick: **${update_nick}**
                 Log channel: ${logChannel}
-                Prefix: **${prefix}**`,
+                Prefix: **${prefix}**
+                Space after prefix: **${space_after_prefix}**`,
         });
+
+        if (fields.length >= 5) {
+          const embed = new EmbedBuilder()
+            .setColor("#2222cc")
+            .setTitle("Server connection list")
+            .setDescription(`We've found ${found.length} connection(s)`)
+            .addFields(fields);
+
+          fields = [];
+
+          await interaction.followUp({ embeds: [embed] });
+        }
       });
 
       const embed = new EmbedBuilder()
@@ -271,7 +300,7 @@ module.exports = {
         .setDescription(`We've found ${found.length} connection(s)`)
         .addFields(fields);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.followUp({ embeds: [embed] });
     } else if (interaction.options.getSubcommand() === "reload") {
       const id = interaction.options.getString("id");
       const remove_existing_members = interaction.options.getBoolean("remove_existing_members");
@@ -371,7 +400,9 @@ module.exports = {
 
             if (found.update_nick === true) {
               if (found.prefix.length > 0) {
-                let newNickname = found.prefix + member.displayName;
+                let space_after_prefix = found?.space_after_prefix ? " " : "";
+                let newNickname = found.prefix + space_after_prefix + member.displayName;
+
                 if (newNickname.length > 32) {
                   newNickname = newNickname.substring(0, 31);
                 }
@@ -579,7 +610,9 @@ module.exports = {
 
                     if (result.update_nick === true) {
                       try {
-                        let newNickname = result.prefix + sourceMember.displayName;
+                        let space_after_prefix = result?.space_after_prefix ? " " : "";
+                        let newNickname =
+                          result.prefix + space_after_prefix + sourceMember.displayName;
                         if (newNickname.length > 32) {
                           newNickname = newNickname.substring(0, 31);
                         }
@@ -588,7 +621,10 @@ module.exports = {
                         nicknameChanged = true;
                       } catch (err) {
                         // this error can happen if bot can't change player nickname
-                        console.error(err);
+                        console.error(
+                          `[mvp2f2] Couldn't change player nickname, reason: ${err.message}`
+                        );
+                        //console.error(err);
                       }
                     }
 
@@ -637,7 +673,9 @@ module.exports = {
 
                     if (result.update_nick === true) {
                       try {
-                        let newNickname = result.prefix + sourceMember.displayName;
+                        let space_after_prefix = result?.space_after_prefix ? " " : "";
+                        let newNickname =
+                          result.prefix + space_after_prefix + sourceMember.displayName;
                         if (newNickname.length > 32) {
                           newNickname = newNickname.substring(0, 31);
                         }
@@ -803,7 +841,9 @@ module.exports = {
 
                     if (result.update_nick === true) {
                       try {
-                        let newNickname = result.prefix + newMember.displayName;
+                        let space_after_prefix = result?.space_after_prefix ? " " : "";
+                        let newNickname =
+                          result.prefix + space_after_prefix + newMember.displayName;
                         if (newNickname.length > 32) {
                           newNickname = newNickname.substring(0, 31);
                         }
