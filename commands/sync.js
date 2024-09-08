@@ -258,7 +258,8 @@ module.exports = {
 
       let fields = [];
 
-      await found.forEach(async (el) => {
+      //await found.forEach(async (el) => {
+      for await (const el of found) {
         const sourceServer = interaction.client.guilds.cache.get(el.source);
         const destinationServer = interaction.client.guilds.cache.get(el.gid);
         const sourceRole = sourceServer.roles.cache.find((r) => r.id === el.role_source);
@@ -292,7 +293,7 @@ module.exports = {
 
           await interaction.followUp({ embeds: [embed] });
         }
-      });
+      }
 
       if (fields.length > 0) {
         const embed = new EmbedBuilder()
@@ -386,7 +387,8 @@ module.exports = {
       let fields = [];
 
       //for (const member of rolesToAdd) {
-      await rolesToAdd.forEach((member) => {
+      //await rolesToAdd.forEach((member) => {
+      for await (const member of rolesToAdd) {
         const memberX = destinationServer.members.cache.find((m) => m.id === member.id);
 
         if (memberX) {
@@ -462,11 +464,12 @@ module.exports = {
             rolesSkipped.push(member.displayName);
           }
         }
-      });
+      }
 
       if (remove_existing_members === true) {
         //for (const member of rolesToRemove) {
-        rolesToRemove.forEach((member) => {
+        //rolesToRemove.forEach((member) => {
+        for await (const member of rolesToRemove) {
           promises.push(
             member.roles.remove(roleHandle, "Synchronization").then().catch(console.error)
           );
@@ -511,7 +514,7 @@ module.exports = {
             rolesRemoved = [];
             rolesSkipped = [];
           }
-        });
+        }
       }
 
       await fields.push({
@@ -576,7 +579,8 @@ module.exports = {
       }
 
       try {
-        results.forEach(async (result) => {
+        //results.forEach(async (result) => {
+        for (const result of results) {
           const destinationServer = await client.guilds.cache.get(result.gid);
           const sourceServer = await client.guilds.cache.get(result.source);
 
@@ -730,7 +734,7 @@ module.exports = {
               console.error("[uf4f3] ", err);
             }
           }
-        });
+        }
       } catch (err) {
         console.error(err);
       }
@@ -760,11 +764,13 @@ module.exports = {
       try {
         let rolesToProceed;
         // check all removed roles
-        removedRoles.forEach((role) => {
+        //removedRoles.forEach((role) => {
+        for await (const role of removedRoles) {
           // check if we should care of removed role
           rolesToProceed = results.filter((el) => el.role_source == role.id);
           if (rolesToProceed.length > 0) {
-            rolesToProceed.forEach(async (result) => {
+            //rolesToProceed.forEach(async (result) => {
+            for await (const result of rolesToProceed) {
               // check if destination server still exists
               const destinationServer = client.guilds.cache.get(result.gid);
               if (destinationServer) {
@@ -807,16 +813,18 @@ module.exports = {
                   }
                 }
               }
-            });
+            }
           }
-        });
+        }
 
         // check all added roles
-        addedRoles.forEach((role) => {
+        //addedRoles.forEach((role) => {
+        for await (const role of addedRoles) {
           // check if we should care of removed role
           rolesToProceed = results.filter((el) => el.role_source == role.id);
           if (rolesToProceed.length > 0) {
-            rolesToProceed.forEach(async (result) => {
+            //rolesToProceed.forEach(async (result) => {
+            for await (const result of rolesToProceed) {
               // check if destination server still exists
               const destinationServer = client.guilds.cache.get(result.gid);
               if (destinationServer) {
@@ -891,9 +899,9 @@ module.exports = {
                   }
                 }
               }
-            });
+            }
           }
-        });
+        }
       } catch (err) {
         console.error(`[b3g34] `, err);
       }
@@ -914,7 +922,8 @@ module.exports = {
       }
 
       try {
-        results.forEach(async (result) => {
+        //results.forEach(async (result) => {
+        for await (const result of results) {
           const destinationServer = client.guilds.cache.get(result.gid);
 
           if (destinationServer) {
@@ -958,7 +967,7 @@ module.exports = {
               }
             }
           }
-        });
+        }
       } catch (err) {
         console.error(err);
       }
