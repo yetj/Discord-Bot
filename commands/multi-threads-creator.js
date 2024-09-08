@@ -710,7 +710,7 @@ const MultiThreadsCreatorCommands = {
           let createdThreads = [];
 
           for await (const channelId of mtrEntry.channels) {
-            const channel = interaction.guild.channels.cache.find((c) => (c.id = channelId));
+            const channel = await interaction.guild.channels.cache.find((c) => c.id == channelId);
 
             if (channel) {
               const postedMessage = await channel.send({ content: threadTitle });
