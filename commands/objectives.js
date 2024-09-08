@@ -5,6 +5,7 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ChatInputCommandInteraction,
+  ModalBuilder,
 } = require("discord.js");
 const { ObjectivesSettings, ObjectivesTypes, Objectives } = require("../dbmodels/objectives.js");
 const getDisplayName = require("../utils/getDisplayName.js");
@@ -876,9 +877,9 @@ module.exports = {
         }
 
         const actionButtons = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId("taken").setLabel("Taken").setStyle("Success"),
-          new ButtonBuilder().setCustomId("not_taken").setLabel("Not taken").setStyle("Danger"),
-          new ButtonBuilder().setCustomId("wrong").setLabel("⚠️ Wrong").setStyle("Secondary")
+          new ButtonBuilder().setCustomId("obj-taken").setLabel("Taken").setStyle("Success"),
+          new ButtonBuilder().setCustomId("obj-not_taken").setLabel("Not taken").setStyle("Danger"),
+          new ButtonBuilder().setCustomId("obj-wrong").setLabel("⚠️ Wrong").setStyle("Secondary")
         );
 
         const messagePosted = await channelHandle.send({
@@ -1019,9 +1020,9 @@ module.exports = {
         }
 
         const actionButtons = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId("taken").setLabel("Taken").setStyle("Success"),
-          new ButtonBuilder().setCustomId("not_taken").setLabel("Not taken").setStyle("Danger"),
-          new ButtonBuilder().setCustomId("wrong").setLabel("⚠️ Wrong").setStyle("Secondary")
+          new ButtonBuilder().setCustomId("obj-taken").setLabel("Taken").setStyle("Success"),
+          new ButtonBuilder().setCustomId("obj-not_taken").setLabel("Not taken").setStyle("Danger"),
+          new ButtonBuilder().setCustomId("obj-wrong").setLabel("⚠️ Wrong").setStyle("Secondary")
         );
 
         try {
@@ -1187,6 +1188,11 @@ module.exports = {
       if (!interaction.isButton()) return;
 
       const clickedButton = interaction.customId;
+
+      if (!clickedButton.startsWith("obj-")) {
+        return;
+      }
+
       let manager_perms = false;
 
       try {
@@ -1219,7 +1225,7 @@ module.exports = {
           });
         }
 
-        // if (clickedButton === "refresh_summary") {
+        // if (clickedButton === "obj-refresh_summary") {
         //   return this.updateSummary(interaction, true);
         // }
 
@@ -1237,14 +1243,14 @@ module.exports = {
           });
         }
 
-        if (entryDB.time.getTime() > new Date().getTime() && clickedButton !== "wrong") {
+        if (entryDB.time.getTime() > new Date().getTime() && clickedButton !== "obj-wrong") {
           return await interaction.reply({
             content: `> *You can't change status of the objective before objectime timer.*`,
             ephemeral: true,
           });
         }
 
-        if (clickedButton === "taken") {
+        if (clickedButton === "obj-taken") {
           await Objectives.updateOne(
             { _id: entryDB._id },
             {
@@ -1286,8 +1292,8 @@ module.exports = {
 
           await interaction.update({ embeds: [embedMessage], components: [] });
           this.updateSummary(interaction, true);
-        } else if (clickedButton === "not_taken") {
-        } else if (clickedButton === "wrong") {
+        } else if (clickedButton === "obj-not_taken") {
+        } else if (clickedButton === "obj-wrong") {
           await interaction.deferUpdate();
 
           let desc = ``;
@@ -1318,12 +1324,15 @@ module.exports = {
           const timeoutId = setTimeout(
             (interaction, embedMessage) => {
               const actionButtons = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId("taken").setLabel("Taken").setStyle("Success"),
+                new ButtonBuilder().setCustomId("obj-taken").setLabel("Taken").setStyle("Success"),
                 new ButtonBuilder()
-                  .setCustomId("not_taken")
+                  .setCustomId("obj-not_taken")
                   .setLabel("Not taken")
                   .setStyle("Danger"),
-                new ButtonBuilder().setCustomId("wrong").setLabel("⚠️ Wrong").setStyle("Secondary")
+                new ButtonBuilder()
+                  .setCustomId("obj-wrong")
+                  .setLabel("⚠️ Wrong")
+                  .setStyle("Secondary")
               );
               interaction.editReply({ embeds: [embedMessage], components: [actionButtons] });
             },
@@ -1333,17 +1342,20 @@ module.exports = {
           );
 
           const actionButtons = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId("taken").setLabel("Taken").setStyle("Success"),
-            new ButtonBuilder().setCustomId("not_taken").setLabel("Not taken").setStyle("Danger"),
+            new ButtonBuilder().setCustomId("obj-taken").setLabel("Taken").setStyle("Success"),
             new ButtonBuilder()
-              .setCustomId(`wrong_confirmation-${timeoutId}`)
+              .setCustomId("obj-not_taken")
+              .setLabel("Not taken")
+              .setStyle("Danger"),
+            new ButtonBuilder()
+              .setCustomId(`obj-wrong_confirmation-${timeoutId}`)
               .setLabel("⚠️ Are you sure it's wrong? Confirm!")
               .setStyle("Danger")
           );
 
           await interaction.editReply({ embeds: [embedMessage], components: [actionButtons] });
-        } else if (clickedButton.startsWith("wrong_confirmation-")) {
-          const timeoutId = parseInt(clickedButton.split("-")[1]);
+        } else if (clickedButton.startsWith("obj-wrong_confirmation-")) {
+          const timeoutId = parseInt(clickedButton.split("-")[2]);
           clearTimeout(timeoutId);
 
           await Objectives.updateOne(
@@ -1367,8 +1379,12 @@ module.exports = {
 
           await interaction.update({ embeds: [embedMessage], components: [] });
           this.updateSummary(interaction, true);
-        } else if (clickedButton === "update_time") {
         }
+        // else if (clickedButton === "obj-update_time") {
+        //   const modal = new ModalBuilder()
+        //     .setTitle("Update type and time of the objective")
+        //     .setCustomId(`obj-objective_time-${interaction.message.id}`);
+        // }
       } catch (err) {
         console.error(err);
         return await interaction.reply({
@@ -1377,9 +1393,73 @@ module.exports = {
         });
       }
     });
-    client.on("interactionCreate", async (interaction) => {
-      if (!interaction.isModalSubmit()) return;
-    });
+    // client.on("interactionCreate", async (interaction) => {
+    //   if (!interaction.isModalSubmit()) return;
+
+    //   const modalId = interaction.customId;
+    //   const unlock_in = interaction.options.getString("unlock_in").trim();
+    //   let manager_perms = false;
+
+    //   try {
+    //     if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
+    //       manager_perms = true;
+    //     }
+
+    //     const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
+    //       cache: true,
+    //       force: true,
+    //     });
+
+    //     if (!manager_perms) {
+    //       const managerRoles = await ObjectivesSettings.find({
+    //         gid: interaction.guildId,
+    //         option: SETTINGS_OPTIONS.manager_role.value,
+    //       });
+
+    //       await managerRoles.forEach((mgr) => {
+    //         if (interactionUser.roles.cache.has(mgr.value)) {
+    //           manager_perms = true;
+    //         }
+    //       });
+    //     }
+
+    //     if (!manager_perms) {
+    //       return await interaction.reply({
+    //         content: `> *You don't have permissions to change time of this Objective.*`,
+    //         ephemeral: true,
+    //       });
+    //     }
+
+    //     if (modalId.startsWith("objective_time-")) {
+    //       const messageId = parseInt(modalId.split("-")[1]);
+
+    //       const entryDB = await Objectives.findOne({
+    //         gid: interaction.guildId,
+    //         message_id: messageId,
+    //       });
+
+    //       if (!entryDB) {
+    //         return await interaction.reply({
+    //           content: `> Entry doesn't exist in database.`,
+    //           ephemeral: true,
+    //         });
+    //       }
+
+    //       if (entryDB.time.getTime() > new Date().getTime() && clickedButton !== "obj-wrong") {
+    //         return await interaction.reply({
+    //           content: `> *You can't change status of the objective before objectime timer.*`,
+    //           ephemeral: true,
+    //         });
+    //       }
+    //     }
+    //   } catch (err) {
+    //     console.error(err);
+    //     return await interaction.reply({
+    //       content: `[g3g43] Error while checking perms. Please try again later.`,
+    //       ephemeral: true,
+    //     });
+    //   }
+    // });
   },
   async updateSummary(interaction, auto) {
     try {
@@ -1495,7 +1575,7 @@ module.exports = {
         .setFooter({ text: `Last update: ${new Date().toLocaleString()}` });
 
       // const actionButtons = new ActionRowBuilder().addComponents(
-      //   new ButtonBuilder().setCustomId("refresh_summary").setLabel("Refresh").setStyle("Primary")
+      //   new ButtonBuilder().setCustomId("obj-refresh_summary").setLabel("Refresh").setStyle("Primary")
       // );
 
       const summaryPost = await channelHandle.send({
