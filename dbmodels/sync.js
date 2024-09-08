@@ -9,6 +9,7 @@ const Sync = new mongoose.Schema({
   same_role: { type: Boolean, default: false },
   update_nick: Boolean,
   prefix: String,
+  space_after_prefix: { type: Boolean, default: true },
   created_by: String,
   added: { type: Date, default: Date.now },
 });
