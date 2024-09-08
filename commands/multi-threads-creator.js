@@ -8,6 +8,7 @@ const {
   TextInputStyle,
   TextInputBuilder,
   ThreadAutoArchiveDuration,
+  ChannelType,
 } = require("discord.js");
 const {
   MultiThreadsCreatorSettings,
@@ -586,10 +587,12 @@ const MultiThreadsCreatorCommands = {
           .setTitle(`Multi Thread Creator`)
           .setDescription(`${message}`);
 
-        interaction.channel.send({
+        await interaction.channel.send({
           embeds: [embedMessage],
           components: rows,
         });
+
+        await interaction.reply({ content: `> Embed created!`, ephemeral: true });
       } catch (err) {
         console.error(err);
         return await interaction.followUp({
@@ -713,14 +716,28 @@ const MultiThreadsCreatorCommands = {
             const channel = await interaction.guild.channels.cache.find((c) => c.id == channelId);
 
             if (channel) {
-              const postedMessage = await channel.send({ content: threadTitle });
-              const createdThread = await postedMessage.startThread({
-                name: threadTitle,
-                autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
-                reason: `Multi Threads Creator`,
-              });
+              if (channel.type == ChannelType.GuildForum) {
+                //const postedMessage = await channel.send({ content: threadTitle });
+                const createdThread = await channel.threads.create({
+                  name: threadTitle,
+                  autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
+                  message: {
+                    content: threadTitle,
+                  },
+                  reason: `Multi Threads Creator`,
+                });
 
-              createdThreads.push({ channel: channelId, thread: createdThread });
+                createdThreads.push({ channel: channelId, thread: createdThread });
+              } else if (channel.type == ChannelType.GuildText) {
+                const postedMessage = await channel.send({ content: threadTitle });
+                const createdThread = await postedMessage.startThread({
+                  name: threadTitle,
+                  autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
+                  reason: `Multi Threads Creator`,
+                });
+
+                createdThreads.push({ channel: channelId, thread: createdThread });
+              }
             }
           }
 
