@@ -5,6 +5,7 @@ const {
   ChannelType,
 } = require("discord.js");
 const Sync = require("../dbmodels/sync.js");
+const getDisplayName = require("../utils/getDisplayName.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -351,7 +352,7 @@ module.exports = {
         );
       });
 
-      const destinationServer = interaction.client.guilds.cache.get(found.gid);
+      const destinationServer = await interaction.client.guilds.cache.get(found.gid);
       await destinationServer.members.fetch({ force: true }).then((fetchedMembers) => {
         membersWithDestinationRole = fetchedMembers.filter((member) =>
           member._roles.includes(found.role_gid)
@@ -376,20 +377,22 @@ module.exports = {
       let rolesAdded = [];
       let rolesRemoved = [];
       let rolesSkipped = [];
-      let promises = [];
+      //let promises = [];
 
-      const roleHandle = destinationServer.roles.cache.find((r) => r.id === found.role_gid);
+      const roleHandle = await destinationServer.roles.cache.find((r) => r.id === found.role_gid);
 
       if (!roleHandle) {
-        return interaction.reply(`> *Destination role not found \`${found.role_gid}\`...*`);
+        return await interaction.reply(`> *Destination role not found \`${found.role_gid}\`...*`);
       }
 
       let fields = [];
 
+      await interaction.deferReply();
+
       //for (const member of rolesToAdd) {
       //await rolesToAdd.forEach((member) => {
-      for await (const member of rolesToAdd) {
-        const memberX = destinationServer.members.cache.find((m) => m.id === member.id);
+      for await (const [userId, member] of rolesToAdd.entries()) {
+        const memberX = await destinationServer.members.cache.find((m) => m.id === member.id);
 
         if (memberX) {
           if (
@@ -397,29 +400,46 @@ module.exports = {
             !memberX.roles.cache.find((r) => r.id === skip_updating_members_with_role.id)
           ) {
             if (!memberX.roles.cache.find((r) => r.id === roleHandle.id)) {
-              promises.push(
-                memberX.roles.add(roleHandle, "Synchronization").then().catch(console.error)
-              );
+              await memberX.roles.add(roleHandle, "Synchronization").then().catch(console.error);
+              // promises.push(
+              //   memberX.roles.add(roleHandle, "Synchronization").then().catch(console.error)
+              // );
             }
 
             if (found.update_nick === true) {
               if (found.prefix.length > 0) {
                 let space_after_prefix = found?.space_after_prefix ? " " : "";
-                let newNickname = found.prefix + space_after_prefix + member.displayName;
+                let newNickname = found.prefix + space_after_prefix + getDisplayName(member);
 
                 if (newNickname.length > 32) {
                   newNickname = newNickname.substring(0, 31);
                 }
 
-                if (!memberX.displayName.includes(newNickname)) {
-                  promises.push(memberX.setNickname(newNickname).catch(console.error));
+                if (!getDisplayName(memberX).includes(newNickname)) {
+                  try {
+                    //promises.push(memberX.setNickname(newNickname));
+                    await memberX.setNickname(newNickname);
+                  } catch (err) {
+                    console.error(
+                      `[mn3jfd] Couldn't change player nickname to "${newNickname}". Reason: ${err.message}`
+                    );
+                  }
                 }
               } else {
-                promises.push(memberX.setNickname(member.displayName).catch(console.error));
+                try {
+                  //promises.push(memberX.setNickname(getDisplayName(member)));
+                  await memberX.setNickname(getDisplayName(member));
+                } catch (err) {
+                  console.error(
+                    `[cadsg3] Couldn't change player nickname to "${getDisplayName(
+                      member
+                    )}". Reason: ${err.message}`
+                  );
+                }
               }
             }
 
-            rolesAdded.push(memberX.displayName);
+            rolesAdded.push(getDisplayName(memberX));
 
             if (
               rolesAdded.join("\n").length +
@@ -453,7 +473,7 @@ module.exports = {
 
               //interaction.reply({ embeds: [embed], ephemeral: true });
 
-              interaction.channel.send({ embeds: [embed] });
+              await interaction.followUp({ embeds: [embed] });
 
               fields = [];
               rolesAdded = [];
@@ -461,7 +481,7 @@ module.exports = {
               rolesSkipped = [];
             }
           } else {
-            rolesSkipped.push(member.displayName);
+            rolesSkipped.push(getDisplayName(member));
           }
         }
       }
@@ -469,11 +489,12 @@ module.exports = {
       if (remove_existing_members === true) {
         //for (const member of rolesToRemove) {
         //rolesToRemove.forEach((member) => {
-        for await (const member of rolesToRemove) {
-          promises.push(
-            member.roles.remove(roleHandle, "Synchronization").then().catch(console.error)
-          );
-          rolesRemoved.push(member.displayName);
+        for await (const [userId, member] of rolesToRemove.entries()) {
+          await member.roles.remove(roleHandle, "Synchronization").then().catch(console.error);
+          // promises.push(
+          //   member.roles.remove(roleHandle, "Synchronization").then().catch(console.error)
+          // );
+          rolesRemoved.push(getDisplayName(member));
 
           if (
             rolesAdded.join("\n").length +
@@ -507,7 +528,7 @@ module.exports = {
 
             //interaction.reply({ embeds: [embed], ephemeral: true });
 
-            interaction.channel.send({ embeds: [embed] });
+            await interaction.followUp({ embeds: [embed] });
 
             fields = [];
             rolesAdded = [];
@@ -541,14 +562,14 @@ module.exports = {
         )
         .addFields(fields);
 
-      interaction.deferReply();
-      interaction.deleteReply();
-      interaction.channel.send({ embeds: [embed] });
+      await interaction.followUp({ embeds: [embed] });
       //await interaction.reply({ embeds: [embed], ephemeral: true });
 
-      await Promise.all(promises);
-      interaction.channel.send(
-        `> Hey ${interaction.member}! Synchronization #${id} of ${promises.length} members finished! All roles and nicknames updated...`
+      //await Promise.all(promises);
+      interaction.followUp(
+        `> Hey ${interaction.member}! Synchronization \`#${id}\` of **${
+          rolesAdded.length + rolesRemoved.length
+        }** member(s) finished! All roles and nicknames updated...`
       );
     }
   },
@@ -580,7 +601,7 @@ module.exports = {
 
       try {
         //results.forEach(async (result) => {
-        for (const result of results) {
+        for await (const result of results) {
           const destinationServer = await client.guilds.cache.get(result.gid);
           const sourceServer = await client.guilds.cache.get(result.source);
 
@@ -619,17 +640,17 @@ module.exports = {
                       try {
                         let space_after_prefix = result?.space_after_prefix ? " " : "";
                         let newNickname =
-                          result.prefix + space_after_prefix + sourceMember.displayName;
+                          result.prefix + space_after_prefix + getDisplayName(sourceMember);
                         if (newNickname.length > 32) {
                           newNickname = newNickname.substring(0, 31);
                         }
 
-                        await destinationMember.setNickname(newNickname).catch(console.error);
+                        await destinationMember.setNickname(newNickname);
                         nicknameChanged = true;
                       } catch (err) {
                         // this error can happen if bot can't change player nickname
                         console.error(
-                          `[mvp2f2] Couldn't change player nickname, reason: ${err.message}`
+                          `[nu9f34] Couldn't change player nickname to "${newNickname}". Reason: ${err.message}`
                         );
                         //console.error(err);
                       }
@@ -679,19 +700,22 @@ module.exports = {
                     }
 
                     if (result.update_nick === true) {
-                      try {
-                        let space_after_prefix = result?.space_after_prefix ? " " : "";
-                        let newNickname =
-                          result.prefix + space_after_prefix + sourceMember.displayName;
-                        if (newNickname.length > 32) {
-                          newNickname = newNickname.substring(0, 31);
-                        }
+                      let space_after_prefix = result?.space_after_prefix ? " " : "";
+                      let newNickname =
+                        result.prefix + space_after_prefix + getDisplayName(sourceMember);
+                      if (newNickname.length > 32) {
+                        newNickname = newNickname.substring(0, 31);
+                      }
 
-                        await destinationMember.setNickname(newNickname).catch(console.error);
+                      try {
+                        await destinationMember.setNickname(newNickname);
                         nicknameChanged = true;
                       } catch (err) {
                         // this error can happen if bot can't change player nickname
-                        console.error(err);
+                        //console.error(err);
+                        console.error(
+                          `[fnjiug] Couldn't change player nickname to "${newNickname}". Reason: ${err.message}`
+                        );
                       }
                     }
 
@@ -765,7 +789,7 @@ module.exports = {
         let rolesToProceed;
         // check all removed roles
         //removedRoles.forEach((role) => {
-        for await (const role of removedRoles) {
+        for await (const [roleId, role] of removedRoles.entries()) {
           // check if we should care of removed role
           rolesToProceed = results.filter((el) => el.role_source == role.id);
           if (rolesToProceed.length > 0) {
@@ -819,7 +843,7 @@ module.exports = {
 
         // check all added roles
         //addedRoles.forEach((role) => {
-        for await (const role of addedRoles) {
+        for await (const [roleId, role] of addedRoles.entries()) {
           // check if we should care of removed role
           rolesToProceed = results.filter((el) => el.role_source == role.id);
           if (rolesToProceed.length > 0) {
@@ -851,19 +875,22 @@ module.exports = {
                     }
 
                     if (result.update_nick === true) {
-                      try {
-                        let space_after_prefix = result?.space_after_prefix ? " " : "";
-                        let newNickname =
-                          result.prefix + space_after_prefix + newMember.displayName;
-                        if (newNickname.length > 32) {
-                          newNickname = newNickname.substring(0, 31);
-                        }
+                      let space_after_prefix = result?.space_after_prefix ? " " : "";
+                      let newNickname =
+                        result.prefix + space_after_prefix + getDisplayName(newMember);
+                      if (newNickname.length > 32) {
+                        newNickname = newNickname.substring(0, 31);
+                      }
 
-                        await destinationMember.setNickname(newNickname).catch(console.error);
+                      try {
+                        await destinationMember.setNickname(newNickname);
                         nicknameChanged = true;
                       } catch (err) {
+                        console.error(
+                          `[j65jnf] Couldn't change player nickname to "${newNickname}". Reason: ${err.message}`
+                        );
                         // this error can happen if bot can't change player nickname
-                        console.error(err);
+                        //console.error(err);
                       }
                     }
 
@@ -924,17 +951,17 @@ module.exports = {
       try {
         //results.forEach(async (result) => {
         for await (const result of results) {
-          const destinationServer = client.guilds.cache.get(result.gid);
+          const destinationServer = await client.guilds.cache.get(result.gid);
 
           if (destinationServer) {
-            const destinationMember = destinationServer.members.cache.get(member.user.id);
+            const destinationMember = await destinationServer.members.cache.get(member.user.id);
 
             let removed = false;
 
             // check if member is on destination server
             if (destinationMember) {
               // check if role still exists on destination server
-              const destinationRole = destinationServer.roles.cache.find(
+              const destinationRole = await destinationServer.roles.cache.find(
                 (roles) => roles.id === result.role_gid
               );
 
@@ -950,13 +977,13 @@ module.exports = {
                 }
 
                 if (result.log_gid && removed === true) {
-                  const log = destinationServer.channels.cache.find(
+                  const log = await destinationServer.channels.cache.find(
                     (channel) => channel.id === result.log_gid
                   );
 
                   if (log) {
                     if (removed === true) {
-                      log.send(
+                      await log.send(
                         `**${destinationMember.toString()}** has left **${
                           member.guild.name
                         }** server and his role **${destinationRole.name}** got removed`
