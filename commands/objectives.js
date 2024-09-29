@@ -1243,7 +1243,10 @@ module.exports = {
           });
         }
 
-        if (entryDB.time.getTime() > new Date().getTime() && clickedButton !== "obj-wrong") {
+        if (
+          entryDB.time.getTime() > new Date().getTime() &&
+          !clickedButton.startsWith("obj-wrong")
+        ) {
           return await interaction.reply({
             content: `> *You can't change status of the objective before objectime timer.*`,
             ephemeral: true,
