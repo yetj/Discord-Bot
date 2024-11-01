@@ -1253,11 +1253,13 @@ module.exports = {
           });
         }
 
-        if (clickedButton === "obj-taken") {
+        if (clickedButton === "obj-taken" || clickedButton === "obj-not_taken") {
+          const taken = clickedButton === "obj-taken" ? true : false;
+
           await Objectives.updateOne(
             { _id: entryDB._id },
             {
-              taken: true,
+              taken: taken,
               taken_user: interaction.user.id,
               taken_user_name: getDisplayName(interactionUser),
             }
@@ -1269,7 +1271,11 @@ module.exports = {
             entryDB.time.getTime() / 1000
           )}:t>\n`;
           desc += `**Reporter:** <@${entryDB.user}> - ${entryDB.user_name}\n`;
-          desc += `**Taken:** 🟢 *taken*\n`;
+          if (taken) {
+            desc += `**Taken:** 🟢 *taken*\n`;
+          } else {
+            desc += `**Taken:** 🔴 *not taken*\n`;
+          }
           desc += `**Status changed by:** <@${interaction.user.id}> - ${getDisplayName(
             interactionUser
           )}\n`;
@@ -1278,8 +1284,10 @@ module.exports = {
             desc += `**Note:** *${additional_note}*`;
           }
 
+          const color = taken ? "#20ff00" : "#ff2000";
+
           const embedMessage = new EmbedBuilder()
-            .setColor("#20ff00")
+            .setColor(color)
             .setTitle(`${entryDB.objective}`)
             .setDescription(desc);
 
@@ -1295,7 +1303,6 @@ module.exports = {
 
           await interaction.update({ embeds: [embedMessage], components: [] });
           this.updateSummary(interaction, true);
-        } else if (clickedButton === "obj-not_taken") {
         } else if (clickedButton === "obj-wrong") {
           await interaction.deferUpdate();
 
