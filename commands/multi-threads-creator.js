@@ -21,8 +21,38 @@ const MultiThreadsCreatorCommands = {
     .setDescription("Allows to create multiple threads.")
     .addSubcommand((subcommand) =>
       subcommand
+        .setName("add_template")
+        .setDescription("Add new template to the server.")
+        .addStringOption((option) =>
+          option.setName("name").setDescription("Template name").setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("remove_template")
+        .setDescription("Remove template from the server.")
+        .addStringOption((option) =>
+          option
+            .setName("mtc_template_name")
+            .setDescription("Select template.")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand.setName("list_templates").setDescription("List templates from this server.")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
         .setName("add_manager")
         .setDescription("Add role that can use this commands.")
+        .addStringOption((option) =>
+          option
+            .setName("mtc_template_name")
+            .setDescription("Select template.")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
         .addRoleOption((option) =>
           option.setName("role").setDescription("Role to add").setRequired(true)
         )
@@ -31,17 +61,40 @@ const MultiThreadsCreatorCommands = {
       subcommand
         .setName("remove_manager")
         .setDescription("Remove role that can use this commands.")
+        .addStringOption((option) =>
+          option
+            .setName("mtc_template_name")
+            .setDescription("Select template.")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
         .addRoleOption((option) =>
           option.setName("role").setDescription("Role to remove").setRequired(true)
         )
     )
     .addSubcommand((subcommand) =>
-      subcommand.setName("list_managers").setDescription("List roles that can use this commands.")
+      subcommand
+        .setName("list_managers")
+        .setDescription("List roles that can use this commands.")
+        .addStringOption((option) =>
+          option
+            .setName("mtc_template_name")
+            .setDescription("Select template.")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("create_button_cfg")
         .setDescription("Create a button to create multiple threads.")
+        .addStringOption((option) =>
+          option
+            .setName("mtc_template_name")
+            .setDescription("Select template.")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
         .addStringOption((option) =>
           option.setName("name").setDescription("Name of the button.").setRequired(true)
         )
@@ -75,6 +128,18 @@ const MultiThreadsCreatorCommands = {
             .setDescription("Separator for channels (default: space)")
             .setMaxLength(3)
             .setMinLength(1)
+        )
+        .addBooleanOption((option) =>
+          option
+            .setName("is_private")
+            .setDescription("Make created thread as privated? (default: false)")
+        )
+        .addStringOption((option) =>
+          option
+            .setName("default_content")
+            .setDescription(
+              "Default contetn that will be posted in the thread after creation. You can mention members and roles."
+            )
         )
     )
     .addSubcommand((subcommand) =>
@@ -117,6 +182,18 @@ const MultiThreadsCreatorCommands = {
             .setMaxLength(3)
             .setMinLength(1)
         )
+        .addBooleanOption((option) =>
+          option
+            .setName("is_private")
+            .setDescription("Make created thread as privated? (default: false)")
+        )
+        .addStringOption((option) =>
+          option
+            .setName("default_content")
+            .setDescription(
+              "Default contetn that will be posted in the thread after creation. You can mention members and roles."
+            )
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -134,11 +211,25 @@ const MultiThreadsCreatorCommands = {
       subcommand
         .setName("list_buttons_cfg")
         .setDescription("Remove role that can use this commands.")
+        .addStringOption((option) =>
+          option
+            .setName("mtc_template_name")
+            .setDescription("Select template.")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("add_buttons")
         .setDescription("Add buttons to the channel.")
+        .addStringOption((option) =>
+          option
+            .setName("mtc_template_name")
+            .setDescription("Select template.")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
         .addStringOption((option) =>
           option
             .setName("content")
@@ -162,6 +253,31 @@ const MultiThreadsCreatorCommands = {
       try {
         const settingsDB = await MultiThreadsCreator.find({
           gid: interaction.guildId,
+        }).populate("template");
+
+        await settingsDB.forEach((setting) => {
+          choices.push({
+            name: `${setting?.template?.name ?? ""} | ${setting.name}`,
+            value: setting._id.toString(),
+          });
+        });
+
+        choices.sort((a, b) => a.name.localeCompare(b.name));
+      } catch (err) {
+        console.error(err);
+      }
+
+      const filtered = choices.filter((choice) =>
+        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase())
+      );
+
+      await interaction.respond(
+        filtered.map((choice) => ({ name: choice.name, value: choice.value }))
+      );
+    } else if (focusedOption.name === "mtc_template_name") {
+      try {
+        const settingsDB = await MultiThreadsCreatorSettings.find({
+          gid: interaction.guildId,
         }).sort({ name: 1 });
 
         await settingsDB.forEach((setting) => {
@@ -184,12 +300,12 @@ const MultiThreadsCreatorCommands = {
     }
   },
   async execute(interaction) {
-    let mtcDB;
+    let mtcDBs;
     try {
-      mtcDB = await MultiThreadsCreatorSettings.findOne({ gid: interaction.guildId });
+      mtcDBs = await MultiThreadsCreatorSettings.find({ gid: interaction.guildId });
 
-      if (!mtcDB) {
-        mtcDB = new MultiThreadsCreatorSettings({ gid: interaction.guildId });
+      if (mtcDBs.length < 1) {
+        mtcDBs = [new MultiThreadsCreatorSettings({ gid: interaction.guildId, name: "Default" })];
       }
     } catch (err) {
       console.error(err);
@@ -199,10 +315,77 @@ const MultiThreadsCreatorCommands = {
       });
     }
 
-    if (interaction.options.getSubcommand() === "add_manager") {
-      const role = interaction.options.getRole("role");
+    if (interaction.options.getSubcommand() === "add_template") {
+      const name = interaction.options.getString("name");
 
       try {
+        const mtcDB = mtcDBs.find((mtc) => mtc.name === name);
+
+        if (mtcDB) {
+          return await interaction.reply({
+            content: `> Template name **${mtcDB.name}** already exist on this server.`,
+            ephemeral: true,
+          });
+        }
+
+        const newTemplate = await new MultiThreadsCreatorSettings({
+          gid: interaction.guildId,
+          name: name,
+        });
+
+        await newTemplate.save();
+
+        await interaction.reply(`> Template name **${name}** has been added.`);
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `[h455h4] There was a Database error. Please try again later.`,
+          ephemeral: true,
+        });
+      }
+    } else if (interaction.options.getSubcommand() === "remove_template") {
+      const mtc_template_id = interaction.options.getString("mtc_template_name");
+
+      try {
+        const mtcDB = mtcDBs.find((mtc) => mtc._id.toString() === mtc_template_id);
+
+        if (!mtcDB) {
+          return await interaction.reply({
+            content: `> Selected template doesn't exist on this server.`,
+            ephemeral: true,
+          });
+        }
+
+        await MultiThreadsCreatorSettings.deleteOne({ _id: mtc_template_id });
+        await MultiThreadsCreator.deleteMany({ template: mtc_template_id });
+
+        await interaction.reply(`> Template name **${mtcDB.name}** has been removed.`);
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `[lr2bnf] There was a Database error. Please try again later.`,
+          ephemeral: true,
+        });
+      }
+    } else if (interaction.options.getSubcommand() === "list_templates") {
+      return await interaction.reply({
+        content: `> Not ready yet...`,
+        ephemeral: true,
+      });
+    } else if (interaction.options.getSubcommand() === "add_manager") {
+      const role = interaction.options.getRole("role");
+      const mtc_template_id = interaction.options.getString("mtc_template_name");
+
+      try {
+        const mtcDB = mtcDBs.find((mtc) => mtc._id.toString() === mtc_template_id);
+
+        if (!mtcDB) {
+          return await interaction.reply({
+            content: `> Selected template doesn't exist.`,
+            ephemeral: true,
+          });
+        }
+
         if (mtcDB.allowedRoles.includes(role.id)) {
           return await interaction.reply({
             content: `> Role **${role.name}** is already on the list.`,
@@ -213,7 +396,9 @@ const MultiThreadsCreatorCommands = {
         mtcDB.allowedRoles.push(role.id);
         await mtcDB.save();
 
-        await interaction.reply(`> Role **${role.name}** has been added to the managers list.`);
+        await interaction.reply(
+          `> Role **${role.name}** has been added to the managers list in template **${mtcDB.name}**.`
+        );
       } catch (err) {
         console.error(err);
         return await interaction.reply({
@@ -223,11 +408,21 @@ const MultiThreadsCreatorCommands = {
       }
     } else if (interaction.options.getSubcommand() === "remove_manager") {
       const role = interaction.options.getRole("role");
+      const mtc_template_id = interaction.options.getString("mtc_template_name");
 
       try {
+        const mtcDB = mtcDBs.find((mtc) => mtc._id.toString() === mtc_template_id);
+
+        if (!mtcDB) {
+          return await interaction.reply({
+            content: `> Selected template doesn't exist.`,
+            ephemeral: true,
+          });
+        }
+
         if (!mtcDB.allowedRoles.includes(role.id)) {
           return await interaction.reply({
-            content: `> Role **${role.name}** is not on the managers list.`,
+            content: `> Role **${role.name}** is not on the managers list in template **${mtcDB.name}**..`,
             ephemeral: true,
           });
         }
@@ -235,7 +430,9 @@ const MultiThreadsCreatorCommands = {
         mtcDB.allowedRoles = mtcDB.allowedRoles.filter((id) => id !== role.id);
         await mtcDB.save();
 
-        await interaction.reply(`> Role **${role.name}** has been removed from the managers list.`);
+        await interaction.reply(
+          `> Role **${role.name}** has been removed from the managers list in template **${mtcDB.name}**..`
+        );
       } catch (err) {
         return await interaction.reply({
           content: `[h3ghd] There was a Database error. Please try again later.`,
@@ -243,33 +440,63 @@ const MultiThreadsCreatorCommands = {
         });
       }
     } else if (interaction.options.getSubcommand() === "list_managers") {
-      if (!mtcDB?.allowedRoles.length) {
+      const mtc_template_id = interaction.options.getString("mtc_template_name");
+
+      try {
+        const mtcDB = mtcDBs.find((mtc) => mtc._id.toString() === mtc_template_id);
+
+        if (!mtcDB) {
+          return await interaction.reply({
+            content: `> Selected template doesn't exist.`,
+            ephemeral: true,
+          });
+        }
+
+        if (!mtcDB?.allowedRoles.length) {
+          return await interaction.reply({
+            content: `> No allowed roles in template **${mtcDB.name}**..`,
+            ephemeral: true,
+          });
+        }
+
+        let allowedRoles = ``;
+
+        for (const roleId of mtcDB.allowedRoles) {
+          allowedRoles += `> <@&${roleId}>\n`;
+        }
+
+        await interaction.reply({
+          content: `> Allowed roles in template **${mtcDB.name}**:\n${allowedRoles}`,
+          ephemeral: true,
+        });
+      } catch (err) {
         return await interaction.reply({
-          content: `> No allowed roles in the database.`,
+          content: `[h3ghd] There was a Database error. Please try again later.`,
           ephemeral: true,
         });
       }
-
-      let allowedRoles = ``;
-
-      for (const roleId of mtcDB.allowedRoles) {
-        allowedRoles += `> <@&${roleId}>\n`;
-      }
-
-      await interaction.reply({
-        content: `> Allowed roles:\n${allowedRoles}`,
-        ephemeral: true,
-      });
     } else if (interaction.options.getSubcommand() === "create_button_cfg") {
+      const mtc_template_id = interaction.options.getString("mtc_template_name");
       const name = interaction.options.getString("name");
       const description = interaction.options.getString("description");
       const color = interaction.options.getString("color");
       const channels = interaction.options.getString("channels").trim();
       const separator = interaction.options.getString("separator") ?? " ";
+      const default_content = interaction.options.getString("default_content") ?? "";
+      const is_private = interaction.options.getBoolean("is_private") ?? false;
 
       await interaction.deferReply();
 
       try {
+        const template = await MultiThreadsCreatorSettings.findOne({ _id: mtc_template_id });
+
+        if (!template) {
+          return await interaction.followUp({
+            content: `> Selected template doesn't exist.`,
+            ephemeral: true,
+          });
+        }
+
         const channelsSplitted = channels.split(separator);
         let channelsArray = [];
         let notExistedChannels = [];
@@ -297,10 +524,13 @@ const MultiThreadsCreatorCommands = {
 
         const newMTC = new MultiThreadsCreator({
           gid: interaction.guildId,
+          template: template._id,
           name: name,
           description: description,
           color: color,
           channels: channelsArray,
+          defaultContent: default_content,
+          isPrivate: is_private,
         });
 
         await newMTC.save();
@@ -309,6 +539,8 @@ const MultiThreadsCreatorCommands = {
         msg += `**Name:** *${name}*\n`;
         msg += `**Description:** *${description}*\n`;
         msg += `**Color:** *${color}*\n`;
+        msg += `**Default content:** \`${default_content}\`\n`;
+        msg += `**Is private:** *${is_private}*\n`;
         msg += `**Channels:** `;
         msg += channelsArray.map((c) => `<#${c}>`).join(" ");
 
@@ -331,12 +563,13 @@ const MultiThreadsCreatorCommands = {
         });
       }
     } else if (interaction.options.getSubcommand() === "update_button_cfg") {
-      const mtc_button_name = interaction.options.getString("mtc_button_name");
       const name = interaction.options.getString("name") ?? null;
       const description = interaction.options.getString("description") ?? null;
       const color = interaction.options.getString("color") ?? null;
       const channels = interaction.options.getString("channels")?.trim() ?? null;
       const separator = interaction.options.getString("separator") ?? " ";
+      const default_content = interaction.options.getString("default_content") ?? null;
+      const is_private = interaction.options.getBoolean("is_private") ?? null;
 
       await interaction.deferReply();
 
@@ -414,6 +647,22 @@ const MultiThreadsCreatorCommands = {
           msg += `**Color:** *${mtcButton.color}*\n`;
         }
 
+        if (default_content) {
+          mtcButton.defaultContent = default_content;
+          msg += `**Default content:** \`${default_content}\`\n`;
+          msg += ` \`(updated)\`\n`;
+        } else {
+          msg += `**Default content:** \`${mtcButton.defaultContent}\`\n`;
+        }
+
+        if (is_private) {
+          mtcButton.isPrivate = is_private;
+          msg += `**Is private:** *${is_private}*`;
+          msg += ` \`(updated)\`\n`;
+        } else {
+          msg += `**Is private:** *${mtcButton.isPrivate}*\n`;
+        }
+
         if (channelsArray.length) {
           mtcButton.channels = channelsArray;
 
@@ -480,11 +729,14 @@ const MultiThreadsCreatorCommands = {
         });
       }
     } else if (interaction.options.getSubcommand() === "list_buttons_cfg") {
+      const mtc_template_id = interaction.options.getString("mtc_template_name");
+
       await interaction.deferReply();
 
       try {
         const mtcList = await MultiThreadsCreator.find({
           gid: interaction.guildId,
+          template: mtc_template_id,
         });
 
         if (!mtcList || mtcList.length < 1) {
@@ -504,6 +756,8 @@ const MultiThreadsCreatorCommands = {
           msg += `**Name:** *${mtc.name}*\n`;
           msg += `**Description:** *${mtc.description}*\n`;
           msg += `**Color:** *${mtc.color}*\n`;
+          msg += `**Default content:** *${mtc.defaultContent}*\n`;
+          msg += `**Is private:** *${mtc.isPrivate}*\n`;
           msg += `**Channels:** `;
           msg += mtc.channels.map((c) => `<#${c}>`).join(" ");
 
@@ -532,6 +786,8 @@ const MultiThreadsCreatorCommands = {
         });
       }
     } else if (interaction.options.getSubcommand() === "add_buttons") {
+      const mtc_template_id = interaction.options.getString("mtc_template_name");
+
       const content = interaction.options.getString("content") ?? null;
       const add_buttons_description =
         interaction.options.getBoolean("add_buttons_description") ?? true;
@@ -539,6 +795,7 @@ const MultiThreadsCreatorCommands = {
       try {
         const mtcList = await MultiThreadsCreator.find({
           gid: interaction.guildId,
+          template: mtc_template_id,
         });
 
         if (!mtcList || mtcList.length < 1) {
@@ -722,21 +979,44 @@ const MultiThreadsCreatorCommands = {
                   name: threadTitle,
                   autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
                   message: {
-                    content: threadTitle,
+                    content: `${threadTitle} - ${mtrEntry?.defaultContent}`,
                   },
                   reason: `Multi Threads Creator`,
                 });
 
                 createdThreads.push({ channel: channelId, thread: createdThread });
               } else if (channel.type == ChannelType.GuildText) {
-                const postedMessage = await channel.send({ content: threadTitle });
-                const createdThread = await postedMessage.startThread({
-                  name: threadTitle,
-                  autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
-                  reason: `Multi Threads Creator`,
-                });
+                if (!mtrEntry.isPrivate) {
+                  const postedMessage = await channel.send({ content: threadTitle });
 
-                createdThreads.push({ channel: channelId, thread: createdThread });
+                  const createdThread = await postedMessage.startThread({
+                    name: threadTitle,
+                    autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
+                    reason: `Multi Threads Creator`,
+                  });
+
+                  if (mtrEntry?.defaultContent?.length > 3) {
+                    createdThread.send(mtrEntry?.defaultContent);
+                  }
+
+                  createdThreads.push({ channel: channelId, thread: createdThread });
+                } else {
+                  const createdThread = await channel.threads.create({
+                    name: threadTitle,
+                    autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
+                    type: ChannelType.PrivateThread,
+                    message: `${threadTitle} - ${mtrEntry?.defaultContent}`,
+                    reason: `Multi Threads Creator`,
+                  });
+
+                  createdThread.members.add(interaction.user.id);
+
+                  if (mtrEntry?.defaultContent.length > 3) {
+                    createdThread.send(mtrEntry?.defaultContent);
+                  }
+
+                  createdThreads.push({ channel: channelId, thread: createdThread });
+                }
               }
             }
           }
