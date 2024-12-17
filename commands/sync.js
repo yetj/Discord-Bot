@@ -273,7 +273,7 @@ module.exports = {
           value: `Source server: **${sourceServer.name}** - *#${sourceServer.id}*
                 Source role: **${sourceRole.name}** - *@${sourceRole.id}*
                 Destination server: **${destinationServer.name}** - *#${destinationServer.id}*
-                Destination role: **${destinationRole.name}** - *@${destinationRole.id}*
+                Destination role: **${destinationRole?.name}** - *@${destinationRole?.id}*
                 Update nick: **${update_nick}**
                 Log channel: ${logChannel}
                 Prefix: **${prefix}**
