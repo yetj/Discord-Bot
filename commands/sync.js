@@ -91,6 +91,7 @@ module.exports = {
     }
 
     if (interaction.options.getSubcommand() === "new") {
+      const name = interaction.options.getString("name");
       const source = interaction.options.getString("source");
       const role_source = interaction.options.getString("role_source");
       const role_gid = interaction.options.getRole("role_gid");
@@ -155,7 +156,7 @@ module.exports = {
       });
       if (isSyncExist) {
         return await interaction.reply({
-          content: `Such entry already exist in database...`,
+          content: `Such entry already exist in database with name **${isSyncExist?.name}**...`,
           ephemeral: true,
         });
       }
@@ -176,6 +177,7 @@ module.exports = {
         prefix: setPrefix,
         space_after_prefix: space_after_prefix,
         created_by: interaction.member.id,
+        name: name,
       });
 
       try {
@@ -183,6 +185,7 @@ module.exports = {
 
         let message = "";
         message += `**ID:** *${newDatabase._id.toString()}*\n`;
+        message += `**Name:** *${newDatabase.name}*\n`;
         message += `**Source server:** *${sourceServer.name} - #${sourceServer.id}*\n`;
         message += `**Source role:** *${sourceRole.name} - @${sourceRole.id}*\n`;
         message += `**Destination role:** *${role_gid.name} - @${role_gid.id}*\n`;
@@ -267,10 +270,12 @@ module.exports = {
         const prefix = el.prefix === "" ? "*not set*" : el.prefix;
         const space_after_prefix = el.space_after_prefix;
         const logChannel = log_gid ? log_gid.toString() + " - #" + log_gid.id : "*not set*";
+        const name = el?.name === undefined ? "-" : el.name;
 
         fields.push({
           name: `Connection ID: ${el._id.toString()}`,
-          value: `Source server: **${sourceServer.name}** - *#${sourceServer.id}*
+          value: `Name: **${name}**
+                Source server: **${sourceServer.name}** - *#${sourceServer.id}*
                 Source role: **${sourceRole.name}** - *@${sourceRole.id}*
                 Destination server: **${destinationServer.name}** - *#${destinationServer.id}*
                 Destination role: **${destinationRole?.name}** - *@${destinationRole?.id}*
@@ -577,10 +582,13 @@ module.exports = {
     // remove sync if bot is removed from source or destination server
     client.on("guildDelete", async (guild) => {
       try {
-        await Sync.deleteMany({ $or: [{ gid: guild.id }, { source: guild.id }] });
-        console.log(
-          `>>> [BOT REMOVED FROM SERVER] Removed sync connected with server ID: #${guild.id}`
-        );
+        const result = await Sync.deleteMany({ $or: [{ gid: guild.id }, { source: guild.id }] });
+
+        if (result.deletedCount > 0) {
+          console.log(
+            `>>> [SYNC] Bot removed from server - removed sync connected with server ID: #${guild.id}`
+          );
+        }
       } catch (err) {
         console.error("[uf4f3] ", err);
       }
@@ -997,6 +1005,23 @@ module.exports = {
         }
       } catch (err) {
         console.error(err);
+      }
+    });
+
+    // remove sync if role was removed
+    client.on("roleDelete", async (role) => {
+      try {
+        const result = await Sync.deleteMany({
+          $or: [{ role_gid: role.id }, { role_source: role.id }],
+        });
+
+        if (result.deletedCount > 0) {
+          console.log(
+            `>>> [SYNC] Removed sync connected with role ID: #${role.id} - ${role.name} on server #${role.guild.id} - ${role.guild.name}`
+          );
+        }
+      } catch (err) {
+        console.error("[bhu34f] ", err);
       }
     });
   },
