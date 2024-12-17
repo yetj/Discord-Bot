@@ -12,6 +12,7 @@ const Sync = new mongoose.Schema({
   space_after_prefix: { type: Boolean, default: true },
   created_by: String,
   added: { type: Date, default: Date.now },
+  name: String,
 });
 
 module.exports = mongoose.model("Sync", Sync);
