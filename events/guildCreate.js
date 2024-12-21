@@ -19,9 +19,9 @@ module.exports = {
       const channel = await server.channels.cache.find((c) => c.id === "1257343922972131389");
       if (channel) {
         let botJoinedMessage = `> Bot has joined the server: **${guild.name}** (#${guild.id})\n`;
-        botJoinedMessage = `> Owner ID: ${owner.user.id}\n`;
-        botJoinedMessage = `> Username: ${owner.user.username}\n`;
-        botJoinedMessage = `> <@${owner.user.id}> - ${getDisplayName(owner)}`;
+        botJoinedMessage += `> Owner ID: ${owner.user.id}\n`;
+        botJoinedMessage += `> Username: ${owner.user.username}\n`;
+        botJoinedMessage += `> <@${owner.user.id}> - ${getDisplayName(owner)}`;
 
         channel.send(botJoinedMessage);
       }
