@@ -965,7 +965,7 @@ const MultiThreadsCreatorCommands = {
             });
           }
 
-          const threadTitle = interaction.fields.getTextInputValue("mtc-modal-thread_title");
+          const threadTitle = await interaction.fields.getTextInputValue("mtc-modal-thread_title");
 
           let createdThreads = [];
 
@@ -996,7 +996,7 @@ const MultiThreadsCreatorCommands = {
                   });
 
                   if (mtrEntry?.defaultContent?.length > 3) {
-                    createdThread.send(mtrEntry?.defaultContent);
+                    await createdThread.send(mtrEntry?.defaultContent);
                   }
 
                   createdThreads.push({ channel: channelId, thread: createdThread });
@@ -1009,10 +1009,10 @@ const MultiThreadsCreatorCommands = {
                     reason: `Multi Threads Creator`,
                   });
 
-                  createdThread.members.add(interaction.user.id);
+                  await createdThread.members.add(interaction.user.id);
 
                   if (mtrEntry?.defaultContent.length > 3) {
-                    createdThread.send(mtrEntry?.defaultContent);
+                    await createdThread.send(mtrEntry?.defaultContent);
                   }
 
                   createdThreads.push({ channel: channelId, thread: createdThread });
