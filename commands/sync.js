@@ -421,6 +421,7 @@ module.exports = {
       let rolesAdded = [];
       let rolesRemoved = [];
       let rolesSkipped = [];
+      let rolesNoPerms = [];
       let promises = [];
 
       const roleHandle = await destinationServer.roles.cache.find((r) => r.id === found.role_gid);
@@ -446,9 +447,13 @@ module.exports = {
             const hasRole = await memberX.roles.cache.find((r) => r.id === roleHandle.id);
             if (!hasRole) {
               //await memberX.roles.add(roleHandle, "Synchronization").then().catch(console.error);
-              promises.push(
-                memberX.roles.add(roleHandle, "Synchronization").then().catch(console.error)
-              );
+              try {
+                promises.push(
+                  memberX.roles.add(roleHandle, "Synchronization").then().catch(console.error)
+                );
+              } catch (err) {
+                rolesNoPerms.push(getDisplayName(memberX));
+              }
             }
 
             if (found.update_nick === true) {
@@ -461,26 +466,32 @@ module.exports = {
                 }
 
                 if (!getDisplayName(memberX).includes(newNickname)) {
-                  try {
-                    promises.push(memberX.setNickname(newNickname));
-                    //await memberX.setNickname(newNickname);
-                  } catch (err) {
-                    console.error(
-                      `[mn3jfd] Couldn't change player nickname to "${newNickname}". Reason: ${err.message}`
-                    );
-                  }
+                  promises.push(
+                    memberX
+                      .setNickname(newNickname)
+                      .then()
+                      .catch((err) => {
+                        console.error(
+                          `[hf89d] Couldn't change player nickname to "${newNickname}". Reason: ${err.message}`
+                        );
+                      })
+                  );
+                  //await memberX.setNickname(newNickname);
                 }
               } else {
-                try {
-                  promises.push(memberX.setNickname(getDisplayName(member)));
-                  //await memberX.setNickname(getDisplayName(member));
-                } catch (err) {
-                  console.error(
-                    `[cadsg3] Couldn't change player nickname to "${getDisplayName(
-                      member
-                    )}". Reason: ${err.message}`
-                  );
-                }
+                promises.push(
+                  memberX
+                    .setNickname(getDisplayName(member))
+                    .then()
+                    .catch((err) => {
+                      console.error(
+                        `[h452r2] Couldn't change player nickname to "${getDisplayName(
+                          member
+                        )}". Reason: ${err.message}`
+                      );
+                    })
+                );
+                //await memberX.setNickname(getDisplayName(member));
               }
             }
 
@@ -489,7 +500,8 @@ module.exports = {
             if (
               rolesAdded.join("\n").length +
                 rolesRemoved.join("\n").length +
-                rolesSkipped.join("\n").length >
+                rolesSkipped.join("\n").length +
+                rolesNoPerms.join("\n").length >
               950
             ) {
               fields.push({
@@ -508,6 +520,14 @@ module.exports = {
                 inline: true,
               });
 
+              if (rolesNoPerms.length > 0) {
+                fields.push({
+                  name: `No permissions:`,
+                  value: rolesNoPerms.sort().join("\n") + "\n-",
+                  inline: true,
+                });
+              }
+
               const embed = new EmbedBuilder()
                 .setColor("#2222cc")
                 .setTitle(`Synchronization results ${found.name}`)
@@ -524,6 +544,7 @@ module.exports = {
               rolesAdded = [];
               rolesRemoved = [];
               rolesSkipped = [];
+              rolesNoPerms = [];
             }
           } else {
             rolesSkipped.push(getDisplayName(member));
@@ -536,15 +557,21 @@ module.exports = {
         //rolesToRemove.forEach((member) => {
         for await (const [userId, member] of rolesToRemove.entries()) {
           //          await member.roles.remove(roleHandle, "Synchronization").then().catch(console.error);
-          promises.push(
-            member.roles.remove(roleHandle, "Synchronization").then().catch(console.error)
-          );
-          rolesRemoved.push(getDisplayName(member));
+
+          try {
+            promises.push(
+              member.roles.remove(roleHandle, "Synchronization").then().catch(console.error)
+            );
+            rolesRemoved.push(getDisplayName(member));
+          } catch (err) {
+            rolesNoPerms.push(getDisplayName(member));
+          }
 
           if (
             rolesAdded.join("\n").length +
               rolesRemoved.join("\n").length +
-              rolesSkipped.join("\n").length >
+              rolesSkipped.join("\n").length +
+              rolesNoPerms.join("\n").length >
             950
           ) {
             fields.push({
@@ -563,6 +590,14 @@ module.exports = {
               inline: true,
             });
 
+            if (rolesNoPerms.length > 0) {
+              fields.push({
+                name: `No permissions:`,
+                value: rolesNoPerms.sort().join("\n") + "\n-",
+                inline: true,
+              });
+            }
+
             const embed = new EmbedBuilder()
               .setColor("#2222cc")
               .setTitle(`Synchronization results ${found.name}`)
@@ -579,6 +614,7 @@ module.exports = {
             rolesAdded = [];
             rolesRemoved = [];
             rolesSkipped = [];
+            rolesNoPerms = [];
           }
         }
       }
@@ -598,6 +634,14 @@ module.exports = {
         value: rolesSkipped.sort().join("\n") + "\n-",
         inline: true,
       });
+
+      if (rolesNoPerms.length > 0) {
+        await fields.push({
+          name: `No permissions:`,
+          value: rolesNoPerms.sort().join("\n") + "\n-",
+          inline: true,
+        });
+      }
 
       const embed = new EmbedBuilder()
         .setColor("#2222cc")
