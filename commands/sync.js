@@ -17,6 +17,9 @@ module.exports = {
           .setName("new")
           .setDescription("Add new server")
           .addStringOption((option) =>
+            option.setName("name").setDescription("Sync name").setRequired(true)
+          )
+          .addStringOption((option) =>
             option.setName("source").setDescription("Source server ID").setRequired(true)
           )
           .addStringOption((option) =>
@@ -52,7 +55,11 @@ module.exports = {
         .setName("remove")
         .setDescription("Remove server")
         .addStringOption((option) =>
-          option.setName("id").setDescription("ID of the connection").setRequired(true)
+          option
+            .setName("sync_id")
+            .setDescription("Name of the sync")
+            .setRequired(true)
+            .setAutocomplete(true)
         )
     )
     .addSubcommand((subcommand) =>
@@ -63,7 +70,11 @@ module.exports = {
         .setName("reload")
         .setDescription("Reload synchronization for specific entry")
         .addStringOption((option) =>
-          option.setName("id").setDescription("ID of the connection").setRequired(true)
+          option
+            .setName("sync_id")
+            .setDescription("Name of the sync")
+            .setRequired(true)
+            .setAutocomplete(true)
         )
         .addBooleanOption((option) =>
           option
@@ -82,6 +93,33 @@ module.exports = {
         )
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  async autocomplete(interaction) {
+    const focusedOption = interaction.options.getFocused(true);
+
+    let choices = [];
+    if (focusedOption.name === "sync_id") {
+      try {
+        const syncDB = await Sync.find({
+          gid: interaction.guildId,
+        }).sort({ option: 1 });
+
+        await syncDB.forEach((sync) => {
+          choices.push({
+            name: `${sync.name}`,
+            value: sync._id.toString(),
+          });
+        });
+      } catch (err) {
+        console.error(err);
+      }
+
+      const filtered = choices.filter((choice) => choice.name.startsWith(focusedOption.value));
+
+      await interaction.respond(
+        filtered.map((choice) => ({ name: choice.name, value: choice.value }))
+      );
+    }
+  },
   async execute(interaction) {
     if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageGuild)) {
       return await interaction.reply({
@@ -221,7 +259,7 @@ module.exports = {
         );
       }
     } else if (interaction.options.getSubcommand() === "remove") {
-      const id = interaction.options.getString("id");
+      const id = interaction.options.getString("sync_id");
 
       let sync = null;
 
@@ -308,7 +346,7 @@ module.exports = {
         await interaction.followUp({ embeds: [embed] });
       }
     } else if (interaction.options.getSubcommand() === "reload") {
-      const id = interaction.options.getString("id");
+      const id = interaction.options.getString("sync_id");
       const remove_existing_members = interaction.options.getBoolean("remove_existing_members");
       const force_update_all_members = interaction.options.getBoolean("force_update_all_members");
       const skip_updating_members_with_role = interaction.options.getRole(
@@ -472,7 +510,7 @@ module.exports = {
 
               const embed = new EmbedBuilder()
                 .setColor("#2222cc")
-                .setTitle(`Synchronization results #${id}`)
+                .setTitle(`Synchronization results ${found.name}`)
                 .setDescription(
                   `> Added roles: **${rolesAdded.length}**\n> Removed roles: **${rolesRemoved.length}**\n> Skipped: **${rolesSkipped.length}**`
                 )
@@ -527,7 +565,7 @@ module.exports = {
 
             const embed = new EmbedBuilder()
               .setColor("#2222cc")
-              .setTitle(`Synchronization results #${id}`)
+              .setTitle(`Synchronization results ${found.name}`)
               .setDescription(
                 `> Added roles: **${rolesAdded.length}**\n> Removed roles: **${rolesRemoved.length}**\n> Skipped: **${rolesSkipped.length}**`
               )
@@ -563,7 +601,7 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor("#2222cc")
-        .setTitle(`Synchronization results #${id}`)
+        .setTitle(`Synchronization results ${found.name}`)
         .setDescription(
           `> Added roles: **${rolesAdded.length}**\n> Removed roles: **${rolesRemoved.length}**\n> Skipped: **${rolesSkipped.length}**`
         )
@@ -574,7 +612,7 @@ module.exports = {
 
       await Promise.all(promises);
       await interaction.followUp(
-        `> Hey ${interaction.member}! Synchronization \`#${id}\` of **${promises.length}** member(s) finished! All roles and nicknames updated...`
+        `> Hey ${interaction.member}! Synchronization \`${found.name}\` of **${promises.length}** member(s) finished! All roles and nicknames updated...`
       );
     }
   },
@@ -956,6 +994,63 @@ module.exports = {
         return;
       }
 
+      //
+      try {
+        for await (const result of results) {
+          let removed = false;
+
+          // check if member had synced role on the source server
+          if (!member.roles.cache.has(result.role_source)) continue;
+
+          const destinationServer = await client.guilds.cache.get(result.gid);
+
+          // check if bot is still on destination server
+          if (!destinationServer) continue;
+
+          const destinationMember = await destinationServer.members.cache.get(member.user.id);
+
+          // check if member is on destination server
+          if (!destinationMember) continue;
+
+          const destinationRole = await destinationServer.roles.cache.find(
+            (roles) => roles.id === result.role_gid
+          );
+
+          // check if destination role still exist
+          if (!destinationRole) continue;
+
+          // check if member has synced role on destination server
+          if (!destinationMember.roles.cache.has(result.role_gid)) continue;
+
+          try {
+            await destinationMember.roles.remove(destinationRole).catch(console.error);
+            removed = true;
+          } catch (err) {
+            // this error can happen if bot can't remove role from player
+            console.error(err);
+          }
+
+          if (result.log_gid && removed === true) {
+            const log = await destinationServer.channels.cache.find(
+              (channel) => channel.id === result.log_gid
+            );
+
+            if (log) {
+              if (removed === true) {
+                await log.send(
+                  `**${destinationMember.toString()}** has left **${
+                    member.guild.name
+                  }** server and his role **${destinationRole.name}** got removed`
+                );
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+
+      /*
       try {
         //results.forEach(async (result) => {
         for await (const result of results) {
@@ -1006,6 +1101,7 @@ module.exports = {
       } catch (err) {
         console.error(err);
       }
+      */
     });
 
     // remove sync if role was removed
