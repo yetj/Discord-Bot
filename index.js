@@ -8,11 +8,6 @@ const mongoose = require("mongoose");
 
 //process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
 
-/*
-const express = require('express');
-const app = express();
-*/
-
 //Perms int: 2193080970448
 //https://discord.com/api/oauth2/authorize?client_id=817396326605127711&permissions=2193080970448&scope=bot%20applications.commands
 
