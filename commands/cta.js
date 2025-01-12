@@ -629,20 +629,112 @@ const CTA_Registration = {
       subcommand.setName("whoami").setDescription("Show my registered nickname.")
     ),
   async execute(interaction) {
+    let registration_perms = false;
+    let manager_perms = false;
+    let configCTA;
+
+    if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
+      registration_perms = true;
+      manager_perms = true;
+    }
+
+    try {
+      configCTA = await CTAConfig.findOne({
+        gid: interaction.guildId,
+      });
+
+      if (!configCTA || configCTA.ao_server.length < 1) {
+        return await interaction.reply({
+          content: `> Server is not set for registration.`,
+          ephemeral: true,
+        });
+      }
+
+      if (configCTA.ao_server == "-") {
+        return await interaction.reply({ content: `> Registration is disabled.`, ephemeral: true });
+      }
+
+      if (!manager_perms) {
+        configCTA.manager_roles.forEach((role) => {
+          if (interactionUser.roles.cache.has(role)) {
+            manager_perms = true;
+            registration_perms = true;
+          }
+        });
+      }
+
+      if (!registration_perms) {
+        configCTA.registration_roles.forEach((role) => {
+          if (interactionUser.roles.cache.has(role)) {
+            registration_perms = true;
+          }
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      return await interaction.reply({
+        content: `> [a96117] Error while checking perms. Please try again later.`,
+        ephemeral: true,
+      });
+    }
+
     if (interaction.options.getSubcommand() === "show") {
+      if (!registration_perms) {
+        return await interaction.reply({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
       //
     } else if (interaction.options.getSubcommand() === "membership") {
+      if (!registration_perms) {
+        return await interaction.reply({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
       //
     } else if (interaction.options.getSubcommand() === "register_all") {
+      if (!manager_perms) {
+        return await interaction.reply({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
       //
     } else if (interaction.options.getSubcommand() === "unregister") {
+      if (!registration_perms) {
+        return await interaction.reply({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
       //
     } else if (interaction.options.getSubcommand() === "remove_member_from_notregistered") {
+      if (!manager_perms) {
+        return await interaction.reply({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
       //
     } else if (interaction.options.getSubcommand() === "show_unregistered") {
+      if (!registration_perms) {
+        return await interaction.reply({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
       //
     } else if (interaction.options.getSubcommand() === "whoami") {
-      //
+      let message = ``;
+
+      const embedMessage = new EmbedBuilder()
+        .setColor(`#0AA2FF`)
+        .setTitle(``)
+        .setDescription(message);
+
+      await interaction.reply({ embeds: [embedMessage] });
     }
   },
 };
