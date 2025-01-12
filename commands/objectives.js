@@ -65,6 +65,17 @@ module.exports = {
         )
     )
     .addSubcommand((subcommand) =>
+      subcommand
+        .setName("setup_duplicate_types")
+        .setDescription("Duplicate types from different server.")
+        .addStringOption((option) =>
+          option
+            .setName("server_id")
+            .setDescription("Discord server ID to duplicate.")
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
       subcommand.setName("reload_summary").setDescription("Reload objective summary")
     )
     .addSubcommand((subcommand) =>
@@ -1050,6 +1061,50 @@ module.exports = {
         console.error(err);
         return await interaction.followUp(
           `[mi90vf3] Error while manually updating Objective. Please try again later.`
+        );
+      }
+    } else if (interaction.options.getSubcommand() == "setup_duplicate_types") {
+      const server_id = interaction.options.getString("server_id").trim();
+
+      await interaction.deferReply({ ephemeral: true });
+
+      try {
+        if (interaction.user.id !== "165542890334978048") {
+          return await interaction.followUp({
+            content: `> Only **yetj** can execture this command. Sorry...`,
+            ephemeral: true,
+          });
+        }
+
+        const objTypes = await ObjectivesTypes.find({
+          gid: server_id,
+        });
+
+        if (objTypes.length < 1) {
+          return await interaction.followUp({
+            content: `> This server doesn't have any Objective types to duplicate.`,
+            ephemeral: true,
+          });
+        }
+
+        await objTypes.forEach(async (obj) => {
+          const newObjectiveType = await new ObjectivesTypes({
+            gid: interaction.guildId,
+            name: obj.name,
+            thumbnail_url: obj.thumbnail_url,
+          });
+
+          await newObjectiveType.save();
+        });
+
+        await interaction.followUp({
+          content: `> *Successfully duplicated **${objTypes.length}** Objective type(s).*`,
+          ephemeral: true,
+        });
+      } catch (err) {
+        console.error(err);
+        return await interaction.followUp(
+          `> [198534g] *Error while duplicating Objective types. Please try again later.*`
         );
       }
     } else if (interaction.options.getSubcommand() == "reload_summary") {
