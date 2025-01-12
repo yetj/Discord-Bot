@@ -727,9 +727,10 @@ module.exports = {
                     }
 
                     if (result.update_nick === true) {
+                      let newNickname = "";
                       try {
                         let space_after_prefix = result?.space_after_prefix ? " " : "";
-                        let newNickname =
+                        newNickname =
                           result.prefix + space_after_prefix + getDisplayName(sourceMember);
                         if (newNickname.length > 32) {
                           newNickname = newNickname.substring(0, 31);
@@ -740,7 +741,7 @@ module.exports = {
                       } catch (err) {
                         // this error can happen if bot can't change player nickname
                         console.error(
-                          `[nu9f34] Couldn't change player nickname to "${newNickname}". Reason: ${err.message}`
+                          `[nu9f34] Couldn't change player nickname to ${newNickname}. Reason: ${err.message}`
                         );
                         //console.error(err);
                       }
