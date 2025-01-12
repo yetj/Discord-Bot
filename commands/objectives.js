@@ -455,7 +455,7 @@ module.exports = {
       }
     } else if (interaction.options.getSubcommand() == "setup_show") {
       try {
-        const settingsDB = await AvaSettings.find({
+        const settingsDB = await ObjectivesSettings.find({
           gid: interaction.guildId,
         });
 
