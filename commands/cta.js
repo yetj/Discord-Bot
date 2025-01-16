@@ -584,7 +584,7 @@ const CTA_Register = {
 const CTA_Registration = {
   data: new SlashCommandBuilder()
     .setName("registration")
-    .setDescription("Configutre the bot.")
+    .setDescription("Registration management.")
     .addSubcommand((subcommand) =>
       subcommand
         .setName("show")
