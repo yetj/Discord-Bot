@@ -14,10 +14,13 @@ const CTAConfig = mongoose.model("CTAConfig", CTAConfigSchema);
 
 const CTAMembersSchema = new mongoose.Schema({
   gid: String,
-  id: String,
-  name: String,
+  id: String, // discord ID
+  name: String, // discord username
   ao_name: String,
   registered: { type: Date, default: Date.now },
+  unregistered: { type: Boolean, default: false },
+  unregistered_date: { type: Date, default: 0 },
+  unregistered_reason: { type: String, default: "" },
 });
 const CTAMembers = mongoose.model("CTAMembers", CTAMembersSchema);
 
@@ -49,7 +52,7 @@ const CTAEventsSchema = new mongoose.Schema({
   creator_id: String,
   creator_name: String,
   mandatory: { type: Boolean, default: false },
-  weigth: { type: Number, default: 1 },
+  weight: { type: Number, default: 1 },
 });
 const CTAEvents = mongoose.model("CTAEvents", CTAEventsSchema);
 
@@ -60,6 +63,7 @@ const CTAEventGroupsSchema = new mongoose.Schema({
   start: Date,
   end: Date,
   only_mandatory: Boolean,
+  only_created_by: { type: [String], default: [] },
 });
 const CTAEventGroups = mongoose.model("CTAEventGroups", CTAEventGroupsSchema);
 

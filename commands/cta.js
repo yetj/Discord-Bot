@@ -528,6 +528,7 @@ const CTA_Register = {
           $and: [
             { gid: interaction.guildId },
             { $or: [{ id: member.id }, { ao_name: game_nickname }] },
+            { unregistered: false },
           ],
         });
 
@@ -554,6 +555,7 @@ const CTA_Register = {
         $and: [
           { gid: interaction.guildId },
           { $or: [{ id: interaction.user.id }, { ao_name: game_nickname }] },
+          { unregistered: false },
         ],
       });
 
