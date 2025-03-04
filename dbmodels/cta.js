@@ -16,7 +16,7 @@ const CTAMembersSchema = new mongoose.Schema({
   gid: String,
   id: String, // discord ID
   name: String, // discord username
-  ao_name: String,
+  game_nickname: String,
   registered: { type: Date, default: Date.now },
   unregistered: { type: Boolean, default: false },
   unregistered_date: { type: Date, default: 0 },

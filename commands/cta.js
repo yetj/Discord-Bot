@@ -12,6 +12,7 @@ const {
   CTAEvents,
   CTAEventGroups,
 } = require("../dbmodels/cta");
+const getDisplayName = require("../utils/getDisplayName");
 
 const CTA_Setup = {
   data: new SlashCommandBuilder()
@@ -527,14 +528,14 @@ const CTA_Register = {
         const registered = await CTAMembers.findOne({
           $and: [
             { gid: interaction.guildId },
-            { $or: [{ id: member.id }, { ao_name: game_nickname }] },
+            { $or: [{ id: member.id }, { game_nickname: game_nickname }] },
             { unregistered: false },
           ],
         });
 
         if (registered) {
           return await interaction.reply({
-            content: `> This member or this game nickname is already registered for <@${registered.id}> with nickname **${registered.ao_name}**.`,
+            content: `> This member or this game nickname is already registered for <@${registered.id}> with nickname **${registered.game_nickname}**.`,
             ephemeral: true,
           });
         }
@@ -543,25 +544,28 @@ const CTA_Register = {
           gid: interaction.guildId,
           id: member.id,
           name: member.username,
-          ao_name: game_nickname,
+          game_nickname: game_nickname,
         });
 
         await newRegistration.save();
 
-        await interaction.reply({ content: `> Registration completed!` });
+        return await interaction.reply({
+          content: `> Member ${member} successfully registered with game nickname: \`${game_nickname}\`!`,
+          ephemeral: true,
+        });
       }
 
       const registered = await CTAMembers.findOne({
         $and: [
           { gid: interaction.guildId },
-          { $or: [{ id: interaction.user.id }, { ao_name: game_nickname }] },
+          { $or: [{ id: interaction.user.id }, { game_nickname: game_nickname }] },
           { unregistered: false },
         ],
       });
 
       if (registered) {
         return await interaction.reply({
-          content: `> You or your game nickname is already registered for <@${registered.id}> with nickname **${registered.ao_name}**.`,
+          content: `> You or your game nickname is already registered for <@${registered.id}> with nickname **${registered.game_nickname}**.`,
           ephemeral: true,
         });
       }
@@ -570,12 +574,14 @@ const CTA_Register = {
         gid: interaction.guildId,
         id: interaction.user.id,
         name: interaction.user.username,
-        ao_name: game_nickname,
+        game_nickname: game_nickname,
       });
 
       await newRegistration.save();
 
-      await interaction.reply({ content: `> Registration completed!` });
+      await interaction.reply({
+        content: `> Registration completed with game nickname: \`${game_nickname}\`!`,
+      });
     } catch (err) {
       console.error(err);
       return await interaction.reply(`> [b7dcae] Failed to register. Please try again later.`);
@@ -597,9 +603,7 @@ const CTA_Registration = {
         .addUserOption((option) => option.setName("member").setDescription("Select member"))
     )
     .addSubcommand((subcommand) =>
-      subcommand
-        .setName("membership")
-        .setDescription("Check which users are registrered but, doesn't have a member role.")
+      subcommand.setName("membership").setDescription("Check membership status of all members.")
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -613,19 +617,12 @@ const CTA_Registration = {
         .setName("unregister")
         .setDescription("Unregister game nickname or member")
         .addStringOption((option) =>
+          option.setName("reason").setDescription("Reason for unregistering.").setRequired(true)
+        )
+        .addStringOption((option) =>
           option.setName("game_nickname").setDescription("Nickname from the game")
         )
         .addUserOption((option) => option.setName("member").setDescription("Select member"))
-    )
-    .addSubcommand((subcommand) =>
-      subcommand
-        .setName("remove_member_from_notregistered")
-        .setDescription("Remove Member role from all not registered members.")
-    )
-    .addSubcommand((subcommand) =>
-      subcommand
-        .setName("show_unregistered")
-        .setDescription("Show all members that have Member role, but are not registered.")
     )
     .addSubcommand((subcommand) =>
       subcommand.setName("whoami").setDescription("Show my registered nickname.")
@@ -687,6 +684,56 @@ const CTA_Registration = {
           ephemeral: true,
         });
       }
+
+      try {
+        const game_nickname = interaction.options.getString("game_nickname") ?? null;
+        const member = interaction.options.getMember("member") ?? null;
+
+        let find_by = {};
+
+        if (game_nickname && member) {
+          return await interaction.reply({
+            content: `> Please select just one option - game_nickname or member.`,
+            ephemeral: true,
+          });
+        }
+
+        if (game_nickname) {
+          find_by = { game_nickname: game_nickname.trim() };
+        }
+
+        if (member) {
+          find_by = { id: member.user.id };
+        }
+
+        const registered = await CTAMembers.findOne({
+          $and: [{ gid: interaction.guildId }, find_by, { unregistered: false }],
+        });
+
+        if (!registered) {
+          return await interaction.reply({
+            content: `> Couldn't find registered members with this data.`,
+            ephemeral: true,
+          });
+        }
+
+        let message = ``;
+
+        message += `Member <@${registered.id}> is registered with the nickname: \`${registered.game_nickname}\``;
+
+        const embedMessage = new EmbedBuilder()
+          .setColor(`#DB0000`)
+          .setTitle(`Registration status`)
+          .setDescription(message);
+
+        await interaction.reply({ embeds: [embedMessage] });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [1343d3] Error while showing registration status for the player. Please try again later.`,
+          ephemeral: true,
+        });
+      }
       //
     } else if (interaction.options.getSubcommand() === "membership") {
       if (!registration_perms) {
@@ -695,7 +742,80 @@ const CTA_Registration = {
           ephemeral: true,
         });
       }
-      //
+
+      try {
+        const registeredMembers = await CTAMembers.find({
+          $and: [{ gid: interaction.guildId }, { unregistered: false }],
+        });
+
+        if (!registeredMembers || registeredMembers.length < 1) {
+          return await interaction.reply({
+            content: `> Can't find any registered memebrs.`,
+            ephemeral: true,
+          });
+        }
+
+        let guildMembersWithMemberRole = null;
+
+        await interaction.guild.members.fetch({ force: true }).then((members) => {
+          guildMembersWithMemberRole = members.filter((member) =>
+            member._roles.includes(configCTA.member_role)
+          );
+        });
+
+        let guildMembersWithMemberRoleMap = guildMembersWithMemberRole.map((m) => m.id);
+        let registeredMembersMap = registeredMembers.map((m) => m.id);
+
+        let membersWithoutMemberRole = [];
+        let membersNotRegistered = [];
+
+        // checking registered members without a role
+        for await (const member of registeredMembers) {
+          if (guildMembersWithMemberRoleMap.indexOf(member.id) === -1) {
+            membersWithoutMemberRole.push(member.id);
+          }
+        }
+
+        // checking members without registration
+        for await (const [index, member] of guildMembersWithMemberRole) {
+          if (registeredMembersMap.indexOf(member.user.id) === -1) {
+            membersNotRegistered.push(member.user.id);
+          }
+        }
+
+        let message = ``;
+
+        message += `### Members without role <@&${configCTA.member_role}>:\n`;
+        if (membersWithoutMemberRole.length > 0) {
+          for await (const member of membersWithoutMemberRole) {
+            message += `> <@${member}> - *${member}*\n`;
+          }
+        } else {
+          message += `> *All registered members have member role.*\n`;
+        }
+
+        message += `\n### Not registered members:\n`;
+        if (membersNotRegistered.length > 0) {
+          for await (const member of membersNotRegistered) {
+            message += `> <@${member}> - *${member}*\n`;
+          }
+        } else {
+          message += `> *All members with member role are registered.*`;
+        }
+
+        const embedMessage = new EmbedBuilder()
+          .setColor(`#0000DB`)
+          .setTitle(`Members membership`)
+          .setDescription(message);
+
+        await interaction.reply({ ephemeral: true, embeds: [embedMessage] });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [c49648] Error while checking membership. Please try again later.`,
+          ephemeral: true,
+        });
+      }
     } else if (interaction.options.getSubcommand() === "register_all") {
       if (!manager_perms) {
         return await interaction.reply({
@@ -703,7 +823,94 @@ const CTA_Registration = {
           ephemeral: true,
         });
       }
-      //
+
+      try {
+        const registeredMembers = await CTAMembers.find({
+          $and: [{ gid: interaction.guildId }, { unregistered: false }],
+        });
+
+        let guildMembersWithMemberRole = null;
+
+        await interaction.guild.members.fetch({ force: true }).then((members) => {
+          guildMembersWithMemberRole = members.filter((member) =>
+            member._roles.includes(configCTA.member_role)
+          );
+        });
+
+        let registeredMembersMap = registeredMembers.map((m) => m.id);
+        let membersNotRegistered = [];
+
+        for await (const [index, member] of guildMembersWithMemberRole) {
+          if (registeredMembersMap.indexOf(member.user.id) === -1) {
+            membersNotRegistered.push(member.user.id);
+          }
+        }
+
+        let message = ``;
+
+        if (membersNotRegistered.length > 0) {
+          let newlyRegistered = 0;
+          let notRegistered = [];
+
+          message += `### Newly registered memebrs:\n`;
+          for await (const member of membersNotRegistered) {
+            await interaction.guild.members.fetch(member).then(async (m) => {
+              const registered = await CTAMembers.findOne({
+                $and: [
+                  { gid: interaction.guildId },
+                  { game_nickname: getDisplayName(m) },
+                  { unregistered: false },
+                ],
+              });
+
+              if (registered) {
+                notRegistered.push(m);
+              } else {
+                if (!/^[A-Za-z0-9]+$/.test(getDisplayName(m))) {
+                  notRegistered.push(m);
+                } else {
+                  const newRegistration = new CTAMembers({
+                    gid: interaction.guildId,
+                    id: m.user.id,
+                    name: m.user.username,
+                    game_nickname: getDisplayName(m),
+                  });
+
+                  await newRegistration.save();
+                  newlyRegistered++;
+
+                  message += `> ${m} - *${getDisplayName(m)}*\n`;
+                }
+              }
+            });
+          }
+          if (newlyRegistered == 0) {
+            message += `> *Didn't find any member to register.*`;
+          }
+
+          if (notRegistered.length > 0) {
+            message += `### Not registered\n*Members not registered due to their displayname was already registered as a game nickname or displayname contained not allowed characters.*\n`;
+            for await (const member of notRegistered) {
+              message += `> ${member} - \`${getDisplayName(member)}\`\n`;
+            }
+          }
+        } else {
+          message += `> All members are already registered!`;
+        }
+
+        const embedMessage = new EmbedBuilder()
+          .setColor(`#0000aa`)
+          .setTitle(`Register all members`)
+          .setDescription(message);
+
+        await interaction.reply({ embeds: [embedMessage] });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [31b13e] Error while registering all members. Please try again later.`,
+          ephemeral: true,
+        });
+      }
     } else if (interaction.options.getSubcommand() === "unregister") {
       if (!registration_perms) {
         return await interaction.reply({
@@ -711,32 +918,94 @@ const CTA_Registration = {
           ephemeral: true,
         });
       }
-      //
-    } else if (interaction.options.getSubcommand() === "remove_member_from_notregistered") {
-      if (!manager_perms) {
+
+      try {
+        const reason = interaction.options.getString("reason").trim() ?? null;
+        const game_nickname = interaction.options.getString("game_nickname") ?? null;
+        const member = interaction.options.getMember("member") ?? null;
+
+        let find_by = {};
+
+        if (game_nickname && member) {
+          return await interaction.reply({
+            content: `> Please select just one option - game_nickname or member.`,
+            ephemeral: true,
+          });
+        }
+
+        if (game_nickname) {
+          find_by = { game_nickname: game_nickname.trim() };
+        }
+
+        if (member) {
+          console.log(member);
+          find_by = { id: member.user.id };
+        }
+
+        const registered = await CTAMembers.findOne({
+          $and: [{ gid: interaction.guildId }, find_by, { unregistered: false }],
+        });
+
+        if (!registered) {
+          return await interaction.reply({
+            content: `> Couldn't find any registered members with this data.`,
+            ephemeral: true,
+          });
+        }
+
+        registered.unregistered = true;
+        registered.unregistered_reason = reason;
+        registered.unregistered_date = new Date();
+
+        registered.save();
+
+        await interaction.reply({
+          content: `> Member <@${registered.id}> successfully unregistered game nickname \`${registered.game_nickname}\` with reason: \`${reason}\``,
+          ephemeral: true,
+        });
+      } catch (err) {
+        console.error(err);
         return await interaction.reply({
-          content: `> No permission to use this command.`,
+          content: `> [4d0797] Error while unregistering. Please try again later.`,
           ephemeral: true,
         });
       }
-      //
-    } else if (interaction.options.getSubcommand() === "show_unregistered") {
-      if (!registration_perms) {
-        return await interaction.reply({
-          content: `> No permission to use this command.`,
-          ephemeral: true,
-        });
-      }
+
       //
     } else if (interaction.options.getSubcommand() === "whoami") {
-      let message = ``;
+      try {
+        const registered = await CTAMembers.findOne({
+          $and: [
+            { gid: interaction.guildId },
+            { id: interaction.user.id },
+            { unregistered: false },
+          ],
+        });
 
-      const embedMessage = new EmbedBuilder()
-        .setColor(`#0AA2FF`)
-        .setTitle(``)
-        .setDescription(message);
+        let message = ``;
 
-      await interaction.reply({ embeds: [embedMessage] });
+        if (registered) {
+          message += `**Registered user:**\n> <@${registered.id}> - \`${registered.id}\`\n`;
+          message += `**Registered game nickname:**\n> \`${registered.game_nickname}\`\n`;
+          message += `**Registration date:**\n> \`${registered.registered}\``;
+        } else {
+          message += `### You are not registered!\n`;
+          message += `> Use command \`/register\` to register your game nickname.`;
+        }
+
+        const embedMessage = new EmbedBuilder()
+          .setColor(`#00DB00`)
+          .setTitle(`Who am I?`)
+          .setDescription(message);
+
+        await interaction.reply({ ephemeral: true, embeds: [embedMessage] });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [5d7aca] Error while checking who am I. Please try again later.`,
+          ephemeral: true,
+        });
+      }
     }
   },
 };
