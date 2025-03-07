@@ -245,28 +245,28 @@ const CTA_Setup = {
         if (!configCTA) {
           const newConfig = await new CTAConfig({
             gid: interaction.guildId,
-            event_roles: [role.id],
+            cta_roles: [role.id],
           });
           await newConfig.save();
         } else {
           if (remove_instead) {
             action = "removed";
-            if (configCTA.event_roles.indexOf(role.id) === -1) {
+            if (configCTA.cta_roles.indexOf(role.id) === -1) {
               return await interaction.reply(`> This role doesn't have event perms.`);
             }
 
-            configCTA.event_roles = configCTA.event_roles.filter((id) => {
+            configCTA.cta_roles = configCTA.cta_roles.filter((id) => {
               id !== role.id;
             });
 
             await configCTA.save();
           } else {
             action = "added";
-            if (configCTA.event_roles.indexOf(role.id) !== -1) {
+            if (configCTA.cta_roles.indexOf(role.id) !== -1) {
               return await interaction.reply(`> This role has event perms already.`);
             }
 
-            configCTA.event_roles.push(role.id);
+            configCTA.cta_roles.push(role.id);
             await configCTA.save();
           }
         }
@@ -419,8 +419,8 @@ const CTA_Setup = {
         }
 
         message += `### Event roles:\n`;
-        if (configCTA.event_roles.length > 0) {
-          configCTA.event_roles.forEach((id) => {
+        if (configCTA.cta_roles.length > 0) {
+          configCTA.cta_roles.forEach((id) => {
             message += `<@&${id}> - \`${id}\`\n`;
           });
         } else {
@@ -1025,10 +1025,393 @@ const CTA_Vacation = {
 const CTA_Event = {
   data: new SlashCommandBuilder()
     .setName("cta")
-    .setDescription("Configutre the bot.")
-    .addSubcommand((subcommand) => subcommand.setName("ao").setDescription("Check servers status")),
+    .setDescription("Event management commands.")
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("add")
+        .setDescription("Creates new CTA event.")
+        .addStringOption((option) =>
+          option.setName("name").setDescription("Event name").setRequired(true)
+        )
+        .addStringOption((option) =>
+          option
+            .setName("cta_type")
+            .setDescription("Event type")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
+        .addBooleanOption((option) =>
+          option.setName("mandatory").setDescription("Is event mandatory? (default: no)")
+        )
+        .addNumberOption((option) =>
+          option.setName("weight").setDescription("Event weight (default: 1)")
+        )
+        .addChannelOption((option) =>
+          option
+            .setName("channel")
+            .addChannelTypes(ChannelType.GuildVoice)
+            .setDescription("Voice channel")
+        )
+        .addStringOption((option) =>
+          option
+            .setName("channels")
+            .setDescription("Multiple Voice channel IDs (separated by comma)")
+        )
+        .addStringOption((option) =>
+          option.setName("battle_ids").setDescription("Battle IDs from API (separated by comma)")
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("remove")
+        .setDescription("Remove CTA event.")
+        .addStringOption((option) =>
+          option
+            .setName("cta_id")
+            .setDescription("Event ID")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("update")
+        .setDescription("Creates new CTA event.")
+        .addStringOption((option) =>
+          option
+            .setName("cta_id")
+            .setDescription("Event ID")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
+        .addStringOption((option) =>
+          option
+            .setName("action")
+            .setDescription("Action")
+            .addChoices({ name: "Add", value: "add" }, { name: "Remove", value: "remove" })
+            .setRequired(true)
+        )
+        .addStringOption((option) =>
+          option.setName("members").setDescription("Multiple Members mentions (separated by space)")
+        )
+        .addChannelOption((option) =>
+          option
+            .setName("channel")
+            .addChannelTypes(ChannelType.GuildVoice)
+            .setDescription("Voice channel")
+        )
+        .addStringOption((option) =>
+          option
+            .setName("channels")
+            .setDescription("Multiple Voice channel IDs (separated by comma)")
+        )
+        .addStringOption((option) =>
+          option.setName("battle_ids").setDescription("Battle IDs from API (separated by comma)")
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("edit")
+        .setDescription("Creates new CTA event.")
+        .addStringOption((option) =>
+          option
+            .setName("cta_id")
+            .setDescription("Event ID")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
+        .addStringOption((option) => option.setName("name").setDescription("Event name"))
+        .addStringOption((option) =>
+          option.setName("cta_type").setDescription("Event type").setAutocomplete(true)
+        )
+        .addBooleanOption((option) =>
+          option.setName("mandatory").setDescription("Is event mandatory? (default: no)")
+        )
+        .addNumberOption((option) =>
+          option.setName("weight").setDescription("Event weight (default: 1)")
+        )
+        .addStringOption((option) =>
+          option.setName("date").setDescription("Event date (date format: YYYY-MM-DD HH:MM)")
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("show")
+        .setDescription("Show detailed CTA event.")
+        .addStringOption((option) =>
+          option
+            .setName("cta_id")
+            .setDescription("Event ID")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("check")
+        .setDescription("Check your or other member CTA attendance.")
+        .addStringOption((option) =>
+          option.setName("start_date").setDescription("Start date (date format: YYYY-MM-DD HH:MM)")
+        )
+        .addStringOption((option) =>
+          option.setName("end_date").setDescription("End date (date format: YYYY-MM-DD HH:MM)")
+        )
+        .addUserOption((option) =>
+          option.setName("member").setDescription("Select member you want to check")
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("type")
+        .setDescription("Manage CTA Types.")
+        .addStringOption((option) =>
+          option
+            .setName("action")
+            .setDescription("Action")
+            .addChoices({ name: "Add", value: "add" }, { name: "Remove", value: "remove" })
+            .setRequired(true)
+        )
+        .addStringOption((option) => option.setName("name").setDescription("Event type name"))
+    ),
+  async autocomplete(interaction) {
+    const focusedOption = interaction.options.getFocused(true);
+    let choices = [];
+    if (focusedOption.name === "cta_id") {
+      try {
+        const events = await CTAEvents.find({
+          gid: interaction.guildId,
+        }).sort({ cta_id: -1 });
+
+        await events.forEach((event) => {
+          const formattedDate = new Date(event.created).toLocaleString("pl-PL", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          });
+
+          choices.push({
+            name: `#${event.cta_id} ${event.name} (${formattedDate})`,
+            value: event._id.toString(),
+          });
+        });
+      } catch (err) {
+        console.error("[061e8d] ", err);
+      }
+
+      const filtered = choices.filter((choice) =>
+        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase())
+      );
+      const limitedResults = filtered.slice(0, 10);
+      await interaction.respond(
+        limitedResults.map((choice) => ({ name: choice.name, value: choice.value }))
+      );
+    }
+
+    if (focusedOption.name === "cta_type") {
+      try {
+        const types = await CTAEventTypes.find({
+          gid: interaction.guildId,
+        }).sort({ type: 1 });
+
+        await types.forEach((type) => {
+          choices.push({
+            name: type.type,
+            value: type.type,
+          });
+        });
+      } catch (err) {
+        console.error("[6f226f] ", err);
+      }
+
+      const filtered = choices.filter((choice) =>
+        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase())
+      );
+      const limitedResults = filtered.slice(0, 10);
+      await interaction.respond(
+        limitedResults.map((choice) => ({ name: choice.name, value: choice.value }))
+      );
+    }
+  },
   async execute(interaction) {
-    if (interaction.options.getSubcommand() === "ao") {
+    let cta_perms = false;
+    let manager_perms = false;
+    let configCTA;
+
+    if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
+      cta_perms = true;
+      manager_perms = true;
+    }
+
+    try {
+      configCTA = await CTAConfig.findOne({
+        gid: interaction.guildId,
+      });
+
+      if (!configCTA || configCTA.ao_server.length < 1) {
+        return await interaction.reply({
+          content: `> Server is not set for events.`,
+          ephemeral: true,
+        });
+      }
+
+      if (configCTA.ao_server == "-") {
+        return await interaction.reply({ content: `> Events are disabled.`, ephemeral: true });
+      }
+
+      if (!manager_perms) {
+        configCTA.manager_roles.forEach((role) => {
+          if (interactionUser.roles.cache.has(role)) {
+            manager_perms = true;
+            cta_perms = true;
+          }
+        });
+      }
+
+      if (!cta_perms) {
+        configCTA.cta_roles.forEach((role) => {
+          if (interactionUser.roles.cache.has(role)) {
+            cta_perms = true;
+          }
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      return await interaction.reply({
+        content: `> [63c7d8] Error while checking perms. Please try again later.`,
+        ephemeral: true,
+      });
+    }
+
+    if (interaction.options.getSubcommand() === "add") {
+      if (!cta_perms) {
+        return await interaction.reply({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
+
+      const name = interaction.options.getString("name").trim();
+      const cta_type = interaction.options.getString("cta_type");
+      const mandatory = interaction.options.getBoolean("mandatory") ?? null;
+      const weight = interaction.options.getNumber("weight") ?? null;
+      const channel = interaction.options.getChannel("channel") ?? null;
+      const channels = interaction.options.getString("channels") ?? null;
+      const battle_ids = interaction.options.getString("battle_ids") ?? null;
+
+      // check if only one option is selected
+      if ([channel, channels, battle_ids].filter((v) => v !== null).length !== 1) {
+        return await interaction.reply({
+          content: `> You can create CTA only from one option: \`channel\`, \`channels\` or \`battle_ids\`.\n> You have to select only ONE option.`,
+          ephemeral: true,
+        });
+      }
+
+      try {
+        const newCTA = await new CTAEvents({
+          gid: interaction.guildId,
+          name: name,
+          type: cta_type,
+          creator_id: interaction.user.id,
+          mandatory: mandatory !== null ? mandatory : false,
+          weight: weight !== null ? weight : 1,
+        });
+
+        await newCTA.save();
+
+        await interaction.reply({
+          content: `> *Created new CTA Event with ID: **${newCTA.cta_id}***`,
+          ephemeral: true,
+        });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [17a4e8] Error while creating new CTA. Please try again later.`,
+          ephemeral: true,
+        });
+      }
+
+      //
+    } else if (interaction.options.getSubcommand() === "remove") {
+      if (!cta_perms) {
+        return await interaction.reply({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
+
+      const cta_id = interaction.options.getString("cta_id").trim();
+
+      //
+    } else if (interaction.options.getSubcommand() === "update") {
+      if (!cta_perms) {
+        return await interaction.reply({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
+
+      const cta_id = interaction.options.getString("cta_id").trim();
+      const action = interaction.options.getString("action");
+      const members = interaction.options.getString("members") ?? null;
+      const channel = interaction.options.getChannel("channel") ?? null;
+      const channels = interaction.options.getString("channels") ?? null;
+      const battle_ids = interaction.options.getString("battle_ids") ?? null;
+
+      //
+    } else if (interaction.options.getSubcommand() === "edit") {
+      if (!cta_perms) {
+        return await interaction.reply({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
+
+      const cta_id = interaction.options.getString("cta_id").trim();
+      const name = interaction.options.getString("name") ?? null;
+      const cta_type = interaction.options.getString("cta_type") ?? null;
+      const mandatory = interaction.options.getBoolean("mandatory") ?? null;
+      const weight = interaction.options.getNumber("weight") ?? null;
+      const date = interaction.options.getString("date") ?? null;
+
+      //
+    } else if (interaction.options.getSubcommand() === "show") {
+      if (!cta_perms) {
+        return await interaction.reply({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
+
+      const cta_id = interaction.options.getString("cta_id").trim();
+
+      //
+    } else if (interaction.options.getSubcommand() === "check") {
+      const start_date = interaction.options.getString("start_date") ?? null;
+      const end_date = interaction.options.getString("end_date") ?? null;
+      const member = interaction.options.getMember("member") ?? null;
+
+      if (member && !cta_perms && member.user.id !== interaction.user.id) {
+        return await interaction.reply({
+          content: `> No permission to use this command. You can check only your attendance.`,
+          ephemeral: true,
+        });
+      }
+
+      //
+    } else if (interaction.options.getSubcommand() === "type") {
+      if (!manager_perms) {
+        return await interaction.reply({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
+
+      const action = interaction.options.getString("action") ?? null;
+      const name = interaction.options.getString("name") ?? null;
+
       //
     }
   },
