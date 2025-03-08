@@ -27,8 +27,8 @@ const CTAMembers = mongoose.model("CTAMembers", CTAMembersSchema);
 
 const CTAVacationSchema = new mongoose.Schema({
   gid: String,
-  player_id: String,
-  player_name: String,
+  id: String, // discord ID
+  name: String, // discord username
   start: Date,
   end: Date,
   days: Number,

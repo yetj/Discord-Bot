@@ -1075,7 +1075,7 @@ const CTA_Event = {
     .addSubcommand((subcommand) =>
       subcommand
         .setName("update")
-        .setDescription("Creates new CTA event.")
+        .setDescription("Update existing CTA event.")
         .addStringOption((option) =>
           option
             .setName("cta_id")
@@ -1092,6 +1092,11 @@ const CTA_Event = {
         )
         .addStringOption((option) =>
           option.setName("members").setDescription("Multiple Members mentions (separated by space)")
+        )
+        .addStringOption((option) =>
+          option
+            .setName("game_nicknames")
+            .setDescription("Multiple Game Nicknames (separated by comma)")
         )
         .addChannelOption((option) =>
           option
@@ -1150,10 +1155,10 @@ const CTA_Event = {
         .setName("check")
         .setDescription("Check your or other member CTA attendance.")
         .addStringOption((option) =>
-          option.setName("start_date").setDescription("Start date (date format: YYYY-MM-DD HH:MM)")
+          option.setName("start_date").setDescription("Start date (date format: YYYY-MM-DD)")
         )
         .addStringOption((option) =>
-          option.setName("end_date").setDescription("End date (date format: YYYY-MM-DD HH:MM)")
+          option.setName("end_date").setDescription("End date (date format: YYYY-MM-DD)")
         )
         .addUserOption((option) =>
           option.setName("member").setDescription("Select member you want to check")
@@ -1167,7 +1172,11 @@ const CTA_Event = {
           option
             .setName("action")
             .setDescription("Action")
-            .addChoices({ name: "Add", value: "add" }, { name: "Remove", value: "remove" })
+            .addChoices(
+              { name: "Add", value: "add" },
+              { name: "Remove", value: "remove" },
+              { name: "List current types", value: "list" }
+            )
             .setRequired(true)
         )
         .addStringOption((option) => option.setName("name").setDescription("Event type name"))
@@ -1534,11 +1543,278 @@ const CTA_Event = {
       const cta_id = interaction.options.getString("cta_id").trim();
       const action = interaction.options.getString("action");
       const members = interaction.options.getString("members") ?? null;
+      const game_nicknames = interaction.options.getString("game_nicknames") ?? null;
       const channel = interaction.options.getChannel("channel") ?? null;
       const channels = interaction.options.getString("channels") ?? null;
       const battle_ids = interaction.options.getString("battle_ids") ?? null;
 
-      //
+      if (
+        [members, game_nicknames, channel, channels, battle_ids].filter((v) => v !== null)
+          .length !== 1
+      ) {
+        return await interaction.reply({
+          content: `> You can update CTA with only one option: \`members\`, \`game_nicknames\`, \`channel\`, \`channels\` or \`battle_ids\`.`,
+          ephemeral: true,
+        });
+      }
+
+      if (battle_ids !== null && configCTA.guild_names.length < 1) {
+        return await interaction.reply({
+          content: `> You have to set Guild Names first.`,
+          ephemeral: true,
+        });
+      }
+
+      if (
+        action === "remove" &&
+        [channel, channels, battle_ids].filter((v) => v !== null).length > 0
+      ) {
+        return await interaction.reply({
+          content: `> Option to **remove** someone from CTA Event is available only with \`members\` or \`game_nicknames\` option.`,
+          ephemeral: true,
+        });
+      }
+
+      try {
+        // get all registered members
+        const registeredMembers = await CTAMembers.find({
+          $and: [{ gid: interaction.guildId }, { unregistered: false }],
+        });
+
+        if (!registeredMembers || registeredMembers.length < 1) {
+          return await interaction.reply({
+            content: `> Can't find any registered memebrs.`,
+            ephemeral: true,
+          });
+        }
+
+        let availableMembers = [];
+        let not_registered_names = [];
+        let updates = [];
+
+        if (members !== null) {
+          availableMembers = await this.extractUniqueMembers(members);
+        }
+
+        if (game_nicknames !== null) {
+          let game_nicknames_array = game_nicknames.split(",");
+
+          for await (const nickname of game_nicknames_array) {
+            const member = registeredMembers.find((m) => m.game_nickname === nickname.trim());
+            if (member) {
+              availableMembers.push(member.id);
+            } else {
+              not_registered_names.push(nickname.trim());
+            }
+          }
+        }
+
+        if (channel !== null) {
+          const channelData = await this.getChannelMembers({
+            interaction,
+            configCTA,
+            channel_ids: channel.id,
+          });
+
+          if (channelData.errors.length > 0) {
+            return await interaction.reply({
+              content: `${channelData.errors.join("\n")}`,
+              ephemeral: true,
+            });
+          }
+
+          availableMembers = channelData.availableMembers;
+        }
+
+        if (channels !== null) {
+          const channelData = await this.getChannelMembers({
+            interaction,
+            configCTA,
+            channel_ids: channels,
+          });
+
+          if (channelData.errors.length > 0) {
+            return await interaction.reply({
+              content: `${channelData.errors.join("\n")}`,
+              ephemeral: true,
+            });
+          }
+
+          availableMembers = channelData.availableMembers;
+        }
+
+        if (battle_ids !== null) {
+          const battleData = await this.getBattleMembers({
+            configCTA,
+            registeredMembers,
+            battle_ids,
+          });
+
+          if (battleData.errors.length > 0) {
+            return await interaction.reply({
+              content: `${battleData.errors.join("\n")}`,
+              ephemeral: true,
+            });
+          }
+
+          availableMembers = battleData.availableMembers;
+          not_registered_names = battleData.not_registered_names;
+        }
+
+        const cta = await CTAEvents.findOne({
+          $and: [{ gid: interaction.guildId }, { _id: cta_id }],
+        });
+
+        if (!cta) {
+          return await interaction.reply({
+            content: `> Couldn't find CTA event with ID: \`${cta_id}\``,
+            ephemeral: true,
+          });
+        }
+
+        if (action === "add") {
+          const availabilityData = await this.checkAvailability({
+            registeredMembers,
+            availableMembers,
+          });
+
+          for await (const member of availabilityData.present) {
+            let changed = false;
+            if (cta.present.indexOf(member) === -1) {
+              cta.present.push(member);
+              updates.push(`> <@${member}> added to present.`);
+              changed = true;
+
+              const memberName = registeredMembers.find((m) => m.id === member);
+
+              if (memberName && cta.not_registered_names.indexOf(memberName.game_nickname) !== -1) {
+                cta.not_registered_names.splice(
+                  cta.not_registered_names.indexOf(memberName.game_nickname),
+                  1
+                );
+
+                updates.push(
+                  `> \`${memberName.game_nickname}\` removed from not registered names.`
+                );
+              }
+            }
+            if (cta.absent.indexOf(member) !== -1 && changed === true) {
+              cta.absent.splice(cta.absent.indexOf(member), 1);
+              updates.push(`> <@${member}> removed from absent.`);
+            }
+            if (cta.not_registered.indexOf(member) !== -1 && changed === true) {
+              cta.not_registered.splice(cta.not_registered.indexOf(member), 1);
+              updates.push(`> <@${member}> removed from not registered.`);
+            }
+          }
+
+          for await (const member of availabilityData.not_registered) {
+            if (cta.not_registered.indexOf(member) === -1) {
+              cta.not_registered.push(member);
+              updates.push(`> <@${member}> added to not registered.`);
+            }
+
+            cta.not_registered = [
+              ...new Set([...cta.not_registered, ...availabilityData.not_registered]),
+            ];
+          }
+          if (not_registered_names) {
+            for await (const member of not_registered_names) {
+              if (cta.not_registered_names.indexOf(member) === -1) {
+                cta.not_registered_names.push(member);
+                updates.push(`> \`${member}\` added to not registered names.`);
+              }
+            }
+            cta.not_registered_names = [
+              ...new Set([...cta.not_registered_names, ...not_registered_names]),
+            ];
+          }
+
+          await cta.save();
+        } else if (action === "remove") {
+          const availabilityData = await this.checkAvailability({
+            registeredMembers,
+            availableMembers,
+          });
+
+          for await (const member of availabilityData.present) {
+            let changed = false;
+            if (cta.absent.indexOf(member) === -1) {
+              cta.absent.push(member);
+              updates.push(`> <@${member}> added to absent.`);
+              changed = true;
+
+              const memberName = registeredMembers.find((m) => m.id === member);
+              if (memberName && cta.not_registered_names.indexOf(memberName.game_nickname) !== -1) {
+                cta.not_registered_names.splice(
+                  cta.not_registered_names.indexOf(memberName.game_nickname),
+                  1
+                );
+
+                updates.push(
+                  `> \`${memberName.game_nickname}\` removed from not registered names.`
+                );
+              }
+            }
+            if (cta.present.indexOf(member) !== -1 && changed === true) {
+              cta.present.splice(cta.present.indexOf(member), 1);
+              updates.push(`> <@${member}> removed from present.`);
+            }
+            if (cta.not_registered.indexOf(member) !== -1 && changed === true) {
+              cta.not_registered.splice(cta.not_registered.indexOf(member), 1);
+              updates.push(`> <@${member}> removed from not registered.`);
+            }
+          }
+
+          if (not_registered_names.length > 0) {
+            for await (const member of not_registered_names) {
+              if (cta.not_registered_names.indexOf(member) !== -1) {
+                cta.not_registered_names.splice(cta.not_registered_names.indexOf(member), 1);
+                updates.push(`> \`${member}\` removed from not registered names.`);
+              }
+            }
+          }
+          await cta.save();
+        }
+
+        let message = ``;
+
+        message += `**Present members:**\n> ${cta.present.length}\n`;
+        message += `**Absent members:**\n> ${cta.absent.length}\n`;
+        message += `**Not registered members:**\n> ${
+          cta.not_registered.length + cta.not_registered_names.length
+        }\n`;
+
+        let embeds = [];
+
+        const embedMessage = new EmbedBuilder()
+          .setColor(`#00ff00`)
+          .setTitle(`Updated CTA event with ID: \`${cta.cta_id}\``)
+          .setDescription(message);
+
+        embeds.push(embedMessage);
+
+        if (updates.length > 0) {
+          let messageUpdate = ``;
+
+          messageUpdate += `${updates.join("\n")}`;
+
+          const embedMessageUpdates = new EmbedBuilder()
+            .setColor(`#0000c6`)
+            .setTitle(`Updates`)
+            .setDescription(messageUpdate);
+
+          embeds.push(embedMessageUpdates);
+        }
+
+        await interaction.reply({ embeds: embeds, ephemeral: true });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [284375] Error while updating CTA event. Please try again later.`,
+          ephemeral: true,
+        });
+      }
     } else if (interaction.options.getSubcommand() === "edit") {
       if (!cta_perms) {
         return await interaction.reply({
@@ -1554,9 +1830,11 @@ const CTA_Event = {
       const weight = interaction.options.getNumber("weight") ?? null;
       const date = interaction.options.getString("date") ?? null;
 
+      let changes = [];
+
       try {
         const cta = await CTAEvents.findOne({
-          $and: [{ gid: interaction.guildId }, { cta_id: cta_id }],
+          $and: [{ gid: interaction.guildId }, { _id: cta_id }],
         });
 
         if (!cta) {
@@ -1566,11 +1844,12 @@ const CTA_Event = {
           });
         }
 
-        if (name) {
+        if (name && name !== cta.name) {
+          changes.push(`> **Name:** \`${cta.name}\` -> \`${name}\``);
           cta.name = name;
         }
 
-        if (cta_type) {
+        if (cta_type && cta_type !== cta.type) {
           const availableTypes = await CTAEventTypes.find({
             gid: interaction.guildId,
           });
@@ -1582,20 +1861,23 @@ const CTA_Event = {
             });
           }
 
+          changes.push(`> **Type:** \`${cta.type}\` -> \`${cta_type}\``);
           cta.type = cta_type;
         }
 
-        if (mandatory !== null) {
+        if (mandatory !== null && mandatory !== cta.mandatory) {
+          changes.push(`> **Mandatory:** \`${cta.mandatory}\` -> \`${mandatory}\``);
           cta.mandatory = mandatory;
         }
 
-        if (weight !== null) {
+        if (weight !== null && weight !== cta.weight) {
           if (weight < 1) {
             return await interaction.reply({
               content: `> Weight has to be greater than 0.`,
               ephemeral: true,
             });
           }
+          changes.push(`> **Weight:** \`${cta.weight}\` -> \`${weight}\``);
           cta.weight = weight;
         }
 
@@ -1637,39 +1919,46 @@ const CTA_Event = {
             });
           }
 
-          cta.created = new Date(timestamp);
-        }
+          const formattedOldDate = new Date(cta.created).toLocaleString("pl-PL", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          });
 
-        await cta.save();
+          const formattedNewDate = new Date(timestamp).toLocaleString("pl-PL", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          });
+
+          if (formattedOldDate !== formattedNewDate) {
+            changes.push(`> **Date:** \`${formattedOldDate}\` -> \`${formattedNewDate}\``);
+
+            cta.created = new Date(timestamp);
+          }
+        }
 
         let message = ``;
 
-        message += `**Event name:**\n> ${cta.name}\n`;
-        message += `**Event type:**\n> ${cta.cta_type}\n`;
-        message += `**Mandatory:**\n> ${cta.mandatory === true ? "Yes" : "No"}\n`;
-        message += `**Weight:**\n> ${cta.weight}\n`;
-
-        const formattedDate = new Date(cta.created).toLocaleString("pl-PL", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        });
-        message += `**Date:**\n> ${formattedDate}\n`;
+        if (changes.length > 0) {
+          message += `${changes.join("\n")}`;
+          await cta.save();
+        } else {
+          message += `> *No changes made.*`;
+        }
 
         const embedMessage = new EmbedBuilder()
           .setColor(`#00DB19`)
-          .setTitle(`CTA event with ID: ${cta_id} has been updated.`)
+          .setTitle(`Updated CTA event with ID: \`${cta.cta_id}\``)
           .setDescription(message);
 
-        await interaction.reply({ embeds: [embedMessage] });
-
-        await interaction.reply({
-          content: `> CTA event with ID: \`${cta_id}\` has been updated.`,
-          ephemeral: true,
-        });
+        await interaction.reply({ embeds: [embedMessage], ephemeral: true });
       } catch (err) {
         console.error(err);
         return await interaction.reply({
@@ -1687,15 +1976,218 @@ const CTA_Event = {
 
       const cta_id = interaction.options.getString("cta_id").trim();
 
+      try {
+        const cta = await CTAEvents.findOne({
+          $and: [{ gid: interaction.guildId }, { _id: cta_id }],
+        });
+
+        if (!cta) {
+          return await interaction.reply({
+            content: `> Couldn't find CTA event with ID: \`${cta_id}\``,
+            ephemeral: true,
+          });
+        }
+
+        const registeredMembers = await CTAMembers.find({
+          $and: [{ gid: interaction.guildId }, { unregistered: false }],
+        });
+
+        if (!registeredMembers || registeredMembers.length < 1) {
+          return await interaction.reply({
+            content: `> Can't find any registered memebrs.`,
+            ephemeral: true,
+          });
+        }
+
+        let message = ``;
+
+        message += `**Event name:**\n> ${cta.name}\n`;
+        message += `**Event type:**\n> ${cta.type}\n`;
+        message += `**Mandatory:**\n> ${cta.mandatory === true ? "Yes" : "No"}\n`;
+        message += `**Weight:**\n> ${cta.weight}\n`;
+        message += `**Present members:**\n> ${cta.present.length}\n`;
+        message += `**Absent members:**\n> ${cta.absent.length}\n`;
+        if (cta.not_registered.length + cta.not_registered_names.length > 0) {
+          message += `**Not registered members:**\n> ${
+            cta.not_registered.length + cta.not_registered_names.length
+          }\n`;
+        }
+
+        let embeds = [];
+
+        const embedMessage = new EmbedBuilder()
+          .setColor(`#0AA2FF`)
+          .setTitle(`CTA Event with ID: ${cta.cta_id}`)
+          .setDescription(message);
+
+        embeds.push(embedMessage);
+
+        if (cta.not_registered.length + cta.not_registered_names.length) {
+          let messageNotRegistered = ``;
+
+          if (cta.not_registered_names.length > 0) {
+            messageNotRegistered += `> ` + cta.not_registered_names.map((m) => `${m}`).join(", ");
+          }
+
+          if (cta.not_registered.length > 0) {
+            if (messageNotRegistered.length > 0) {
+              messageNotRegistered += `\n`;
+            }
+            messageNotRegistered += `> ` + cta.not_registered.map((m) => `<@${m}>`).join(" ");
+          }
+
+          const embedMessageNotRegistered = new EmbedBuilder()
+            .setColor(`#ff0000`)
+            .setTitle(`Not registered members`)
+            .setDescription(messageNotRegistered);
+
+          embeds.push(embedMessageNotRegistered);
+        }
+
+        let messagePresentMembers = ``;
+        let presentMembersArray = [];
+
+        if (cta.present.length > 0) {
+          for await (const member of cta.present) {
+            const memberName = registeredMembers.find((m) => m.id === member);
+            if (memberName) {
+              presentMembersArray.push(memberName.game_nickname);
+              //messagePresentMembers += `> ${memberName.game_nickname}\n`;
+            } else {
+              presentMembersArray.push(member);
+              //messagePresentMembers += `> <@${member}>\n`;
+            }
+          }
+
+          presentMembersArray.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+          messagePresentMembers += `> ${presentMembersArray.join("\n> ")}`;
+        } else {
+          messagePresentMembers += `> *No present members.*`;
+        }
+
+        const embedMessagePresentMembers = new EmbedBuilder()
+          .setColor(`#0AA2FF`)
+          .setTitle(`Present members`)
+          .setDescription(messagePresentMembers);
+
+        embeds.push(embedMessagePresentMembers);
+
+        await interaction.reply({ embeds: embeds });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [67f9b5] Error while showing CTA event details. Please try again later.`,
+          ephemeral: true,
+        });
+      }
+
       //
     } else if (interaction.options.getSubcommand() === "check") {
       const start_date = interaction.options.getString("start_date") ?? null;
       const end_date = interaction.options.getString("end_date") ?? null;
-      const member = interaction.options.getMember("member") ?? null;
+      let member = interaction.options.getMember("member") ?? null;
 
       if (member && !cta_perms && member.user.id !== interaction.user.id) {
         return await interaction.reply({
           content: `> No permission to use this command. You can check only your attendance.`,
+          ephemeral: true,
+        });
+      }
+
+      if (
+        (start_date && !(await this.isValidDate(start_date))) ||
+        (end_date && !(await this.isValidDate(end_date)))
+      ) {
+        return await interaction.reply({
+          content: `> Date format is incorrect. Please use: \`YYYY-MM-DD\``,
+          ephemeral: true,
+        });
+      }
+
+      let dateFilter = {};
+
+      if (start_date && !end_date) {
+        dateFilter.created = { $gte: new Date(start_date + "T00:00:00Z") };
+      }
+
+      if (!start_date && end_date) {
+        dateFilter.created = { $lte: new Date(end_date + "T23:59:59Z") };
+      }
+
+      if (start_date && end_date) {
+        dateFilter.created = {
+          $gte: new Date(start_date + "T00:00:00Z"),
+          $lte: new Date(end_date + "T23:59:59Z"),
+        };
+      }
+
+      if (!member) {
+        member = await interaction.guild.members.fetch(interaction.user.id, {
+          force: true,
+        });
+      }
+
+      try {
+        const registeredMember = await CTAMembers.findOne({
+          $and: [{ gid: interaction.guildId }, { unregistered: false }, { id: member.user.id }],
+        });
+
+        if (!registeredMember) {
+          return await interaction.reply({
+            content: `> You are not registered.`,
+            ephemeral: true,
+          });
+        }
+
+        const events = await CTAEvents.find({
+          gid: interaction.guildId,
+          ...dateFilter,
+          $or: [{ present: member.user.id }, { absent: member.user.id }],
+        });
+
+        let presentCount = 0;
+        let absentCount = 0;
+
+        for await (const event of events) {
+          if (event.present.indexOf(member.user.id) !== -1) {
+            presentCount++;
+          } else if (event.absent.indexOf(member.user.id) !== -1) {
+            absentCount++;
+          }
+        }
+
+        let message = ``;
+
+        let formattedDate = new Date(registeredMember.registered).toLocaleString("pl-PL", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
+
+        message += `**Registration date:**\n> ${formattedDate}\n`;
+        message += `**Total events:**\n> ${events.length}\n`;
+        message += `**Present:**\n> ${presentCount}\n`;
+        message += `**Absent:**\n> ${absentCount}\n`;
+
+        if (start_date || end_date) {
+          message += `**Date filter:**\n> *${start_date ? start_date : "Beginning"} - ${
+            end_date ? end_date : "Now"
+          }*\n`;
+        }
+
+        const embedMessage = new EmbedBuilder()
+          .setColor(`#F918FF`)
+          .setTitle(`CTA stats for ${getDisplayName(member)}`)
+          .setDescription(message);
+
+        await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [5584e6] Error while checking CTA attendence. Please try again later.`,
           ephemeral: true,
         });
       }
@@ -1709,10 +2201,72 @@ const CTA_Event = {
         });
       }
 
-      const action = interaction.options.getString("action") ?? null;
+      const action = interaction.options.getString("action");
       const name = interaction.options.getString("name") ?? null;
 
-      //
+      if ((action === "add" || action === "remove") && !name) {
+        return await interaction.reply({
+          content: `> Please provide a **name** for the CTA type.`,
+          ephemeral: true,
+        });
+      }
+
+      try {
+        if (action === "add") {
+          const newType = await new CTAEventTypes({
+            gid: interaction.guildId,
+            type: name,
+          });
+
+          await newType.save();
+
+          await interaction.reply({
+            content: `> CTA type \`${name}\` has been added.`,
+            ephemeral: true,
+          });
+        } else if (action === "remove") {
+          const removedType = await CTAEventTypes.findOneAndDelete({
+            $and: [{ gid: interaction.guildId }, { type: name }],
+          });
+
+          if (!removedType) {
+            return await interaction.reply({
+              content: `> Couldn't find CTA type: \`${name}\``,
+              ephemeral: true,
+            });
+          }
+
+          await interaction.reply({
+            content: `> CTA type \`${name}\` has been removed.`,
+            ephemeral: true,
+          });
+        } else if (action === "list") {
+          const types = await CTAEventTypes.find({
+            gid: interaction.guildId,
+          }).sort({ type: 1 });
+
+          let message = ``;
+
+          if (types.length > 0) {
+            message += `${types.map((t) => `> ` + t.type).join("\n")}`;
+          } else {
+            message += `> *No CTA types found.*`;
+          }
+
+          const embedMessage = new EmbedBuilder()
+            .setColor(`#0AA2FF`)
+            .setTitle(`CTA Types`)
+            .setDescription(message);
+
+          await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+        }
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [a90b49] Error while working on CTA types. Please try again later.`,
+          ephemeral: true,
+        });
+      }
     }
   },
   async getBattleMembers({ configCTA, registeredMembers, battle_ids }) {
@@ -1839,6 +2393,27 @@ const CTA_Event = {
     }
 
     return { present, absent, not_registered };
+  },
+  async extractUniqueMembers(text) {
+    const regex = /<@(\d+)>/g;
+
+    const uniqueIDs = new Set();
+
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      uniqueIDs.add(match[1]); // match[1] to ID (liczba)
+    }
+
+    return [...uniqueIDs];
+  },
+  async isValidDate(dateString) {
+    const dateRegex = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+    if (!dateRegex.test(dateString)) return false;
+
+    const [year, month, day] = dateString.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+
+    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
   },
 };
 
