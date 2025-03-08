@@ -938,7 +938,6 @@ const CTA_Registration = {
         }
 
         if (member) {
-          console.log(member);
           find_by = { id: member.user.id };
         }
 
@@ -1309,7 +1308,101 @@ const CTA_Event = {
         });
       }
 
+      // check if guild names are set in case of selected battle_ids
+      if (battle_ids !== null && configCTA.guild_names.length < 1) {
+        return await interaction.reply({
+          content: `> You have to set Guild Names first.`,
+          ephemeral: true,
+        });
+      }
+
       try {
+        // get all registered members
+        const registeredMembers = await CTAMembers.find({
+          $and: [{ gid: interaction.guildId }, { unregistered: false }],
+        });
+
+        if (!registeredMembers || registeredMembers.length < 1) {
+          return await interaction.reply({
+            content: `> Can't find any registered memebrs.`,
+            ephemeral: true,
+          });
+        }
+
+        let present = [];
+        let absent = [];
+        let not_registered = [];
+        let not_registered_names = [];
+
+        let availableMembers = [];
+        if (channel !== null) {
+          const channelData = await this.getChannelMembers({
+            interaction,
+            configCTA,
+            channel_ids: channel.id,
+          });
+
+          if (channelData.errors.length > 0) {
+            return await interaction.reply({
+              content: `${channelData.errors.join("\n")}`,
+              ephemeral: true,
+            });
+          }
+
+          availableMembers = channelData.availableMembers;
+        }
+
+        if (channels !== null) {
+          const channelData = await this.getChannelMembers({
+            interaction,
+            configCTA,
+            channel_ids: channels,
+          });
+
+          if (channelData.errors.length > 0) {
+            return await interaction.reply({
+              content: `${channelData.errors.join("\n")}`,
+              ephemeral: true,
+            });
+          }
+
+          availableMembers = channelData.availableMembers;
+        }
+
+        if (battle_ids !== null) {
+          const battleData = await this.getBattleMembers({
+            configCTA,
+            registeredMembers,
+            battle_ids,
+          });
+
+          if (battleData.errors.length > 0) {
+            return await interaction.reply({
+              content: `${battleData.errors.join("\n")}`,
+              ephemeral: true,
+            });
+          }
+
+          availableMembers = battleData.availableMembers;
+          not_registered_names = battleData.not_registered_names;
+        }
+
+        if (availableMembers.length < 1) {
+          return await interaction.reply({
+            content: `> Not found any members to be added for the CTA event.`,
+            ephemeral: true,
+          });
+        }
+
+        const availabilityData = await this.checkAvailability({
+          registeredMembers,
+          availableMembers,
+        });
+
+        present = availabilityData.present;
+        absent = availabilityData.absent;
+        not_registered = availabilityData.not_registered;
+
         const newCTA = await new CTAEvents({
           gid: interaction.guildId,
           name: name,
@@ -1317,13 +1410,64 @@ const CTA_Event = {
           creator_id: interaction.user.id,
           mandatory: mandatory !== null ? mandatory : false,
           weight: weight !== null ? weight : 1,
+          present: present,
+          absent: absent,
+          not_registered: not_registered,
+          not_registered_names: not_registered_names,
         });
 
         await newCTA.save();
 
+        let embeds = [];
+        let message = ``;
+
+        message += `**Event name:**\n> ${name}\n`;
+        message += `**Event type:**\n> ${cta_type}\n`;
+        message += `**Mandatory:**\n> ${mandatory === true ? "Yes" : "No"}\n`;
+        if (weight !== null) {
+          message += `**Weight:**\n> ${weight !== null ? weight : 1}\n`;
+        }
+        message += `**Present members:**\n> ${present.length}\n`;
+        message += `**Absent members:**\n> ${absent.length}\n`;
+        if (not_registered.length + not_registered_names.length > 0) {
+          message += `**Not registered members:**\n> ${
+            not_registered.length + not_registered_names.length
+          }\n`;
+        }
+
+        const embedMessage = new EmbedBuilder()
+          .setColor(`#00ff00`)
+          .setTitle(`Created new CTA Event with ID: ${newCTA.cta_id}`)
+          .setDescription(message);
+
+        embeds.push(embedMessage);
+
+        let messageNotRegistered = ``;
+        let embedMessageNotRegistered = null;
+
+        if (not_registered_names.length > 0) {
+          messageNotRegistered += `> ` + not_registered_names.map((m) => `${m}`).join(", ");
+        }
+
+        if (not_registered.length > 0) {
+          if (messageNotRegistered.length > 0) {
+            messageNotRegistered += `\n`;
+          }
+          messageNotRegistered += `> ` + not_registered.map((m) => `<@${m}>`).join(" ");
+        }
+
+        if (messageNotRegistered.length > 0) {
+          embedMessageNotRegistered = new EmbedBuilder()
+            .setColor(`#ff0000`)
+            .setTitle(`Not registered members`)
+            .setDescription(messageNotRegistered);
+
+          embeds.push(embedMessageNotRegistered);
+        }
+
         await interaction.reply({
-          content: `> *Created new CTA Event with ID: **${newCTA.cta_id}***`,
           ephemeral: true,
+          embeds: embeds,
         });
       } catch (err) {
         console.error(err);
@@ -1343,8 +1487,6 @@ const CTA_Event = {
       }
 
       const cta_id = interaction.options.getString("cta_id").trim();
-
-      //
     } else if (interaction.options.getSubcommand() === "update") {
       if (!cta_perms) {
         return await interaction.reply({
@@ -1414,6 +1556,131 @@ const CTA_Event = {
 
       //
     }
+  },
+  async getBattleMembers({ configCTA, registeredMembers, battle_ids }) {
+    const battle_idsArray = battle_ids.split(",");
+
+    let availableMemberNicknames = [];
+    let availableMembers = [];
+    let not_registered_names = [];
+    let errors = [];
+
+    let server = "";
+    if (configCTA.ao_server == "us") server = "";
+    else if (configCTA.ao_server == "sgp") server = "-sgp";
+    else if (configCTA.ao_server == "ams") server = "-ams";
+
+    // fetch battle data
+    for await (const battle_id of battle_idsArray) {
+      const url = `https://gameinfo${server}.albiononline.com/api/gameinfo/battles/${battle_id.trim()}`;
+      const response = await fetch(url);
+      try {
+        const data = await response.json();
+
+        if (data.error) {
+          errors.push(
+            `> Error while fetching battle data for battle **${battle_id.trim()}**: ${data.error}`
+          );
+          continue;
+        }
+
+        // check if guild names are set in case of selected battle_ids
+        for (const player of Object.values(data.players)) {
+          if (player.guildName) {
+            // check if player is in the guild
+            if (configCTA.guild_names.indexOf(player.guildName) !== -1) {
+              availableMemberNicknames.push(player.name);
+            }
+          }
+        }
+      } catch (err) {
+        errors.push(
+          `> Error while fetching battle data for battle **${battle_id.trim()}**: *Battle doesn't exist or API server is not responding*`
+        );
+        continue;
+      }
+    }
+
+    for await (const member of registeredMembers) {
+      // check if member is in the list of available members
+      if (availableMemberNicknames.indexOf(member.game_nickname) !== -1) {
+        availableMembers.push(member.id);
+      }
+
+      availableMemberNicknames = availableMemberNicknames.filter((m) => m !== member.game_nickname);
+    }
+
+    // check if there are not registered members in the list
+    if (availableMemberNicknames.length > 0) {
+      for await (const member of availableMemberNicknames) {
+        if (not_registered_names.indexOf(member) === -1) {
+          not_registered_names.push(member);
+        }
+      }
+
+      not_registered_names = not_registered_names.sort(function (a, b) {
+        return a.toLowerCase().localeCompare(b.toLowerCase());
+      });
+    }
+
+    return { errors, availableMembers, not_registered_names };
+  },
+  async getChannelMembers({ interaction, configCTA, channel_ids }) {
+    let availableMembers = [];
+    let errors = [];
+
+    const channelsArray = channel_ids.split(",");
+
+    for await (const channel of channelsArray) {
+      const ch = await interaction.guild.channels.fetch(channel);
+
+      if (!ch) {
+        errors.push(`> Couldn't find channel with ID: **${channel}**`);
+        continue;
+      }
+
+      if (ch.type !== ChannelType.GuildVoice) {
+        errors.push(`> Channel with ID: **${channel}** is not a Voice channel.`);
+        continue;
+      }
+
+      await ch.members.each((m) => {
+        if (m.roles.cache.has(configCTA.member_role)) {
+          availableMembers.push(m.user.id);
+        }
+      });
+    }
+
+    return { errors, availableMembers };
+  },
+  async checkAvailability({ registeredMembers, availableMembers }) {
+    let present = [];
+    let absent = [];
+    let not_registered = [];
+
+    // check if registered members are present in the channel
+    for await (const member of registeredMembers) {
+      if (availableMembers.indexOf(member.id) !== -1) {
+        if (present.indexOf(member.id) === -1) {
+          present.push(member.id);
+        }
+      } else {
+        if (absent.indexOf(member.id) === -1) {
+          absent.push(member.id);
+        }
+      }
+
+      //remove member from the list
+      availableMembers = availableMembers.filter((m) => m !== member.id);
+    }
+
+    for await (const member of availableMembers) {
+      if (not_registered.indexOf(member) === -1) {
+        not_registered.push(member);
+      }
+    }
+
+    return { present, absent, not_registered };
   },
 };
 
