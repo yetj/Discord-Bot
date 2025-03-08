@@ -1317,6 +1317,18 @@ const CTA_Event = {
       }
 
       try {
+        // check if CTA type exists
+        const availableTypes = await CTAEventTypes.find({
+          gid: interaction.guildId,
+        });
+
+        if (availableTypes.map((t) => t.type).indexOf(cta_type) === -1) {
+          return await interaction.reply({
+            content: `> Couldn't find CTA type: \`${cta_type}\``,
+            ephemeral: true,
+          });
+        }
+
         // get all registered members
         const registeredMembers = await CTAMembers.find({
           $and: [{ gid: interaction.guildId }, { unregistered: false }],
@@ -1479,7 +1491,7 @@ const CTA_Event = {
 
       //
     } else if (interaction.options.getSubcommand() === "remove") {
-      if (!cta_perms) {
+      if (!manager_perms) {
         return await interaction.reply({
           content: `> No permission to use this command.`,
           ephemeral: true,
@@ -1487,6 +1499,30 @@ const CTA_Event = {
       }
 
       const cta_id = interaction.options.getString("cta_id").trim();
+
+      try {
+        const removedCTA = await CTAEvents.findOneAndDelete({
+          $and: [{ gid: interaction.guildId }, { cta_id: cta_id }],
+        });
+
+        if (!removedCTA) {
+          return await interaction.reply({
+            content: `> Couldn't find CTA event with ID: \`${cta_id}\``,
+            ephemeral: true,
+          });
+        }
+
+        await interaction.reply({
+          content: `> CTA event with ID: \`${cta_id}\` has been removed.`,
+          ephemeral: true,
+        });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [9ca88b] Error while removing CTA. Please try again later.`,
+          ephemeral: true,
+        });
+      }
     } else if (interaction.options.getSubcommand() === "update") {
       if (!cta_perms) {
         return await interaction.reply({
@@ -1518,7 +1554,129 @@ const CTA_Event = {
       const weight = interaction.options.getNumber("weight") ?? null;
       const date = interaction.options.getString("date") ?? null;
 
-      //
+      try {
+        const cta = await CTAEvents.findOne({
+          $and: [{ gid: interaction.guildId }, { cta_id: cta_id }],
+        });
+
+        if (!cta) {
+          return await interaction.reply({
+            content: `> Couldn't find CTA event with ID: \`${cta_id}\``,
+            ephemeral: true,
+          });
+        }
+
+        if (name) {
+          cta.name = name;
+        }
+
+        if (cta_type) {
+          const availableTypes = await CTAEventTypes.find({
+            gid: interaction.guildId,
+          });
+
+          if (availableTypes.map((t) => t.type).indexOf(cta_type) === -1) {
+            return await interaction.reply({
+              content: `> Couldn't find CTA type: \`${cta_type}\``,
+              ephemeral: true,
+            });
+          }
+
+          cta.type = cta_type;
+        }
+
+        if (mandatory !== null) {
+          cta.mandatory = mandatory;
+        }
+
+        if (weight !== null) {
+          if (weight < 1) {
+            return await interaction.reply({
+              content: `> Weight has to be greater than 0.`,
+              ephemeral: true,
+            });
+          }
+          cta.weight = weight;
+        }
+
+        if (date) {
+          const dateRegex = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/;
+          const match = date.match(dateRegex);
+
+          if (!match) {
+            return await interaction.reply({
+              content: `> Date format is incorrect (1). Please use: \`YYYY-MM-DD HH:MM\``,
+              ephemeral: true,
+            });
+          }
+
+          const [, year, month, day, hour, minute] = match.map(Number);
+
+          if (
+            month < 1 ||
+            month > 12 ||
+            day < 1 ||
+            day > 31 ||
+            hour < 0 ||
+            hour > 23 ||
+            minute < 0 ||
+            minute > 59
+          ) {
+            return await interaction.reply({
+              content: `> Date format is incorrect (2). Please use: \`YYYY-MM-DD HH:MM\``,
+              ephemeral: true,
+            });
+          }
+
+          const timestamp = new Date(year, month - 1, day, hour, minute).getTime();
+
+          if (isNaN(timestamp)) {
+            return await interaction.reply({
+              content: `> Date format is incorrect (3). Please use: \`YYYY-MM-DD HH:MM\``,
+              ephemeral: true,
+            });
+          }
+
+          cta.created = new Date(timestamp);
+        }
+
+        await cta.save();
+
+        let message = ``;
+
+        message += `**Event name:**\n> ${cta.name}\n`;
+        message += `**Event type:**\n> ${cta.cta_type}\n`;
+        message += `**Mandatory:**\n> ${cta.mandatory === true ? "Yes" : "No"}\n`;
+        message += `**Weight:**\n> ${cta.weight}\n`;
+
+        const formattedDate = new Date(cta.created).toLocaleString("pl-PL", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
+        message += `**Date:**\n> ${formattedDate}\n`;
+
+        const embedMessage = new EmbedBuilder()
+          .setColor(`#00DB19`)
+          .setTitle(`CTA event with ID: ${cta_id} has been updated.`)
+          .setDescription(message);
+
+        await interaction.reply({ embeds: [embedMessage] });
+
+        await interaction.reply({
+          content: `> CTA event with ID: \`${cta_id}\` has been updated.`,
+          ephemeral: true,
+        });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [e11a17] Error while editing CTA. Please try again later.`,
+          ephemeral: true,
+        });
+      }
     } else if (interaction.options.getSubcommand() === "show") {
       if (!cta_perms) {
         return await interaction.reply({
