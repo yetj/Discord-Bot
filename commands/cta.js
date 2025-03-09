@@ -13,6 +13,8 @@ const {
   CTAEventGroups,
 } = require("../dbmodels/cta");
 const getDisplayName = require("../utils/getDisplayName");
+const fs = require("fs");
+const readline = require("readline");
 
 const CTA_Setup = {
   data: new SlashCommandBuilder()
@@ -1087,7 +1089,11 @@ const CTA_Event = {
           option
             .setName("action")
             .setDescription("Action")
-            .addChoices({ name: "Add", value: "add" }, { name: "Remove", value: "remove" })
+            .addChoices(
+              { name: "Add", value: "add" },
+              { name: "Remove", value: "remove" },
+              { name: "Skip", value: "skip" }
+            )
             .setRequired(true)
         )
         .addStringOption((option) =>
@@ -1111,6 +1117,18 @@ const CTA_Event = {
         )
         .addStringOption((option) =>
           option.setName("battle_ids").setDescription("Battle IDs from API (separated by comma)")
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("update_online")
+        .setDescription("Update existing CTA event for online status.")
+        .addStringOption((option) =>
+          option
+            .setName("cta_id")
+            .setDescription("Event ID")
+            .setAutocomplete(true)
+            .setRequired(true)
         )
     )
     .addSubcommand((subcommand) =>
@@ -1566,7 +1584,7 @@ const CTA_Event = {
       }
 
       if (
-        action === "remove" &&
+        (action === "remove" || action === "skip") &&
         [channel, channels, battle_ids].filter((v) => v !== null).length > 0
       ) {
         return await interaction.reply({
@@ -1706,6 +1724,10 @@ const CTA_Event = {
               cta.not_registered.splice(cta.not_registered.indexOf(member), 1);
               updates.push(`> <@${member}> removed from not registered.`);
             }
+            if (cta.skip.indexOf(member) !== -1 && changed === true) {
+              cta.skip.splice(cta.skip.indexOf(member), 1);
+              updates.push(`> <@${member}> removed from skip list.`);
+            }
           }
 
           for await (const member of availabilityData.not_registered) {
@@ -1775,12 +1797,63 @@ const CTA_Event = {
             }
           }
           await cta.save();
+        } else if (action === "skip") {
+          const availabilityData = await this.checkAvailability({
+            registeredMembers,
+            availableMembers,
+          });
+
+          for await (const member of availabilityData.present) {
+            let changed = false;
+            if (cta.skip.indexOf(member) === -1) {
+              cta.skip.push(member);
+              updates.push(`> <@${member}> added to skip list.`);
+              changed = true;
+
+              const memberName = registeredMembers.find((m) => m.id === member);
+              if (memberName && cta.not_registered_names.indexOf(memberName.game_nickname) !== -1) {
+                cta.not_registered_names.splice(
+                  cta.not_registered_names.indexOf(memberName.game_nickname),
+                  1
+                );
+
+                updates.push(
+                  `> \`${memberName.game_nickname}\` removed from not registered names.`
+                );
+              }
+            }
+            if (cta.present.indexOf(member) !== -1 && changed === true) {
+              cta.present.splice(cta.present.indexOf(member), 1);
+              updates.push(`> <@${member}> removed from present.`);
+            }
+            if (cta.absent.indexOf(member) !== -1 && changed === true) {
+              cta.absent.splice(cta.absent.indexOf(member), 1);
+              updates.push(`> <@${member}> removed from absent.`);
+            }
+            if (cta.not_registered.indexOf(member) !== -1 && changed === true) {
+              cta.not_registered.splice(cta.not_registered.indexOf(member), 1);
+              updates.push(`> <@${member}> removed from not registered.`);
+            }
+          }
+
+          if (not_registered_names.length > 0) {
+            for await (const member of not_registered_names) {
+              if (cta.not_registered_names.indexOf(member) !== -1) {
+                cta.not_registered_names.splice(cta.not_registered_names.indexOf(member), 1);
+                updates.push(`> \`${member}\` removed from not registered names.`);
+              }
+            }
+          }
+          await cta.save();
         }
 
         let message = ``;
 
         message += `**Present members:**\n> ${cta.present.length}\n`;
         message += `**Absent members:**\n> ${cta.absent.length}\n`;
+        if (cta.skip.length > 0) {
+          message += `**Skipping members:**\n> ${cta.skip.length}\n`;
+        }
         message += `**Not registered members:**\n> ${
           cta.not_registered.length + cta.not_registered_names.length
         }\n`;
@@ -1812,6 +1885,173 @@ const CTA_Event = {
         console.error(err);
         return await interaction.reply({
           content: `> [284375] Error while updating CTA event. Please try again later.`,
+          ephemeral: true,
+        });
+      }
+    } else if (interaction.options.getSubcommand() === "update_online") {
+      await interaction.deferReply();
+
+      if (!cta_perms) {
+        return await interaction.followUp({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
+
+      const cta_id = interaction.options.getString("cta_id").trim();
+
+      try {
+        await interaction.followUp({
+          content: "> Post an online list in the message and send it.",
+          ephemeral: true,
+        });
+
+        const filter = (m) => m.author.id === interaction.user.id;
+        const collector = await interaction.channel.createMessageCollector({ filter, time: 60000 });
+
+        let parsedData = [];
+        let updates = [];
+
+        await collector.on("collect", async (collectedMessage) => {
+          if (collectedMessage.attachments.size > 0) {
+            const attachment = collectedMessage.attachments.first();
+            const filePath = `./${attachment.name}`;
+
+            try {
+              const response = await fetch(attachment.url);
+              const buffer = await response.arrayBuffer();
+              fs.writeFileSync(filePath, Buffer.from(buffer));
+
+              parsedData = await this.parseFile(filePath);
+
+              fs.unlinkSync(filePath);
+            } catch (error) {
+              console.error(err);
+              return await interaction.followUp({
+                content: `> [4f7d96] Error while processing online list. Please try again later.`,
+                ephemeral: true,
+              });
+            }
+          } else {
+            parsedData = await this.parseText(collectedMessage.content);
+          }
+          try {
+            collectedMessage.delete();
+          } catch (err) {
+            console.error(`> [33b8f3] (/cta update_online) No permissions to remove messages.`);
+          }
+          collector.stop();
+
+          if (parsedData.length < 1) {
+            return await interaction.followUp({
+              content: `> No data provided or provided in wrong format. Please try again.`,
+              ephemeral: true,
+            });
+          }
+
+          const cta = await CTAEvents.findOne({
+            $and: [{ gid: interaction.guildId }, { _id: cta_id }],
+          });
+
+          if (!cta) {
+            return await interaction.followUp({
+              content: `> Couldn't find CTA event with ID: \`${cta_id}\``,
+              ephemeral: true,
+            });
+          }
+
+          const registeredMembers = await CTAMembers.find({
+            $and: [{ gid: interaction.guildId }, { unregistered: false }],
+          });
+
+          if (!registeredMembers || registeredMembers.length < 1) {
+            return await interaction.followUp({
+              content: `> Can't find any registered memebrs.`,
+              ephemeral: true,
+            });
+          }
+
+          let onlineList = [];
+          let newNotRegisteredNames = [];
+
+          for await (const member of parsedData) {
+            const registeredMember = registeredMembers.find(
+              (m) => m.game_nickname === member.characterName
+            );
+
+            if (registeredMember) {
+              if (member.lastSeen == "Online") {
+                onlineList.push(registeredMember.id);
+
+                if (cta.absent.indexOf(registeredMember.id) !== -1) {
+                  if (cta.skip.indexOf(registeredMember.id) === -1) {
+                    cta.skip.push(registeredMember.id);
+                    updates.push(`> <@${registeredMember.id}> added to skip list.`);
+                  }
+                }
+              }
+            } else {
+              if (cta.not_registered_names.indexOf(member.characterName) === -1) {
+                cta.not_registered_names.push(member.characterName);
+                newNotRegisteredNames.push(member.characterName);
+              }
+            }
+          }
+
+          cta.online = onlineList;
+
+          await cta.save();
+
+          let message = ``;
+
+          message += `**Present members:**\n> ${cta.present.length}\n`;
+          message += `**Absent members:**\n> ${cta.absent.length}\n`;
+          message += `**Skipping members:**\n> ${cta.skip.length}\n`;
+          message += `**Not registered members:**\n> ${
+            cta.not_registered.length + cta.not_registered_names.length
+          }\n`;
+
+          let embeds = [];
+
+          const embedMessage = new EmbedBuilder()
+            .setColor(`#00ff00`)
+            .setTitle(`Updated CTA event with ID: \`${cta.cta_id}\``)
+            .setDescription(message);
+
+          embeds.push(embedMessage);
+
+          if (updates.length > 0) {
+            let messageUpdate = ``;
+
+            messageUpdate += `${updates.join("\n")}`;
+
+            const embedMessageUpdates = new EmbedBuilder()
+              .setColor(`#0000c6`)
+              .setTitle(`Updates`)
+              .setDescription(messageUpdate);
+
+            embeds.push(embedMessageUpdates);
+          }
+
+          if (newNotRegisteredNames.length > 0) {
+            let messageNotRegistered = ``;
+
+            messageNotRegistered += `> ` + newNotRegisteredNames.map((m) => `${m}`).join(", ");
+
+            const embedMessageNotRegistered = new EmbedBuilder()
+              .setColor(`#ff0000`)
+              .setTitle(`New not registered members`)
+              .setDescription(messageNotRegistered);
+
+            embeds.push(embedMessageNotRegistered);
+          }
+
+          await interaction.followUp({ embeds: embeds, ephemeral: true });
+        });
+      } catch (err) {
+        console.error(err);
+        return await interaction.followUp({
+          content: `> [a7c14b] Error while updating online list. Please try again later.`,
           ephemeral: true,
         });
       }
@@ -2007,6 +2247,9 @@ const CTA_Event = {
         message += `**Weight:**\n> ${cta.weight}\n`;
         message += `**Present members:**\n> ${cta.present.length}\n`;
         message += `**Absent members:**\n> ${cta.absent.length}\n`;
+        if (cta.skip.length > 0) {
+          message += `**Skipping members:**\n> ${cta.skip.length}\n`;
+        }
         if (cta.not_registered.length + cta.not_registered_names.length > 0) {
           message += `**Not registered members:**\n> ${
             cta.not_registered.length + cta.not_registered_names.length
@@ -2044,6 +2287,19 @@ const CTA_Event = {
           embeds.push(embedMessageNotRegistered);
         }
 
+        if (cta.skip.length > 0) {
+          let messageSkip = ``;
+
+          messageSkip += `> ` + cta.skip.map((m) => `<@${m}>`).join(" ");
+
+          const embedMessageSkip = new EmbedBuilder()
+            .setColor(`#ff0000`)
+            .setTitle(`Skipping members`)
+            .setDescription(messageSkip);
+
+          embeds.push(embedMessageSkip);
+        }
+
         let messagePresentMembers = ``;
         let presentMembersArray = [];
 
@@ -2052,10 +2308,8 @@ const CTA_Event = {
             const memberName = registeredMembers.find((m) => m.id === member);
             if (memberName) {
               presentMembersArray.push(memberName.game_nickname);
-              //messagePresentMembers += `> ${memberName.game_nickname}\n`;
             } else {
               presentMembersArray.push(member);
-              //messagePresentMembers += `> <@${member}>\n`;
             }
           }
 
@@ -2414,6 +2668,42 @@ const CTA_Event = {
     const date = new Date(year, month - 1, day);
 
     return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+  },
+  async parseText(content) {
+    const lines = content.split("\n").slice(1);
+    return lines
+      .map((line) => {
+        const match = line.match(/"([^"]+)"\s+"([^"]+)"\s+"([^"]*)"/);
+        if (!match) return null;
+
+        return {
+          characterName: match[1],
+          lastSeen: match[2],
+          roles: match[3] ? match[3].split(";") : [],
+        };
+      })
+      .filter((entry) => entry !== null);
+  },
+  async parseFile(filePath) {
+    const fileStream = fs.createReadStream(filePath);
+    const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+
+    let data = [];
+    let firstLineSkipped = false;
+
+    for await (const line of rl) {
+      if (!firstLineSkipped) {
+        firstLineSkipped = true;
+        continue;
+      }
+      const parts = line.split("\t").map((part) => part.replace(/"/g, ""));
+      data.push({
+        characterName: parts[0],
+        lastSeen: parts[1],
+        roles: parts[2] ? parts[2].split(";") : [],
+      });
+    }
+    return data;
   },
 };
 
