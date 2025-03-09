@@ -1015,7 +1015,69 @@ const CTA_Vacation = {
   data: new SlashCommandBuilder()
     .setName("vacation")
     .setDescription("Configutre the bot.")
-    .addSubcommand((subcommand) => subcommand.setName("ao").setDescription("Check servers status")),
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("add")
+        .setDescription("Add vacation.")
+        .addStringOption((option) =>
+          option
+            .setName("start_date")
+            .setDescription("Start date (date format: YYYY-MM-DD)")
+            .setRequired(true)
+        )
+        .addStringOption((option) =>
+          option
+            .setName("end_date")
+            .setDescription("End date (date format: YYYY-MM-DD)")
+            .setRequired(true)
+        )
+        .addStringOption((option) =>
+          option.setName("reason").setDescription("Reason for vacations").setRequired(true)
+        )
+        .addUserOption((option) =>
+          option.setName("member").setDescription("Select member you want to add Vacation")
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("remove")
+        .setDescription("Remove Vacation by ID.")
+        .addStringOption((option) =>
+          option
+            .setName("vacation_id")
+            .setDescription("Vacation ID to be removed")
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("stop")
+        .setDescription("Stop vacation.")
+        .addStringOption((option) =>
+          option.setName("reason").setDescription("End date (date format: YYYY-MM-DD)")
+        )
+        .addUserOption((option) =>
+          option.setName("member").setDescription("Select member you want to stop Vacation")
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("show")
+        .setDescription("Show vacations.")
+        .addStringOption((option) =>
+          option
+            .setName("Vacation type (default: Current & Upcoming)")
+            .setDescription("")
+            .addChoices(
+              { name: "Current", value: "current" },
+              { name: "Current & Upcoming", value: "upcoming" },
+              { name: "Past", value: "past" }
+            )
+        )
+        .addUserOption((option) =>
+          option.setName("member").setDescription("Select member you want to check vacations")
+        )
+    ),
   async execute(interaction) {
     if (interaction.options.getSubcommand() === "ao") {
       //
