@@ -5,6 +5,7 @@ const CTAConfigSchema = new mongoose.Schema({
   gid: String,
   member_role: { type: String, default: "" },
   manager_roles: { type: [String], default: [] },
+  vacation_channel: { type: String, default: "" },
   vacation_log_channel: { type: String, default: "" },
   cta_roles: { type: [String], default: [] },
   registration_roles: { type: [String], default: [] },
@@ -25,19 +26,36 @@ const CTAMembersSchema = new mongoose.Schema({
 });
 const CTAMembers = mongoose.model("CTAMembers", CTAMembersSchema);
 
-const CTAVacationSchema = new mongoose.Schema({
+const CTAVacationsSchema = new mongoose.Schema({
   gid: String,
-  id: String, // discord ID
-  name: String, // discord username
+  vacations_id: Number,
+  uid: String,
   start: Date,
   end: Date,
   days: Number,
   reason: String,
-  added_by_id: String,
-  added_by_name: String,
-  force_end: Date,
+  added_by: String,
+  force_end: { type: Date, default: 0 },
+  force_end_reason: { type: String, default: "" },
+  force_end_by: { type: String, default: "" },
 });
-const CTAVacation = mongoose.model("CTAVacation", CTAVacationSchema);
+
+CTAVacationsSchema.pre("save", async function (next) {
+  if (!this.vacations_id) {
+    try {
+      const counter = await Counter.findOneAndUpdate(
+        { name: "vacations_id_" + this.gid },
+        { $inc: { value: 1 } },
+        { new: true, upsert: true }
+      );
+      this.vacations_id = counter.value;
+    } catch (error) {
+      return next(error);
+    }
+  }
+  next();
+});
+const CTAVacations = mongoose.model("CTAVacations", CTAVacationsSchema);
 
 const CTAEventTypesSchema = new mongoose.Schema({
   gid: String,
@@ -70,7 +88,7 @@ CTAEventsSchema.pre("save", async function (next) {
       const counter = await Counter.findOneAndUpdate(
         { name: "cta_id_" + this.gid },
         { $inc: { value: 1 } },
-        { new: true, upsert: true } // Tworzy licznik, jeśli go nie ma
+        { new: true, upsert: true }
       );
       this.cta_id = counter.value;
     } catch (error) {
@@ -96,7 +114,7 @@ const CTAEventGroups = mongoose.model("CTAEventGroups", CTAEventGroupsSchema);
 module.exports = {
   CTAConfig,
   CTAMembers,
-  CTAVacation,
+  CTAVacations,
   CTAEventTypes,
   CTAEvents,
   CTAEventGroups,

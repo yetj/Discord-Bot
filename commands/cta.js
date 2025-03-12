@@ -7,12 +7,14 @@ const {
 const {
   CTAConfig,
   CTAMembers,
-  CTAVacation,
+  CTAVacations,
   CTAEventTypes,
   CTAEvents,
   CTAEventGroups,
 } = require("../dbmodels/cta");
 const getDisplayName = require("../utils/getDisplayName");
+const isValidDate = require("../utils/isValidDate");
+const formattedDate = require("../utils/formattedDate");
 const fs = require("fs");
 const readline = require("readline");
 
@@ -46,8 +48,25 @@ const CTA_Setup = {
     )
     .addSubcommand((subcommand) =>
       subcommand
+        .setName("vacation_channel")
+        .setDescription("Set channel for vacations reports")
+        .addChannelOption((option) =>
+          option
+            .setName("channel")
+            .setDescription("Channel")
+            .addChannelTypes(
+              ChannelType.GuildText,
+              ChannelType.GuildForum,
+              ChannelType.PrivateThread,
+              ChannelType.PublicThread
+            )
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
         .setName("vacation_log_channel")
-        .setDescription("Set channel for vacation log")
+        .setDescription("Set channel for vacations log")
         .addChannelOption((option) =>
           option
             .setName("channel")
@@ -226,11 +245,31 @@ const CTA_Setup = {
           { upsert: true, new: true }
         );
 
-        await interaction.reply({ content: `> Vacation log channel updated.`, ephemeral: true });
+        await interaction.reply({ content: `> Vacations log channel updated.`, ephemeral: true });
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [50d13f] Error while updating vacation log channel. Please try again later.`
+          `> [50d13f] Error while updating vacations log channel. Please try again later.`
+        );
+      }
+    } else if (interaction.options.getSubcommand() === "vacation_channel") {
+      const channel = interaction.options.getChannel("channel");
+
+      try {
+        await CTAConfig.updateOne(
+          { gid: interaction.guildId },
+          { vacation_channel: channel.id },
+          { upsert: true, new: true }
+        );
+
+        await interaction.reply({
+          content: `> Vacations reprting channel updated.`,
+          ephemeral: true,
+        });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply(
+          `> [50d13f] Error while updating vacations reporting channel. Please try again later.`
         );
       }
     } else if (interaction.options.getSubcommand() === "event_role") {
@@ -413,7 +452,14 @@ const CTA_Setup = {
           message += `*not set*\n`;
         }
 
-        message += `### Vacation Log Channel:\n`;
+        message += `### Vacations Reporting Channel:\n`;
+        if (configCTA.vacation_channel.length > 0) {
+          message += `<#${configCTA.vacation_channel}> - \`${configCTA.vacation_channel}\`\n`;
+        } else {
+          message += `*not set*\n`;
+        }
+
+        message += `### Vacations Log Channel:\n`;
         if (configCTA.vacation_log_channel.length > 0) {
           message += `<#${configCTA.vacation_log_channel}> - \`${configCTA.vacation_log_channel}\`\n`;
         } else {
@@ -1011,9 +1057,9 @@ const CTA_Registration = {
   },
 };
 
-const CTA_Vacation = {
+const CTA_Vacations = {
   data: new SlashCommandBuilder()
-    .setName("vacation")
+    .setName("vacations")
     .setDescription("Configutre the bot.")
     .addSubcommand((subcommand) =>
       subcommand
@@ -1041,46 +1087,732 @@ const CTA_Vacation = {
     .addSubcommand((subcommand) =>
       subcommand
         .setName("remove")
-        .setDescription("Remove Vacation by ID.")
-        .addStringOption((option) =>
+        .setDescription("Remove Vacations by ID.")
+        .addNumberOption((option) =>
           option
-            .setName("vacation_id")
-            .setDescription("Vacation ID to be removed")
+            .setName("vacations_id")
+            .setDescription("Vacations ID to be removed")
             .setRequired(true)
         )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("stop")
-        .setDescription("Stop vacation.")
+        .setDescription("Stop active vacations.")
         .addStringOption((option) =>
-          option.setName("reason").setDescription("End date (date format: YYYY-MM-DD)")
+          option
+            .setName("reason")
+            .setDescription("Reason for finishing vacations")
+            .setRequired(true)
         )
         .addUserOption((option) =>
-          option.setName("member").setDescription("Select member you want to stop Vacation")
+          option.setName("member").setDescription("Select member you want to stop Vacations")
         )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("show")
-        .setDescription("Show vacations.")
+        .setDescription("Show vacations details.")
+        .addStringOption((option) =>
+          option.setName("vacations_id").setDescription("Show specific vacations details")
+        )
         .addStringOption((option) =>
           option
-            .setName("Vacation type (default: Current & Upcoming)")
-            .setDescription("")
+            .setName("type")
+            .setDescription("Show all vacations (default: Current & Upcoming)")
             .addChoices(
-              { name: "Current", value: "current" },
-              { name: "Current & Upcoming", value: "upcoming" },
-              { name: "Past", value: "past" }
+              { name: "All", value: "all" },
+              { name: "Past", value: "past" },
+              { name: "Upcoming", value: "upcoming" },
+              { name: "Active", value: "active" }
             )
         )
         .addUserOption((option) =>
           option.setName("member").setDescription("Select member you want to check vacations")
         )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("update")
+        .setDescription("Update vacation.")
+        .addNumberOption((option) =>
+          option
+            .setName("vacations_id")
+            .setDescription("Vacations ID to be updated")
+            .setRequired(true)
+        )
+        .addStringOption((option) =>
+          option.setName("start_date").setDescription("Start date (date format: YYYY-MM-DD)")
+        )
+        .addStringOption((option) =>
+          option.setName("end_date").setDescription("End date (date format: YYYY-MM-DD)")
+        )
+        .addStringOption((option) =>
+          option.setName("reason").setDescription("Reason for vacations")
+        )
     ),
   async execute(interaction) {
-    if (interaction.options.getSubcommand() === "ao") {
+    let registration_perms = false;
+    let manager_perms = false;
+    let configCTA;
+
+    if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
+      registration_perms = true;
+      manager_perms = true;
+    }
+
+    try {
+      configCTA = await CTAConfig.findOne({
+        gid: interaction.guildId,
+      });
+
+      if (!manager_perms) {
+        configCTA.manager_roles.forEach((role) => {
+          if (interactionUser.roles.cache.has(role)) {
+            manager_perms = true;
+            registration_perms = true;
+          }
+        });
+      }
+
+      if (!registration_perms) {
+        configCTA.registration_roles.forEach((role) => {
+          if (interactionUser.roles.cache.has(role)) {
+            registration_perms = true;
+          }
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      return await interaction.reply({
+        content: `> [e6cf0e] Error while checking perms. Please try again later.`,
+        ephemeral: true,
+      });
+    }
+
+    if (configCTA.vacation_channel.length < 1) {
+      return await interaction.reply({
+        content: `> Vacations reporting channel is not set yet. Please contact with server manager.`,
+        ephemeral: true,
+      });
+    }
+
+    if (interaction.options.getSubcommand() === "add") {
+      const start_date = interaction.options.getString("start_date");
+      const end_date = interaction.options.getString("end_date");
+      const reason = interaction.options.getString("reason");
+      let member = interaction.options.getMember("member") ?? null;
+
+      if (configCTA.vacation_channel !== interaction.channelId) {
+        return await interaction.reply({
+          content: `> This command is available only in <#${configCTA.vacation_channel}> channel.`,
+          ephemeral: true,
+        });
+      }
+
+      if (member && !registration_perms && member.user.id !== interaction.user.id) {
+        return await interaction.reply({
+          content: `> No permission to use this command. You can add vacations only to yourself.`,
+          ephemeral: true,
+        });
+      }
+
+      if (!member) {
+        member = await interaction.guild.members.fetch(interaction.user.id, {
+          force: true,
+        });
+      }
+
+      if ((start_date && !isValidDate(start_date)) || (end_date && !isValidDate(end_date))) {
+        return await interaction.reply({
+          content: `> Date format is incorrect. Please use: \`YYYY-MM-DD\``,
+          ephemeral: true,
+        });
+      }
+
+      if (new Date(start_date) > new Date(end_date)) {
+        return await interaction.reply({
+          content: `> Start date can't be later than end date.`,
+          ephemeral: true,
+        });
+      }
+
+      if (reason.length < 5) {
+        return await interaction.reply({
+          content: `> Reason is too short. Please provide more information.`,
+          ephemeral: true,
+        });
+      }
+
+      const start = new Date(start_date + "T00:00:00Z");
+      const end = new Date(end_date + "T23:59:59Z");
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (start < today) {
+        return await interaction.reply({
+          content: `> You can't report vacations in the past.`,
+          ephemeral: true,
+        });
+      }
+
+      const differenceInMs = end - start;
+      const days = Math.floor(differenceInMs / (1000 * 60 * 60 * 24)) + 1;
+      if (days == 1) {
+        return await interaction.reply({
+          content: `> You don't need to report 1 day vacations.`,
+          ephemeral: true,
+        });
+      }
+
+      try {
+        const registeredMember = await CTAMembers.findOne({
+          $and: [
+            { gid: interaction.guildId },
+            { unregistered: false },
+            { id: member ? member.user.id : interaction.user.id },
+          ],
+        });
+
+        if (!registeredMember) {
+          return await interaction.reply({
+            content: `> You need to register first before adding vacations.`,
+            ephemeral: true,
+          });
+        }
+
+        const overlappingVacations = await CTAVacations.findOne({
+          gid: interaction.guildId,
+          uid: member ? member.user.id : interaction.user.id,
+          $or: [
+            { start: { $lte: end }, end: { $gte: start } }, // Nowy urlop zaczyna się w trakcie istniejącego
+            { start: { $gte: start, $lte: end } }, // Istniejący urlop zaczyna się w trakcie nowego
+            { end: { $gte: start, $lte: end } }, // Istniejący urlop kończy się w trakcie nowego
+          ],
+        });
+
+        if (overlappingVacations) {
+          let messageOverlaping = ``;
+
+          messageOverlaping = `### You already have vacations in this period!\n\n`;
+
+          messageOverlaping += `**ID:**\n> ${overlappingVacations.vacations_id}\n`;
+          messageOverlaping += `**Start date:**\n> ${formattedDate(
+            overlappingVacations.start,
+            "date_utc"
+          )}\n`;
+          messageOverlaping += `**End date:**\n> ${formattedDate(
+            overlappingVacations.end,
+            "date_utc"
+          )}\n`;
+          messageOverlaping += `**Days:**\n> ${overlappingVacations.days}\n`;
+          messageOverlaping += `**Reason:**\n> *${overlappingVacations.reason}*\n`;
+
+          messageOverlaping += `\n**You can't have overlapping vacations!**\n`;
+          messageOverlaping += `*Use command \`/vacations update\` to update your existing vacations or add vacations in another period of time.*`;
+
+          const embedMessage = new EmbedBuilder()
+            .setColor(`#DB0000`)
+            .setTitle(`‼️ Overlaping vacations`)
+            .setDescription(messageOverlaping);
+
+          return await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+        }
+
+        const newVacations = await new CTAVacations({
+          gid: interaction.guildId,
+          uid: member ? member.user.id : interaction.user.id,
+          start: start,
+          end: end,
+          days: days,
+          reason: reason,
+          added_by: interaction.user.id,
+        });
+
+        await newVacations.save();
+
+        const totalDays = await CTAVacations.aggregate([
+          {
+            $match: {
+              uid: member ? member.user.id : interaction.user.id,
+              gid: interaction.guildId,
+            },
+          },
+          { $group: { _id: null, totalDays: { $sum: "$days" } } },
+          { $project: { _id: 0, totalDays: { $ifNull: ["$totalDays", 0] } } },
+        ]).then((result) => result[0]?.totalDays || 0);
+
+        let message = ``;
+
+        message += `### Vacations added for <@${newVacations.uid}> - ${getDisplayName(member)}\n`;
+        message += `**ID:**\n> ${newVacations.vacations_id}\n`;
+        message += `**Start date:**\n> ${formattedDate(newVacations.start, "date_utc")}\n`;
+        message += `**End date:**\n> ${formattedDate(newVacations.end, "date_utc")}\n`;
+        message += `**Days:**\n> ${newVacations.days}\n`;
+        message += `**Total days:**\n> ${totalDays}\n`;
+        message += `**Reason:**\n> *${newVacations.reason}*\n`;
+
+        if (newVacations.uid !== newVacations.added_by) {
+          message += `\n**Added by:**\n> <@${newVacations.added_by}>\n`;
+        }
+
+        const embedMessage = new EmbedBuilder().setColor(`#00ff00`).setDescription(message);
+
+        await interaction.reply({ embeds: [embedMessage] });
+
+        if (configCTA.vacation_log_channel.length > 0) {
+          const channel = await interaction.guild.channels.cache.get(
+            configCTA.vacation_log_channel
+          );
+          if (channel) {
+            let messageLog = ``;
+
+            messageLog += `**User:** <@${newVacations.uid}> - ${getDisplayName(member)}\n`;
+            messageLog += `**ID:** ${newVacations.vacations_id}\n`;
+            messageLog += `**Start date:** ${formattedDate(newVacations.start, "date_utc")}\n`;
+            messageLog += `**End date:** ${formattedDate(newVacations.end, "date_utc")}\n`;
+            messageLog += `**Days:** ${newVacations.days}\n`;
+            messageLog += `**Total days:** ${totalDays}\n`;
+            messageLog += `**Reason:** *${newVacations.reason}*\n`;
+
+            if (newVacations.uid !== newVacations.added_by) {
+              messageLog += `\n**Added by:** <@${newVacations.added_by}>\n`;
+            }
+
+            const registrationDifferenceInMs = new Date() - registeredMember.registered;
+            const registeredDays =
+              Math.floor(registrationDifferenceInMs / (1000 * 60 * 60 * 24)) + 1;
+
+            if (registeredDays > 14) {
+              messageLog += `**Registered:** ${registeredDays} day(s) ago\n`;
+            } else {
+              messageLog += `‼️ **Registered:** ‼️ **${registeredDays}** day(s) ago ‼️`;
+            }
+
+            const embedMessageLog = new EmbedBuilder()
+              .setColor(`#00ff00`)
+              .setTitle(`New vacations added`)
+              .setDescription(messageLog);
+
+            await channel.send({ embeds: [embedMessageLog] });
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [532dc2] Error while adding new vacation. Please try again later.`,
+          ephemeral: true,
+        });
+      }
+    } else if (interaction.options.getSubcommand() === "remove") {
+      if (!manager_perms) {
+        return await interaction.reply({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
+
+      const vacations_id = interaction.options.getNumber("vacations_id");
+
+      try {
+        const vacations = await CTAVacations.findOne({
+          $and: [{ gid: interaction.guildId }, { vacations_id: vacations_id }],
+        });
+
+        if (!vacations) {
+          return await interaction.reply({
+            content: `> Couldn't find vacations with this ID.`,
+            ephemeral: true,
+          });
+        }
+
+        await CTAVacations.deleteOne({ gid: interaction.guildId, vacations_id: vacations_id });
+
+        await interaction.reply({
+          content: `> Vacations with ID: \`${vacations_id}\` successfully removed.`,
+          ephemeral: true,
+        });
+
+        if (configCTA.vacation_log_channel.length > 0) {
+          const channel = await interaction.guild.channels.cache.get(
+            configCTA.vacation_log_channel
+          );
+          if (channel) {
+            let messageLog = ``;
+
+            const member = await interaction.guild.members.fetch(vacations.uid, {
+              force: true,
+            });
+
+            messageLog += `**User:** <@${vacations.uid}> - ${getDisplayName(member)}\n`;
+            messageLog += `**ID:** ${vacations.vacations_id}\n`;
+            messageLog += `**Start date:** ${formattedDate(vacations.start, "date_utc")}\n`;
+            messageLog += `**End date:** ${formattedDate(vacations.end, "date_utc")}\n`;
+            messageLog += `**Days:** ${vacations.days}\n`;
+            messageLog += `**Reason:** *${vacations.reason}*\n`;
+
+            if (vacations.uid !== vacations.added_by) {
+              messageLog += `\n**Added by:** <@${vacations.added_by}>\n`;
+            }
+
+            const embedMessageLog = new EmbedBuilder()
+              .setColor(`#ff0000`)
+              .setTitle(`Vacations removed`)
+              .setDescription(messageLog);
+
+            await channel.send({ embeds: [embedMessageLog] });
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [a941a6] Error while removing vacations. Please try again later.`,
+          ephemeral: true,
+        });
+      }
+    } else if (interaction.options.getSubcommand() === "stop") {
+      if (configCTA.vacation_channel !== interaction.channelId) {
+        return await interaction.reply({
+          content: `> This command is available only in <#${configCTA.vacation_channel}> channel.`,
+          ephemeral: true,
+        });
+      }
+
+      const reason = interaction.options.getString("reason");
+      let member = interaction.options.getMember("member") ?? null;
+
+      if (member && !registration_perms && member.user.id !== interaction.user.id) {
+        return await interaction.reply({
+          content: `> No permission to use this command. You can stop only your vacations.`,
+          ephemeral: true,
+        });
+      }
+
+      if (!member) {
+        member = await interaction.guild.members.fetch(interaction.user.id, {
+          force: true,
+        });
+      }
+
+      try {
+        const now = new Date();
+
+        const activeVacation = await CTAVacations.findOne({
+          uid: member.user.id,
+          gid: interaction.guildId,
+          start: { $lte: now },
+          end: { $gte: now },
+        });
+
+        if (!activeVacation) {
+          return await interaction.reply({
+            content: `> Couldn't find active vacations.`,
+            ephemeral: true,
+          });
+        }
+
+        const nowDate = new Date();
+
+        activeVacation.end = nowDate;
+        activeVacation.force_end = nowDate;
+        activeVacation.force_end_reason = reason;
+        activeVacation.force_end_by = interaction.user.id;
+        activeVacation.days =
+          Math.floor((nowDate - activeVacation.start) / (1000 * 60 * 60 * 24)) + 1;
+
+        await activeVacation.save();
+
+        let message = ``;
+
+        message += `### Vacations stopped for <@${newVacations.uid}> - ${getDisplayName(member)}\n`;
+        message += `**ID:**\n> ${newVacations.vacations_id}\n`;
+        message += `**Start date:**\n> ${formattedDate(newVacations.start, "date_utc")}\n`;
+        message += `**End date:**\n> ${formattedDate(newVacations.end, "date_utc")}\n`;
+        message += `**Days:**\n> ${newVacations.days}\n`;
+        message += `**Total days:**\n> ${totalDays}\n`;
+        message += `**Reason:**\n> *${newVacations.reason}*\n`;
+
+        if (newVacations.uid !== newVacations.added_by) {
+          message += `\n**Added by:**\n> <@${newVacations.added_by}>\n`;
+        }
+
+        message += `\n**Force stopped by:**\n> <@${activeVacation.force_end_by}>\n`;
+        message += `**Force stop reason:**\n> *${activeVacation.force_end_reason}*\n`;
+
+        const embedMessage = new EmbedBuilder()
+          .setColor(`#DB0000`)
+          .setTitle(`Vacations stopped`)
+          .setDescription(message);
+
+        await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+
+        if (configCTA.vacation_log_channel.length > 0) {
+          const channel = await interaction.guild.channels.cache.get(
+            configCTA.vacation_log_channel
+          );
+          if (channel) {
+            let messageLog = ``;
+
+            messageLog += `**User:** <@${activeVacation.uid}> - ${getDisplayName(member)}\n`;
+            messageLog += `**ID:** ${activeVacation.vacations_id}\n`;
+            messageLog += `**Start date:** ${formattedDate(activeVacation.start, "date_utc")}\n`;
+            messageLog += `**End date:** ${formattedDate(activeVacation.end, "date_utc")}\n`;
+            messageLog += `**Days:** ${activeVacation.days}\n`;
+            messageLog += `**Reason:** *${activeVacation.reason}*\n`;
+
+            if (activeVacation.uid !== activeVacation.added_by) {
+              messageLog += `\n**Added by:** <@${activeVacation.added_by}>\n`;
+            }
+
+            messageLog += `\n**Force stopped by:**\n> <@${activeVacation.force_end_by}>\n`;
+            messageLog += `**Force stop reason:**\n> *${activeVacation.force_end_reason}*\n`;
+
+            const embedMessageLog = new EmbedBuilder()
+              .setColor(`#ff0000`)
+              .setTitle(`Vacations stopped`)
+              .setDescription(messageLog);
+
+            await channel.send({ embeds: [embedMessageLog] });
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [a39c45] Error while stoping active vacations. Please try again later.`,
+          ephemeral: true,
+        });
+      }
+
+      if (reason.length < 5) {
+        return await interaction.reply({
+          content: `> Reason is too short. Please provide more information.`,
+          ephemeral: true,
+        });
+      }
+
       //
+    } else if (interaction.options.getSubcommand() === "show") {
+      //
+    } else if (interaction.options.getSubcommand() === "update") {
+      if (configCTA.vacation_channel !== interaction.channelId) {
+        return await interaction.reply({
+          content: `> This command is available only in <#${configCTA.vacation_channel}> channel.`,
+          ephemeral: true,
+        });
+      }
+
+      const vacations_id = interaction.options.getNumber("vacations_id");
+      const start_date = interaction.options.getString("start_date") ?? null;
+      const end_date = interaction.options.getString("end_date") ?? null;
+      const reason = interaction.options.getString("reason") ?? null;
+
+      if (!start_date && !end_date && !reason) {
+        return await interaction.reply({
+          content: `> Please provide at least one option to update.`,
+          ephemeral: true,
+        });
+      }
+
+      if ((start_date && !isValidDate(start_date)) || (end_date && !isValidDate(end_date))) {
+        return await interaction.reply({
+          content: `> Date format is incorrect. Please use: \`YYYY-MM-DD\``,
+          ephemeral: true,
+        });
+      }
+
+      if (reason && reason.length < 5) {
+        return await interaction.reply({
+          content: `> Reason is too short. Please provide more information.`,
+          ephemeral: true,
+        });
+      }
+
+      try {
+        const vacations = await CTAVacations.findOne({
+          $and: [{ gid: interaction.guildId }, { vacations_id: vacations_id }],
+        });
+
+        if (!vacations) {
+          return await interaction.reply({
+            content: `> Couldn't find vacations with this ID.`,
+            ephemeral: true,
+          });
+        }
+
+        if (vacations.uid !== interaction.user.id && !manager_perms) {
+          return await interaction.reply({
+            content: `> You can update only your vacations.`,
+            ephemeral: true,
+          });
+        }
+
+        const registeredMember = await CTAMembers.findOne({
+          $and: [{ gid: interaction.guildId }, { unregistered: false }, { id: vacations.uid }],
+        });
+
+        if (!registeredMember) {
+          return await interaction.reply({
+            content: `> Vacations of not registered members can't be updated.`,
+            ephemeral: true,
+          });
+        }
+
+        const today = new Date();
+
+        if (vacations.start <= today && vacations.end >= today) {
+          return await interaction.reply({
+            content: `> You can't update active vacations. If you want to finish your vacations use command \`/vacations stop\`.`,
+            ephemeral: true,
+          });
+        }
+
+        let start;
+        if (start_date) {
+          start = new Date(start_date + "T00:00:00Z");
+        } else {
+          start = vacations.start;
+        }
+
+        let end;
+        if (end_date) {
+          end = new Date(end_date + "T23:59:59Z");
+        } else {
+          end = vacations.end;
+        }
+
+        today.setHours(0, 0, 0, 0);
+
+        if (start < today) {
+          return await interaction.reply({
+            content: `> You can't report vacations in the past.`,
+            ephemeral: true,
+          });
+        }
+
+        if (start > end) {
+          return await interaction.reply({
+            content: `> Start date can't be later than end date.`,
+            ephemeral: true,
+          });
+        }
+
+        const differenceInMs = end - start;
+        const days = Math.floor(differenceInMs / (1000 * 60 * 60 * 24)) + 1;
+        if (days == 1) {
+          return await interaction.reply({
+            content: `> You don't need to report 1 day vacations.`,
+            ephemeral: true,
+          });
+        }
+
+        if (start == vacations.start && end == vacations.end && reason == vacations.reason) {
+          return await interaction.reply({
+            content: `> Nothing to update.`,
+            ephemeral: true,
+          });
+        }
+
+        const member = await interaction.guild.members.fetch(vacations.uid, {
+          force: true,
+        });
+
+        let message = `### Vacations updated for <@${vacations.uid}> - ${getDisplayName(member)}\n`;
+        message += `**ID:**\n> ${vacations.vacations_id}\n`;
+
+        if (
+          start_date &&
+          formattedDate(vacations.start, "date_utc") !== formattedDate(start, "date_utc")
+        ) {
+          message += `**Start date:**\n> ${formattedDate(
+            vacations.start,
+            "date_utc"
+          )} -> ${formattedDate(start, "date_utc")}\n`;
+          vacations.start = start;
+        } else {
+          message += `**Start date:**\n> ${formattedDate(vacations.start, "date_utc")}\n`;
+        }
+
+        if (
+          end_date &&
+          formattedDate(vacations.end, "date_utc") !== formattedDate(end, "date_utc")
+        ) {
+          message += `**End date:**\n> ${formattedDate(
+            vacations.end,
+            "date_utc"
+          )} -> ${formattedDate(end, "date_utc")}\n`;
+          vacations.end = end;
+        } else {
+          message += `**End date:**\n> ${formattedDate(vacations.end, "date_utc")}\n`;
+        }
+
+        if (days !== vacations.days) {
+          message += `**Days:**\n> ${vacations.days} -> ${days}\n`;
+          vacations.days = days;
+        } else {
+          message += `**Days:**\n> ${vacations.days}\n`;
+        }
+
+        if (reason && reason !== vacations.reason) {
+          message += `**Reason:**\n> *${vacations.reason}* -> *${reason}*\n`;
+          vacations.reason = reason;
+        } else {
+          message += `**Reason:**\n> *${vacations.reason}*\n`;
+        }
+
+        await vacations.save();
+
+        const embedMessage = new EmbedBuilder().setColor(`#DBDB00`).setDescription(message);
+
+        await interaction.reply({ embeds: [embedMessage] });
+
+        if (configCTA.vacation_log_channel.length > 0) {
+          const channel = await interaction.guild.channels.cache.get(
+            configCTA.vacation_log_channel
+          );
+          if (channel) {
+            let messageLog = ``;
+
+            messageLog += `**User:** <@${vacations.uid}> - ${getDisplayName(member)}\n`;
+            messageLog += `**Vacation ID:** ${vacations.vacations_id}\n`;
+
+            if (start_date) {
+              messageLog += `**Start date:** ${formattedDate(
+                vacations.start,
+                "date_utc"
+              )} -> ${formattedDate(start, "date_utc")}\n`;
+            }
+
+            if (end_date) {
+              messageLog += `**End date:** ${formattedDate(
+                vacations.end,
+                "date_utc"
+              )} -> ${formattedDate(end, "date_utc")}\n`;
+            }
+
+            if (days !== vacations.days) {
+              messageLog += `**Days:** ${vacations.days} -> ${days}\n`;
+            }
+
+            if (reason) {
+              messageLog += `**Reason:** *${vacations.reason}* -> *${reason}*\n`;
+            }
+
+            const embedMessageLog = new EmbedBuilder()
+              .setColor(`#DBDB00`)
+              .setTitle(`Vacations updated`)
+              .setDescription(messageLog);
+
+            await channel.send({ embeds: [embedMessageLog] });
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [28f4a7] Error while updating vacations. Please try again later.`,
+          ephemeral: true,
+        });
+      }
     }
   },
 };
@@ -1271,17 +2003,8 @@ const CTA_Event = {
         }).sort({ cta_id: -1 });
 
         await events.forEach((event) => {
-          const formattedDate = new Date(event.created).toLocaleString("pl-PL", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          });
-
           choices.push({
-            name: `#${event.cta_id} ${event.name} (${formattedDate})`,
+            name: `#${event.cta_id} ${event.name} (${formattedDate(event.created)})`,
             value: event._id.toString(),
           });
         });
@@ -2221,23 +2944,9 @@ const CTA_Event = {
             });
           }
 
-          const formattedOldDate = new Date(cta.created).toLocaleString("pl-PL", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          });
+          const formattedOldDate = formattedDate(cta.created);
 
-          const formattedNewDate = new Date(timestamp).toLocaleString("pl-PL", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          });
+          const formattedNewDate = formattedDate(timestamp);
 
           if (formattedOldDate !== formattedNewDate) {
             changes.push(`> **Date:** \`${formattedOldDate}\` -> \`${formattedNewDate}\``);
@@ -2410,10 +3119,7 @@ const CTA_Event = {
         });
       }
 
-      if (
-        (start_date && !(await this.isValidDate(start_date))) ||
-        (end_date && !(await this.isValidDate(end_date)))
-      ) {
+      if ((start_date && !isValidDate(start_date)) || (end_date && !isValidDate(end_date))) {
         return await interaction.reply({
           content: `> Date format is incorrect. Please use: \`YYYY-MM-DD\``,
           ephemeral: true,
@@ -2474,16 +3180,7 @@ const CTA_Event = {
 
         let message = ``;
 
-        let formattedDate = new Date(registeredMember.registered).toLocaleString("pl-PL", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        });
-
-        message += `**Registration date:**\n> ${formattedDate}\n`;
+        message += `**Registration date:**\n> ${formattedDate(registeredMember.registered)}\n`;
         message += `**Total events:**\n> ${events.length}\n`;
         message += `**Present:**\n> ${presentCount}\n`;
         message += `**Absent:**\n> ${absentCount}\n`;
@@ -2722,15 +3419,6 @@ const CTA_Event = {
 
     return [...uniqueIDs];
   },
-  async isValidDate(dateString) {
-    const dateRegex = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
-    if (!dateRegex.test(dateString)) return false;
-
-    const [year, month, day] = dateString.split("-").map(Number);
-    const date = new Date(year, month - 1, day);
-
-    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
-  },
   async parseText(content) {
     const lines = content.split("\n").slice(1);
     return lines
@@ -2769,4 +3457,4 @@ const CTA_Event = {
   },
 };
 
-module.exports = { CTA_Setup, CTA_Register, CTA_Registration, CTA_Vacation, CTA_Event };
+module.exports = { CTA_Setup, CTA_Register, CTA_Registration, CTA_Vacations, CTA_Event };
