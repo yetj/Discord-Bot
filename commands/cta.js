@@ -1113,22 +1113,40 @@ const CTA_Vacations = {
       subcommand
         .setName("show")
         .setDescription("Show vacations details.")
-        .addStringOption((option) =>
+        .addNumberOption((option) =>
           option.setName("vacations_id").setDescription("Show specific vacations details")
         )
         .addStringOption((option) =>
           option
             .setName("type")
-            .setDescription("Show all vacations (default: Current & Upcoming)")
+            .setDescription("Show vacations by type")
             .addChoices(
               { name: "All", value: "all" },
               { name: "Past", value: "past" },
               { name: "Upcoming", value: "upcoming" },
-              { name: "Active", value: "active" }
+              { name: "Active", value: "active" },
+              { name: "Active & Upcoming", value: "active_upcoming" }
             )
         )
         .addUserOption((option) =>
           option.setName("member").setDescription("Select member you want to check vacations")
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("show_all")
+        .setDescription("Show vacations details.")
+        .addStringOption((option) =>
+          option
+            .setName("type")
+            .setDescription("Show vacations by type (default: Active & Upcoming)")
+            .addChoices(
+              { name: "All", value: "all" },
+              { name: "Past", value: "past" },
+              { name: "Upcoming", value: "upcoming" },
+              { name: "Active", value: "active" },
+              { name: "Active & Upcoming", value: "active_upcoming" }
+            )
         )
     )
     .addSubcommand((subcommand) =>
@@ -1489,6 +1507,13 @@ const CTA_Vacations = {
         });
       }
 
+      if (reason.length < 5) {
+        return await interaction.reply({
+          content: `> Reason is too short. Please provide more information.`,
+          ephemeral: true,
+        });
+      }
+
       if (!member) {
         member = await interaction.guild.members.fetch(interaction.user.id, {
           force: true,
@@ -1583,17 +1608,207 @@ const CTA_Vacations = {
           ephemeral: true,
         });
       }
+    } else if (interaction.options.getSubcommand() === "show") {
+      const vacations_id = interaction.options.getNumber("vacations_id") ?? null;
+      const type = interaction.options.getString("type") ?? null;
+      let member = interaction.options.getMember("member") ?? null;
 
-      if (reason.length < 5) {
+      if (member && !registration_perms && member.user.id !== interaction.user.id) {
         return await interaction.reply({
-          content: `> Reason is too short. Please provide more information.`,
+          content: `> No permission to use this command. You can only see your vacations.`,
           ephemeral: true,
         });
       }
 
-      //
-    } else if (interaction.options.getSubcommand() === "show") {
-      //
+      if (vacations_id !== null && type !== null) {
+        return await interaction.reply({
+          content: `> You can't use \`vacations_id\` with \`type\` option. Please use only one option.`,
+          ephemeral: true,
+        });
+      }
+
+      if (vacations_id !== null && member !== null) {
+        return await interaction.reply({
+          content: `> You can't use \`vacations_id\` with \`member\` option. Please use only one option.`,
+          ephemeral: true,
+        });
+      }
+
+      let filter = {};
+
+      try {
+        if (type !== null) {
+          let today = new Date();
+          switch (type) {
+            case "all":
+              filter = {};
+              break;
+            case "past":
+              filter.end = { $lte: today };
+              break;
+            case "upcoming":
+              filter.start = { $gte: today };
+              break;
+            case "active":
+              filter.start = { $lte: today };
+              filter.end = { $gte: today };
+              break;
+            case "active_upcoming":
+              filter.$or = [
+                { start: { $lte: today }, end: { $gte: today } },
+                { start: { $gte: today } },
+              ];
+              break;
+            default:
+              return await interaction.reply({
+                content: `> Wrong type selected.`,
+                ephemeral: true,
+              });
+              break;
+          }
+        }
+
+        if (vacations_id !== null) {
+          filter.vacations_id = vacations_id;
+        } else {
+          if (!member) {
+            member = await interaction.guild.members.fetch(interaction.user.id, {
+              force: true,
+            });
+          }
+          filter.uid = member.user.id;
+        }
+
+        const vacations = await CTAVacations.find({
+          gid: interaction.guildId,
+          ...filter,
+        }).sort({ start: -1 });
+
+        if (vacations.length < 1) {
+          return await interaction.reply({
+            content: `> No vacations found.`,
+            ephemeral: true,
+          });
+        }
+
+        if (!member) {
+          member = await interaction.guild.members.fetch(vacations[0].uid, {
+            force: true,
+          });
+        }
+
+        let message = "";
+
+        message = `### Vacations logs for <@${member.user.id}> - ${getDisplayName(member)}\n`;
+
+        for await (const vacation of vacations) {
+          message += `**#${vacation.vacations_id}** `;
+          message += `\`${formattedDate(vacation.start, "date_utc")}\` -> `;
+          message += `\`${formattedDate(vacation.end, "date_utc")}\``;
+          message += `\n> *${vacation.reason}*\n`;
+        }
+
+        const embedMessage = new EmbedBuilder().setColor(`#00DB19`).setDescription(message);
+
+        await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [a02bdd] Error while showing vacations. Please try again later.`,
+          ephemeral: true,
+        });
+      }
+    } else if (interaction.options.getSubcommand() === "show_all") {
+      if (!registration_perms) {
+        return await interaction.reply({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
+
+      const type = interaction.options.getString("type") ?? "active_upcoming";
+
+      let dateFilter = {};
+
+      let today = new Date();
+      let typeName = "";
+      switch (type) {
+        case "all":
+          typeName = "All";
+          dateFilter = {};
+          break;
+        case "past":
+          typeName = "Past";
+          dateFilter.end = { $lte: today };
+          break;
+        case "upcoming":
+          typeName = "Upcoming";
+          dateFilter.start = { $gte: today };
+          break;
+        case "active":
+          typeName = "Active";
+          dateFilter.start = { $lte: today };
+          dateFilter.end = { $gte: today };
+          break;
+        case "active_upcoming":
+          typeName = "Active & Upcoming";
+          dateFilter.$or = [
+            { start: { $lte: today }, end: { $gte: today } },
+            { start: { $gte: today } },
+          ];
+          break;
+        default:
+          return await interaction.reply({
+            content: `> Wrong type selected.`,
+            ephemeral: true,
+          });
+          break;
+      }
+
+      try {
+        const vacations = await CTAVacations.find({
+          gid: interaction.guildId,
+          ...dateFilter,
+        }).sort({ start: -1 });
+
+        if (vacations.length < 1) {
+          return await interaction.reply({
+            content: `> No vacations found.`,
+            ephemeral: true,
+          });
+        }
+
+        let message = "";
+
+        message = `### Vacations logs - *${typeName}*\n`;
+
+        for await (const vacation of vacations) {
+          const member = await interaction.guild.members.fetch(vacation.uid, {
+            force: true,
+          });
+
+          message += `* **#${vacation.vacations_id}** | `;
+          message += `\`${formattedDate(vacation.start, "date_utc")}\` -> `;
+          message += `\`${formattedDate(vacation.end, "date_utc")}\` | `;
+          message += `${vacation.days} | `;
+          if (member) {
+            message += `<@${vacation.uid}> - ${getDisplayName(member)}`;
+          } else {
+            message += `<@${vacation.uid}> - \`#${vacation.uid}\``;
+          }
+          message += `\n> *${vacation.reason}*\n`;
+        }
+
+        const embedMessage = new EmbedBuilder().setColor(`#00DB19`).setDescription(message);
+
+        await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [7eb253] Error while showing all vacations. Please try again later.`,
+          ephemeral: true,
+        });
+      }
     } else if (interaction.options.getSubcommand() === "update") {
       if (configCTA.vacation_channel !== interaction.channelId) {
         return await interaction.reply({
