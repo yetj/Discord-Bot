@@ -55,6 +55,14 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
   async execute(interaction) {
     if (interaction.options.getSubcommand() === "add") {
+      // check if bot has access to see audit logs
+      if (!interaction.member.guild.members.me.permissions.has(PermissionFlagsBits.ViewAuditLog)) {
+        return await interaction.reply({
+          content: `Bot doesn't have permissions to view audit logs.`,
+          ephemeral: true,
+        });
+      }
+
       const role = interaction.options.getRole("role");
       const role_to_be_mentioned = interaction.options.getRole("role_to_be_mentioned");
       const channel = interaction.options.getChannel("channel");
@@ -160,26 +168,37 @@ module.exports = {
       try {
         const notifications = await LeaveNotification.find({ gid: member.guild.id });
 
-        if (notifications && notifications.length > 0) {
-          const logs = await member.guild.fetchAuditLogs({
-            limit: 1,
-            type: AuditLogEvent.MemberKick,
-          });
-          const kickLog = logs.entries.first();
+        console.log("[guild] ", member.guild);
+        console.log("[me] ", member.guild.me);
 
+        const hasPermsToViewAuditLog = await member.guild.me.permissions.has(
+          PermissionFlagsBits.ViewAuditLog
+        );
+
+        if (notifications && notifications.length > 0) {
           let message = `has left the server.`;
 
-          if (kickLog) {
-            if (kickLog.createdAt > member.joinedAt) {
-              const { executor, target, reason } = kickLog;
-              if (target.id === member.id) {
-                if (reason) {
-                  message = `has been kicked by **${executor}** with a reason: \`${reason}\`.`;
-                } else {
-                  message = `has been kicked by **${executor}**.`;
+          if (hasPermsToViewAuditLog) {
+            const logs = await member.guild.fetchAuditLogs({
+              limit: 1,
+              type: AuditLogEvent.MemberKick,
+            });
+            const kickLog = logs.entries.first();
+
+            if (kickLog) {
+              if (kickLog.createdAt > member.joinedAt) {
+                const { executor, target, reason } = kickLog;
+                if (target.id === member.id) {
+                  if (reason) {
+                    message = `has been kicked by **${executor}** with a reason: \`${reason}\`.`;
+                  } else {
+                    message = `has been kicked by **${executor}**.`;
+                  }
                 }
               }
             }
+          } else {
+            message += ` *(No access to Audit logs)*`;
           }
 
           notifications.forEach((notification) => {

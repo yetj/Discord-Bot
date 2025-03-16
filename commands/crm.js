@@ -131,6 +131,25 @@ module.exports = {
             .setDescription("Skip listing bots (default: yes)")
             .addChoices({ name: "Yes", value: "yes" }, { name: "No", value: "no" })
         )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("logs")
+        .setDescription("Get logs, but please select only one option.")
+        .addRoleOption((option) => option.setName("role").setDescription("Role"))
+        .addUserOption((option) => option.setName("manager").setDescription("Manager"))
+        .addUserOption((option) => option.setName("user").setDescription("User"))
+        .addStringOption((option) =>
+          option
+            .setName("filter_command")
+            .setDescription("Filter by the command")
+            .addChoices(
+              { name: "role_add", value: "role_add" },
+              { name: "role_remove", value: "role_remove" },
+              { name: "role_add_multi", value: "role_add_multi" },
+              { name: "role_remove_multi", value: "role_remove_multi" }
+            )
+        )
     ),
   async execute(interaction) {
     if (
@@ -403,6 +422,25 @@ module.exports = {
 
         await interaction.followUp({ embeds: [embed], ephemeral: true });
       }
+    } else if (interaction.options.getSubcommand() === "logs") {
+      const role = interaction.options.getRole("role") ?? null;
+      const manager = interaction.options.getUser("manager") ?? null;
+      const user = interaction.options.getUser("user") ?? null;
+      const filter_command = interaction.options.getString("filter_command") ?? null;
+
+      interaction.deferReply({ ephemeral: true });
+
+      if (role && !manager && !user) {
+        //
+      } else if (manager && !role && !user) {
+        //
+      } else if (user && !role && !manager) {
+        //
+      }
+      await interaction.reply({
+        content: `You can select only one option (role / manager / user) plus filter.`,
+        ephemeral: true,
+      });
     }
   },
   async multiRoleManage(interaction, users, roles, type, separator) {

@@ -5,34 +5,32 @@ const {
   EmbedBuilder,
 } = require("discord.js");
 
-module.exports = {
+const Cmd1 = {
   data: new SlashCommandBuilder()
     .setName("ex")
     .setDescription("Return list of members on specific voice channel.")
     .addUserOption((option) => option.setName("user").setDescription("User")),
   async execute(interaction) {
-    //const comm = require('../events/guildDelete.js')
-
-    //comm.execute(interaction.client, interaction.guild)
-
-    const user = interaction.options.getUser("user");
-
-    const member = interaction.guild.members.cache.find(
-      (m) =>
-        m.user.id == "165542890334978048" ||
-        m.nickname == "" ||
-        (m.user.username == "" && m.user.discriminator == "") ||
-        (m.user.globalName == "" && m.user.discriminator == "0")
-    );
-
-    console.log(member.voice);
-
-    //await interaction.deferReply({ ephemeral: true });
+    console.log(interaction.options._hoistedOptions);
 
     await interaction.reply({
       content: `> ${interaction.member.nickname} - ${interaction.member.user.username}`,
     });
-
-    //console.log(interaction);
   },
 };
+
+const Cmd2 = {
+  data: new SlashCommandBuilder()
+    .setName("ex2")
+    .setDescription("Return list of members on specific voice channel.")
+    .addUserOption((option) => option.setName("user").setDescription("User")),
+  async execute(interaction) {
+    console.log(interaction.options._hoistedOptions);
+
+    await interaction.reply({
+      content: `> ${interaction.member.nickname} - ${interaction.member.user.username}`,
+    });
+  },
+};
+
+module.exports = { Cmd1, Cmd2 };
