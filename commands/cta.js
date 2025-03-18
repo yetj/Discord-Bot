@@ -521,6 +521,166 @@ const CTA_Setup = {
       }
     }
   },
+  async autoload(client) {
+    client.on("roleDelete", async (role) => {
+      try {
+        const result = await CTAConfig.updateMany(
+          {
+            gid: role.guild.id,
+            $or: [
+              { manager_roles: role.id },
+              { cta_roles: role.id },
+              { registration_roles: role.id },
+              { member_role: role.id },
+            ],
+          },
+          {
+            $pull: {
+              manager_roles: role.id,
+              cta_roles: role.id,
+              registration_roles: role.id,
+            },
+            $set: {
+              member_role: "",
+            },
+          }
+        );
+
+        if (result.modifiedCount > 0) {
+          console.log("[AUTO] Role deleted");
+        }
+
+        console.log("roleDelete ", result);
+      } catch (err) {
+        console.error("[45e79c] Error while updating dabase for removed role", err);
+      }
+    });
+
+    client.on("channelDelete", async (channel) => {
+      try {
+        const result = await CTAConfig.updateMany(
+          {
+            gid: channel.guild.id,
+            $or: [{ vacation_channel: channel.id }, { vacation_log_channel: channel.id }],
+          },
+          {
+            $set: {
+              vacation_channel: "",
+              vacation_log_channel: "",
+            },
+          }
+        );
+
+        if (result.modifiedCount > 0) {
+          console.log("[AUTO] Channel deleted");
+        }
+
+        console.log("channelDelete ", result);
+      } catch (err) {
+        console.error("[4f2103] Error while updating dabase for removed channel", err);
+      }
+    });
+
+    client.on("guildMemberRemove", async (member) => {
+      // unregister player if he leaves the server
+      try {
+        const result = await CTAMembers.updateOne(
+          { gid: member.guild.id, id: member.user.id, unregistered: false },
+          {
+            unregistered: true,
+            unregistered_date: Date.now(),
+            unregistered_reason: "[AUTO] Player left the server",
+          }
+        );
+
+        if (result.modifiedCount > 0) {
+          console.log("[AUTO] Registered player left the server");
+        }
+
+        console.log("guildMemberRemoveRegistration ", result);
+      } catch (err) {
+        console.error("[4f2103] Error while updating dabase for removed member", err);
+      }
+
+      // end all active vacations and remove future vacations
+      try {
+        const now = new Date();
+
+        const activeVacation = await CTAVacations.findOne({
+          gid: member.guild.id,
+          uid: member.user.id,
+          start: { $lte: now },
+          end: { $gte: now },
+        });
+
+        if (activeVacation) {
+          const days = Math.ceil((now - activeVacation.start) / (1000 * 60 * 60 * 24));
+
+          await CTAVacations.updateOne(
+            { _id: activeVacation._id },
+            {
+              $set: {
+                end: now,
+                days: days,
+                force_end: now,
+                force_end_reason: "[AUTO] Player left the server",
+                force_end_by: "",
+              },
+            }
+          );
+          console.log("[AUTO] Player left the server with active vacations");
+        }
+
+        const deleteResult = await CTAVacations.deleteMany({
+          gid: member.guild.id,
+          uid: member.user.id,
+          start: { $gt: now },
+        });
+
+        if (deleteResult.deletedCount > 0) {
+          console.log("[AUTO] Player left the server with upcoming vacations");
+        }
+        console.log("guildMemberRemoveVacations ", deleteResult);
+      } catch (err) {
+        console.error("[db4dd5] Error while updating database for removed member.", err);
+      }
+    });
+
+    client.on("guildMemberUpdate", async (oldMember, newMember) => {
+      const removedRoles = oldMember.roles.cache.filter(
+        (role) => !newMember.roles.cache.has(role.id)
+      );
+
+      try {
+        const configCTA = await CTAConfig.findOne({
+          gid: oldMember.guild.id,
+        });
+
+        if (configCTA) {
+          if (configCTA.member_role.length > 0) {
+            for await (const [roleId, role] of removedRoles.entries()) {
+              if (role.id === configCTA.member_role) {
+                await CTAMembers.updateOne(
+                  { gid: oldMember.guild.id, id: oldMember.user.id, unregistered: false },
+                  {
+                    unregistered: true,
+                    unregistered_date: Date.now(),
+                    unregistered_reason: "[AUTO] Member lost member role",
+                  }
+                );
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [c5c53d] Error while updating guild role. Please try again later.`,
+          ephemeral: true,
+        });
+      }
+    });
+  },
 };
 
 const CTA_Register = {
@@ -552,9 +712,9 @@ const CTA_Register = {
       }
 
       const game_nickname = interaction.options.getString("game_nickname").trim();
-      const member = interaction.options.getUser("member") ?? null;
+      const member = interaction.options.getMember("member") ?? null;
 
-      if (member && member.id != interaction.user.id) {
+      if (member && member.user.id != interaction.user.id) {
         let is_manager = false;
 
         if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
@@ -576,7 +736,7 @@ const CTA_Register = {
         const registered = await CTAMembers.findOne({
           $and: [
             { gid: interaction.guildId },
-            { $or: [{ id: member.id }, { game_nickname: game_nickname }] },
+            { $or: [{ id: member.user.id }, { game_nickname: game_nickname }] },
             { unregistered: false },
           ],
         });
@@ -590,12 +750,23 @@ const CTA_Register = {
 
         const newRegistration = new CTAMembers({
           gid: interaction.guildId,
-          id: member.id,
-          name: member.username,
+          id: member.user.id,
+          name: member.user.username,
           game_nickname: game_nickname,
         });
 
         await newRegistration.save();
+
+        try {
+          await member.roles.add(configCTA.member_role);
+        } catch (err) {
+          console.error("[CTA_Register] Error while adding role to the member", err);
+        }
+        try {
+          await member.setNickname(game_nickname, "[AUTO] Registration");
+        } catch (err) {
+          console.error("[CTA_Register] Error while setting nickname to the member", err);
+        }
 
         return await interaction.reply({
           content: `> Member ${member} successfully registered with game nickname: \`${game_nickname}\`!`,
@@ -626,6 +797,8 @@ const CTA_Register = {
       });
 
       await newRegistration.save();
+
+      member.roles.add(configCTA.member_role);
 
       await interaction.reply({
         content: `> Registration completed with game nickname: \`${game_nickname}\`!`,
@@ -1005,6 +1178,22 @@ const CTA_Registration = {
         registered.unregistered_date = new Date();
 
         registered.save();
+
+        // TODO
+        // console.log(user.roles.premiumSubscriberRole);
+
+        // const manageableRoles = user.roles.cache.filter(
+        //   (role) =>
+        //     role.managed == false &&
+        //     role.id != interaction.guild.id &&
+        //     role.id != user.roles.premiumSubscriberRole
+        // );
+        // console.log(manageableRoles);
+
+        // const roles = manageableRoles.map((role) => role.id);
+        // console.log(roles);
+
+        // user.roles.remove(roles);
 
         await interaction.reply({
           content: `> Member <@${registered.id}> successfully unregistered game nickname \`${registered.game_nickname}\` with reason: \`${reason}\``,
