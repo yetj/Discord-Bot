@@ -135,6 +135,19 @@ const CTA_Setup = {
         )
     )
     .addSubcommand((subcommand) =>
+      subcommand
+        .setName("self_registration")
+        .setDescription(
+          "Allow users to register themselves. If disabled, only managers can register users."
+        )
+        .addBooleanOption((option) =>
+          option
+            .setName("allow_self_registration")
+            .setDescription("Do you want to allow for self registration? (default: no)")
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
       subcommand.setName("show").setDescription("Show config for this server")
     ),
   async execute(interaction) {
@@ -428,6 +441,26 @@ const CTA_Setup = {
           `> [a75105] Error while updating ao_server. Please try again later.`
         );
       }
+    } else if (interaction.options.getSubcommand() === "self_registration") {
+      const allow_self_registration =
+        interaction.options.getBoolean("allow_self_registration") ?? false;
+
+      try {
+        await CTAConfig.updateOne(
+          { gid: interaction.guildId },
+          { allow_self_registration: allow_self_registration },
+          { upsert: true, new: true }
+        );
+
+        await interaction.reply({
+          content: `> Allow self registration has been set to: **${allow_self_registration}**.`,
+        });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply(
+          `> [39d088] Error while updating allow_self_registration. Please try again later.`
+        );
+      }
     } else if (interaction.options.getSubcommand() === "show") {
       try {
         if (!configCTA) {
@@ -505,6 +538,13 @@ const CTA_Setup = {
           message += `\`${server}\`\n`;
         } else {
           message += `*not set*\n`;
+        }
+
+        message += `### Allow for self registration:\n`;
+        if (configCTA.allow_self_registration) {
+          message += `*true*\n`;
+        } else {
+          message += `*false*\n`;
         }
 
         const embedMessage = new EmbedBuilder()
@@ -712,9 +752,13 @@ const CTA_Register = {
       }
 
       const game_nickname = interaction.options.getString("game_nickname").trim();
-      const member = interaction.options.getMember("member") ?? null;
+      let member = interaction.options.getMember("member") ?? null;
 
-      if (member && member.user.id != interaction.user.id) {
+      if (
+        member &&
+        (member.user.id != interaction.user.id ||
+          interaction.memberPermissions.has(PermissionFlagsBits.Administrator))
+      ) {
         let is_manager = false;
 
         if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
@@ -758,10 +802,11 @@ const CTA_Register = {
         await newRegistration.save();
 
         try {
-          await member.roles.add(configCTA.member_role);
+          await member.roles.add(configCTA.member_role, "[AUTO] Registration");
         } catch (err) {
           console.error("[CTA_Register] Error while adding role to the member", err);
         }
+
         try {
           await member.setNickname(game_nickname, "[AUTO] Registration");
         } catch (err) {
@@ -772,6 +817,17 @@ const CTA_Register = {
           content: `> Member ${member} successfully registered with game nickname: \`${game_nickname}\`!`,
           ephemeral: true,
         });
+      }
+
+      if (!configCTA.allow_self_registration) {
+        return await interaction.reply({
+          content: `> Self registration is disabled. Please ask Recruiter to register you.`,
+          ephemeral: true,
+        });
+      }
+
+      if (!member) {
+        member = await interaction.guild.members.cache.get(interaction.user.id);
       }
 
       const registered = await CTAMembers.findOne({
@@ -802,10 +858,14 @@ const CTA_Register = {
 
       await interaction.reply({
         content: `> Registration completed with game nickname: \`${game_nickname}\`!`,
+        ephemeral: true,
       });
     } catch (err) {
       console.error(err);
-      return await interaction.reply(`> [b7dcae] Failed to register. Please try again later.`);
+      return await interaction.reply({
+        content: `> [b7dcae] Failed to register. Please try again later.`,
+        ephemeral: true,
+      });
     }
   },
 };
@@ -837,13 +897,16 @@ const CTA_Registration = {
       subcommand
         .setName("unregister")
         .setDescription("Unregister game nickname or member")
+        .addUserOption((option) =>
+          option.setName("member").setDescription("Select member").setRequired(true)
+        )
+
         .addStringOption((option) =>
           option.setName("reason").setDescription("Reason for unregistering.").setRequired(true)
         )
         .addStringOption((option) =>
           option.setName("game_nickname").setDescription("Nickname from the game")
         )
-        .addUserOption((option) => option.setName("member").setDescription("Select member"))
     )
     .addSubcommand((subcommand) =>
       subcommand.setName("whoami").setDescription("Show my registered nickname.")
@@ -1141,11 +1204,25 @@ const CTA_Registration = {
       }
 
       try {
+        const member = interaction.options.getMember("member") ?? null;
         const reason = interaction.options.getString("reason").trim() ?? null;
         const game_nickname = interaction.options.getString("game_nickname") ?? null;
-        const member = interaction.options.getMember("member") ?? null;
 
         let find_by = {};
+
+        if (!member) {
+          return await interaction.reply({
+            content: `> Please select member to unregister.`,
+            ephemeral: true,
+          });
+        }
+
+        if (!reason) {
+          return await interaction.reply({
+            content: `> Please provide reason for unregistering.`,
+            ephemeral: true,
+          });
+        }
 
         if (game_nickname && member) {
           return await interaction.reply({
@@ -1179,24 +1256,30 @@ const CTA_Registration = {
 
         registered.save();
 
-        // TODO
-        // console.log(user.roles.premiumSubscriberRole);
+        const rolesToRemove = await member.roles.cache.filter(
+          (role) =>
+            role.managed == false &&
+            role.id != interaction.guild.id &&
+            role.id != member.roles.premiumSubscriberRole &&
+            interaction.guild.members.me.roles.highest.position > role.position
+        );
 
-        // const manageableRoles = user.roles.cache.filter(
-        //   (role) =>
-        //     role.managed == false &&
-        //     role.id != interaction.guild.id &&
-        //     role.id != user.roles.premiumSubscriberRole
-        // );
-        // console.log(manageableRoles);
+        const rolesToRemoveMap = rolesToRemove.map((role) => role.id);
 
-        // const roles = manageableRoles.map((role) => role.id);
-        // console.log(roles);
+        let rolesToRemoveString = rolesToRemove.map((role) => `${role.name}`).join("`, `");
 
-        // user.roles.remove(roles);
+        if (rolesToRemoveString.length > 5) {
+          rolesToRemoveString = `\n> Removed roles: \`${rolesToRemoveString}\``;
+        }
+
+        try {
+          await member.roles.remove(rolesToRemoveMap);
+        } catch (err) {
+          console.error("[CTA_Unergister] Unable to remove roles.", err);
+        }
 
         await interaction.reply({
-          content: `> Member <@${registered.id}> successfully unregistered game nickname \`${registered.game_nickname}\` with reason: \`${reason}\``,
+          content: `> Member <@${registered.id}> successfully unregistered game nickname \`${registered.game_nickname}\` with reason: \`${reason}\`${rolesToRemoveString}`,
           ephemeral: true,
         });
       } catch (err) {
@@ -1206,8 +1289,6 @@ const CTA_Registration = {
           ephemeral: true,
         });
       }
-
-      //
     } else if (interaction.options.getSubcommand() === "whoami") {
       try {
         const registered = await CTAMembers.findOne({
