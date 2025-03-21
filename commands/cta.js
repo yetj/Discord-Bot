@@ -585,12 +585,6 @@ const CTA_Setup = {
             },
           }
         );
-
-        if (result.modifiedCount > 0) {
-          console.log("[AUTO] Role deleted");
-        }
-
-        console.log("roleDelete ", result);
       } catch (err) {
         console.error("[45e79c] Error while updating dabase for removed role", err);
       }
@@ -610,12 +604,6 @@ const CTA_Setup = {
             },
           }
         );
-
-        if (result.modifiedCount > 0) {
-          console.log("[AUTO] Channel deleted");
-        }
-
-        console.log("channelDelete ", result);
       } catch (err) {
         console.error("[4f2103] Error while updating dabase for removed channel", err);
       }
@@ -632,12 +620,6 @@ const CTA_Setup = {
             unregistered_reason: "[AUTO] Player left the server",
           }
         );
-
-        if (result.modifiedCount > 0) {
-          console.log("[AUTO] Registered player left the server");
-        }
-
-        console.log("guildMemberRemoveRegistration ", result);
       } catch (err) {
         console.error("[4f2103] Error while updating dabase for removed member", err);
       }
@@ -668,19 +650,13 @@ const CTA_Setup = {
               },
             }
           );
-          console.log("[AUTO] Player left the server with active vacations");
         }
 
-        const deleteResult = await CTAVacations.deleteMany({
+        await CTAVacations.deleteMany({
           gid: member.guild.id,
           uid: member.user.id,
           start: { $gt: now },
         });
-
-        if (deleteResult.deletedCount > 0) {
-          console.log("[AUTO] Player left the server with upcoming vacations");
-        }
-        console.log("guildMemberRemoveVacations ", deleteResult);
       } catch (err) {
         console.error("[db4dd5] Error while updating database for removed member.", err);
       }
