@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, BitField } = require("discord.js");
+const getDisplayName = require("../utils/getDisplayName");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -264,6 +265,15 @@ module.exports = {
           )
           .addBooleanOption((option) =>
             option.setName("result_as_file").setDescription("Add response as a file? (default: no)")
+          )
+          .addStringOption((option) =>
+            option
+              .setName("separator")
+              .setDescription("How do you want to separate members? (default: (new line))")
+              .addChoices(
+                { name: "Each in new line", value: "new_line" },
+                { name: "Separated by comma", value: "comma" }
+              )
           )
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
@@ -1005,6 +1015,15 @@ module.exports = {
       const skip_bots = interaction.options.getBoolean("skip_bots") ?? true;
       const embed_post = interaction.options.getBoolean("embed") ?? true;
       const result_as_file = interaction.options.getBoolean("result_as_file") ?? false;
+      let separator = interaction.options.getString("separator") ?? "new_line";
+
+      if (separator == "comma") {
+        separator = ", ";
+      } else if (separator == "new_line") {
+        separator = "\n";
+      } else {
+        separator = " ";
+      }
 
       const allMembers = await interaction.guild.members.fetch({ cache: true, force: true });
 
@@ -1018,99 +1037,168 @@ module.exports = {
 
       await interaction.deferReply({ ephemeral: true });
 
-      let post = "";
+      let postArray = [];
       let page = 1;
+      let len = 0;
+      let embeds = [];
+      let sort = true;
 
       if (filteredMembers.size) {
-        filteredMembers.forEach(async (member) => {
+        for await (const [index, member] of filteredMembers) {
           if (list_type == "ids") {
-            post += `${member.user.id}\n`;
+            postArray.push(member.user.id);
+            len += member.user.id.length;
+            sort = false;
           } else if (list_type == "display_name") {
-            if (member.nickname) {
-              post += `${member.nickname}\n`;
-            } else if (member.user.globalName) {
-              post += `${member.user.globalName}\n`;
-            } else {
-              post += `${member.user.username}\n`;
-            }
+            postArray.push(getDisplayName(member));
+            len += getDisplayName(member).length;
           } else if (list_type == "username") {
-            post += `${member.user.username}\n`;
+            postArray.push(member.user.username);
+            len += member.user.username.length;
           } else if (list_type == "formated_ids") {
-            post += `\`<@${member.user.id}>\`\n`;
+            postArray.push(`\`<@${member.user.id}>\``);
+            len += member.user.id.length + 5;
+            sort = false;
           } else {
-            post += `${member}\n`;
+            postArray.push(member.toString());
+            len += member.toString().length;
+            sort = false;
           }
 
-          if (post.length > 1950 && !result_as_file) {
+          if ((!embed_post || list_type == "shadow_mention") && len > 980) {
+            let content = ``;
+
+            if (page == 1) {
+              content += `## Members\n`;
+              content += `> Found **${filteredMembers.size}** member(s) with role **${role.name}**\n`;
+            }
+            if (sort) {
+              postArray = postArray.sort((a, b) => a.localeCompare(b));
+            }
+            content += `**List of members:**\n${postArray.join(separator)}`;
+            content += `\n\n*Page: ${page}*`;
+
+            await interaction.channel
+              .send({
+                content: `${content}`,
+              })
+              .then(async (p) => {
+                if (list_type == "shadow_mention") {
+                  setTimeout(() => {
+                    p.delete().catch((err) => {
+                      console.error("[ROLES-6ccd53] can't remove message... ", err.message);
+                    });
+                  }, 300);
+                }
+              });
+            postArray = [];
+            len = 0;
+            page++;
+          } else if (embed_post && len > 4000) {
+            let content = ``;
+
+            if (sort) {
+              postArray = postArray.sort((a, b) => a.localeCompare(b));
+            }
+            if (page == 1) {
+              content += `## Members\n`;
+              content += `> Found **${filteredMembers.size}** member(s) with role **${role.name}**\n`;
+              content += `### List of members:\n${postArray.join(separator)}`;
+            } else {
+              content += `${postArray.join(separator)}`;
+            }
+
             const embed = new EmbedBuilder()
               .setColor("#2222cc")
-              .setTitle("Members")
-              .setDescription(
-                `Found **${filteredMembers.size}** member(s) with role **${role.name}**`
-              )
-              .addFields([{ name: "List of members:", value: `${post}`, inline: true }])
+              .setDescription(content)
               .setFooter({ text: `Page ${page}` });
 
-            page++;
+            await embeds.push(embed);
 
-            if (embed_post && list_type != "shadow_mention") {
-              post = "";
-              await interaction.followUp({ embeds: [embed] });
-            } else {
-              const content = `## Members\n> Found **${filteredMembers.size}** member(s) with role **${role.name}**\n**List of members:**\n${post}\n*Page ${page}*`;
-              post = "";
-              await interaction.channel
-                .send({
-                  content: `${content}`,
-                })
-                .then(async (p) => {
-                  if (list_type == "shadow_mention") {
-                    setTimeout(p.delete(), 300);
-                  }
-                });
-            }
+            postArray = [];
+            len = 0;
+            page++;
           }
-        });
+        }
 
         let files = [];
 
-        const embed = new EmbedBuilder()
-          .setColor("#2222cc")
-          .setTitle("Members")
-          .setDescription(`Found **${filteredMembers.size}** member(s) with role **${role.name}**`);
-
         if (result_as_file) {
-          const buffer = Buffer.from(post, "utf-8");
+          if (sort) {
+            postArray = postArray.sort((a, b) => a.localeCompare(b));
+          }
+          const buffer = Buffer.from(postArray.join(separator), "utf-8");
           files = [
             {
               attachment: buffer,
               name: `member_list.log`,
             },
           ];
-        } else {
-          embed.addFields([{ name: "List of members:", value: `${post}`, inline: true }]);
-          embed.setFooter({ text: `Page ${page + 1}` });
-        }
 
-        if (embed_post && list_type != "shadow_mention") {
-          await interaction.followUp({ embeds: [embed], files });
-        } else {
-          if (result_as_file) {
-            await interaction.channel.send({
-              content: `## Members\n> Found **${filteredMembers.size}** member(s) with role **${role.name}**\n**List of members added to the file.`,
-              files,
-            });
-          } else {
-            await interaction.channel
-              .send({
-                content: `## Members\n> Found **${filteredMembers.size}** member(s) with role **${role.name}**\n**List of members:**\n${post}\n*Page ${page}*`,
-              })
-              .then((p) => {
-                if (list_type == "shadow_mention") {
-                  setTimeout(p.delete(), 300);
-                }
-              });
+          const embed = new EmbedBuilder()
+            .setColor("#2222cc")
+            .setTitle("Members")
+            .setDescription(
+              `> Found **${filteredMembers.size}** member(s) with role **${role.name}**`
+            );
+
+          return await interaction.followUp({ embeds: [embed], files });
+        } else if ((!embed_post || list_type == "shadow_mention") && postArray.length > 0) {
+          let content = ``;
+
+          if (page == 1) {
+            content += `## Members\n`;
+            content += `> Found **${filteredMembers.size}** member(s) with role **${role.name}**\n`;
           }
+          if (sort) {
+            postArray = postArray.sort((a, b) => a.localeCompare(b));
+          }
+          content += `**List of members:**\n${postArray.join(separator)}`;
+
+          if (page !== 1) {
+            content += `\n\n*Page: ${page}*`;
+          }
+
+          await interaction.channel
+            .send({
+              content: `${content}`,
+            })
+            .then(async (p) => {
+              if (list_type == "shadow_mention") {
+                setTimeout(() => {
+                  p.delete().catch((err) => {
+                    console.error("[ROLES-08750e] can't remove message... ", err.message);
+                  });
+                }, 300);
+                interaction.followUp({
+                  content: `> *Shadow mentioned **${filteredMembers.size}** members with role **${role.name}***`,
+                  ephemeral: true,
+                });
+              }
+            });
+        } else if (embed_post && postArray.length > 0) {
+          let content = ``;
+
+          if (sort) {
+            postArray = postArray.sort((a, b) => a.localeCompare(b));
+          }
+          if (page == 1) {
+            content += `## Members\n`;
+            content += `> Found **${filteredMembers.size}** member(s) with role **${role.name}**\n`;
+            content += `### List of members:\n${postArray.join(separator)}`;
+          } else {
+            content += `${postArray.join(separator)}`;
+          }
+
+          const embed = new EmbedBuilder().setColor("#2222cc").setDescription(content);
+
+          if (page !== 1) {
+            embed.setFooter({ text: `Page ${page}` });
+          }
+
+          embeds.push(embed);
+
+          await interaction.followUp({ embeds: embeds });
         }
       } else {
         const embed = new EmbedBuilder()
