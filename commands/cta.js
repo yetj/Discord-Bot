@@ -180,6 +180,11 @@ const CTA_Setup = {
       }
 
       if (configCTA && manager_perms == false) {
+        const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
+          cache: true,
+          force: true,
+        });
+
         await configCTA.manager_roles.forEach((mgr) => {
           if (interactionUser.roles.cache.has(mgr.value)) {
             manager_perms = true;
@@ -1077,6 +1082,11 @@ const CTA_Register = {
         }
 
         if (!is_manager && configCTA.manager_roles.length > 1) {
+          const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
+            cache: true,
+            force: true,
+          });
+
           configCTA.manager_roles.forEach((role) => {
             if (interactionUser.roles.cache.has(role)) {
               is_manager = true;
@@ -1247,6 +1257,11 @@ const CTA_Registration = {
       if (configCTA.ao_server == "-") {
         return await interaction.reply({ content: `> Registration is disabled.`, ephemeral: true });
       }
+
+      const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
+        cache: true,
+        force: true,
+      });
 
       if (!manager_perms) {
         configCTA.manager_roles.forEach((role) => {
@@ -1813,6 +1828,11 @@ const CTA_Vacations = {
     try {
       configCTA = await CTAConfig.findOne({
         gid: interaction.guildId,
+      });
+
+      const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
+        cache: true,
+        force: true,
       });
 
       if (!manager_perms) {
@@ -2917,6 +2937,11 @@ const CTA_Event = {
       if (configCTA.ao_server == "-") {
         return await interaction.reply({ content: `> Events are disabled.`, ephemeral: true });
       }
+
+      const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
+        cache: true,
+        force: true,
+      });
 
       if (!manager_perms) {
         configCTA.manager_roles.forEach((role) => {
