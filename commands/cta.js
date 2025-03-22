@@ -3,6 +3,12 @@ const {
   ChannelType,
   PermissionFlagsBits,
   EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  RoleSelectMenuBuilder,
+  ChannelSelectMenuBuilder,
+  StringSelectMenuBuilder,
+  ButtonStyle,
 } = require("discord.js");
 const {
   CTAConfig,
@@ -148,6 +154,13 @@ const CTA_Setup = {
         )
     )
     .addSubcommand((subcommand) =>
+      subcommand
+        .setName("interactive")
+        .setDescription(
+          "Bot will ask you for all the settings. It will overwrite the current settings if they exist."
+        )
+    )
+    .addSubcommand((subcommand) =>
       subcommand.setName("show").setDescription("Show config for this server")
     ),
   async execute(interaction) {
@@ -276,7 +289,7 @@ const CTA_Setup = {
         );
 
         await interaction.reply({
-          content: `> Vacations reprting channel updated.`,
+          content: `> Vacations reporting channel updated.`,
           ephemeral: true,
         });
       } catch (err) {
@@ -559,6 +572,328 @@ const CTA_Setup = {
           `> [ebfd39] Error while displaying CTA config. Please try again later.`
         );
       }
+    } else if (interaction.options.getSubcommand() === "interactive") {
+      const user = interaction.user;
+      const channel = interaction.channel;
+
+      const questions = [
+        {
+          id: "member_role",
+          title: "Member Role",
+          description: "It's role that every registered member will get.",
+          type: "role",
+          limit: 1,
+        },
+        {
+          id: "manager_role",
+          title: "Manager Roles",
+          description: "Roles that will have full access to all CTA module bot.",
+          type: "role",
+        },
+        {
+          id: "vacation_channel",
+          title: "Vacations Channel",
+          description:
+            "Channel where users will be able to use command `/vacations` to report their absence.",
+          type: "channel",
+          limit: 1,
+        },
+        {
+          id: "vacation_log_channel",
+          title: "Vacations Log Channel",
+          description: "Channel where you will be able to see all vacations logs.",
+          type: "channel",
+          limit: 1,
+        },
+        {
+          id: "event_role",
+          title: "CTA Roles",
+          description:
+            "Roles that have access to manage CTA event. They can create/edit/update CTA events.",
+          type: "role",
+        },
+        {
+          id: "registration_role",
+          title: "Registration Roles",
+          description:
+            "Roles that can manage registrations. Can register or unregister memebers. Usually all Recruiters should have access to this command.",
+          type: "role",
+        },
+        {
+          id: "guild_names",
+          title: "Guild Name",
+          description:
+            "Provide your exact guild name from the game. This is required to get attendance list from battle boards. If you want to provide more than 1 guild use comma(,) to separate names.",
+          type: "text",
+        },
+        {
+          id: "ao_server",
+          title: "Albion Online Server",
+          description: "Select which serwer your guild is playing.",
+          type: "select",
+          options: [
+            { label: "Europe", value: "ams" },
+            { label: "Asia", value: "sgp" },
+            { label: "Americas", value: "us" },
+            { label: "Disable registration", value: "-" },
+          ],
+        },
+        {
+          id: "self_registration",
+          title: "Self registration",
+          description:
+            "Does users should use command `/register` to register them by self, or only members with Registration Role should register every new member?",
+          type: "select",
+          options: [
+            { label: "Yes, users can register command.", value: "true" },
+            { label: "No, only recruiters should register every new member.", value: "false" },
+          ],
+        },
+        {
+          id: "cta_types",
+          title: "CTA Types",
+          description:
+            "Provide your CTA types. Use comma(,) to separate types. Example: `CTA, Small Scale, Vortex/Orb, PvE`",
+          type: "text",
+        },
+      ];
+
+      let answers = {};
+      let currentQuestion = 0;
+
+      const cancelButton = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("cta_cancel")
+          .setLabel("Cancel configuration")
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await interaction.reply({
+        content: "> *Starting interactive CTA module setup.*",
+      });
+
+      const askQuestion = async () => {
+        if (currentQuestion >= questions.length) {
+          try {
+            await CTAConfig.updateOne(
+              { gid: interaction.guildId },
+              {
+                member_role: answers["member_role"][0] ?? "",
+                manager_roles: answers["manager_role"] ?? [],
+                vacation_channel: answers["vacation_channel"][0] ?? "",
+                vacation_log_channel: answers["vacation_log_channel"][0] ?? "",
+                cta_roles: answers["event_role"] ?? [],
+                registration_roles: answers["registration_role"] ?? [],
+                guild_names: answers["guild_names"],
+                ao_server: answers["ao_server"],
+                allow_self_registration: answers["self_registration"] === "true" ? true : false,
+              },
+              { upsert: true, new: true }
+            );
+
+            for await (const type of answers["cta_types"]) {
+              const ctaType = await CTAEventTypes.findOne({
+                gid: interaction.guildId,
+                name: type,
+              });
+
+              if (!ctaType) {
+                const newCTAType = await new CTAEventTypes({
+                  gid: interaction.guildId,
+                  name: type,
+                });
+                await newCTAType.save();
+              }
+            }
+          } catch (err) {
+            console.error(err);
+            return await interaction.followUp({
+              content: `> [b83573] Error while saving interactive CTA setup. Please try again later.`,
+              ephemeral: true,
+            });
+          }
+
+          let message = `> Configuration finished. To see the summary execute command:\n\`/setup_cta show\``;
+
+          const embedMessage = new EmbedBuilder()
+            .setColor(`#00DB19`)
+            .setTitle(`Configuration finished`)
+            .setDescription(message);
+
+          await interaction.followUp({ embeds: [embedMessage] });
+          return;
+        }
+
+        const question = questions[currentQuestion];
+
+        if (question.type === "role") {
+          const row = new ActionRowBuilder().addComponents(
+            new RoleSelectMenuBuilder()
+              .setCustomId("cta_select_role")
+              .setPlaceholder(question.title)
+              .setMaxValues(question.limit ?? 25)
+          );
+
+          const embedMessage = new EmbedBuilder()
+            .setColor(`#0000DB`)
+            .setTitle(question.title)
+            .setDescription(question.description);
+
+          const msg = await channel.send({
+            embeds: [embedMessage],
+            components: [row, cancelButton],
+          });
+
+          const collector = msg.createMessageComponentCollector({ time: 120000 });
+
+          collector.on("collect", async (i) => {
+            if (i.customId == "cta_select_role" && i.user.id === user.id && i.values?.length > 0) {
+              answers[question.id] = i.values;
+              embedMessage.setDescription(`Selected role(s): <@&${i.values.join("> <@&")}>`);
+              await i.update({
+                embeds: [embedMessage],
+                components: [],
+              });
+              currentQuestion++;
+              collector.stop();
+              await askQuestion();
+            } else if (i.customId === "cta_cancel" && i.user.id === user.id) {
+              embedMessage.setDescription("Configuration canceled.");
+              embedMessage.setColor(`#DB0019`);
+              await i.update({ embeds: [embedMessage], components: [] });
+              collector.stop();
+            }
+          });
+        } else if (question.type === "channel") {
+          const row = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+              .setCustomId("cta_select_channel")
+              .setPlaceholder("Select channel")
+              .setMaxValues(question.limit ?? 25)
+          );
+
+          const embedMessage = new EmbedBuilder()
+            .setColor(`#0000DB`)
+            .setTitle(question.title)
+            .setDescription(question.description);
+
+          const msg = await channel.send({
+            embeds: [embedMessage],
+            components: [row, cancelButton],
+          });
+
+          const collector = msg.createMessageComponentCollector({ time: 120000 });
+
+          collector.on("collect", async (i) => {
+            if (
+              i.customId == "cta_select_channel" &&
+              i.user.id === user.id &&
+              i.values?.length > 0
+            ) {
+              answers[question.id] = i.values;
+              embedMessage.setDescription(`Selected channel(s): <#${i.values.join("> <#")}>`);
+              await i.update({
+                embeds: [embedMessage],
+                components: [],
+              });
+              currentQuestion++;
+              collector.stop();
+              await askQuestion();
+            } else if (i.customId === "cta_cancel" && i.user.id === user.id) {
+              embedMessage.setColor(`#DB0019`);
+              embedMessage.setDescription("Configuration canceled.");
+              await i.update({ embeds: [embedMessage], components: [] });
+              collector.stop();
+            }
+          });
+        } else if (question.type === "text") {
+          const questionEmbed = new EmbedBuilder()
+            .setColor(`#0000DB`)
+            .setTitle(question.title)
+            .setDescription(question.description);
+
+          const questionMessage = await channel.send({
+            embeds: [questionEmbed],
+            components: [cancelButton],
+          });
+
+          const filter = (msg) => msg.author.id === user.id;
+          const collector = channel.createMessageCollector({ filter, time: 120000 });
+
+          const buttonCollector = questionMessage.createMessageComponentCollector({ time: 120000 });
+
+          buttonCollector.on("collect", async (i) => {
+            if (i.customId === "cta_cancel" && i.user.id === user.id) {
+              questionEmbed.setDescription("Configuration canceled.");
+              questionEmbed.setColor(`#DB0019`);
+              await i.update({ embeds: [questionEmbed], components: [] });
+              collector.stop();
+              buttonCollector.stop();
+            }
+          });
+
+          collector.on("collect", async (msg) => {
+            let options = msg.content.split(",").map((option) => option.trim());
+            questionEmbed.setDescription(`Provided options: ${options.join(", ")}`);
+            await questionMessage.edit({ embeds: [questionEmbed], components: [] });
+            try {
+              await msg.delete();
+            } catch (err) {
+              console.error(`[CTA_SETUP-4e0d96] Can't remove message: \`${err.message}\``);
+            }
+            answers[question.id] = options;
+            currentQuestion++;
+            collector.stop();
+            await askQuestion();
+          });
+
+          collector.on("end", (collected) => {
+            if (collected.size === 0) {
+              channel.send("> *You didn't provide any answer. Configuration canceled.*");
+            }
+          });
+        } else if (question.type === "select") {
+          const row = new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+              .setCustomId("cta_select")
+              .setPlaceholder(question.title)
+              .addOptions(question.options)
+          );
+
+          const embedMessage = new EmbedBuilder()
+            .setColor(`#0000DB`)
+            .setTitle(question.title)
+            .setDescription(question.description);
+
+          const msg = await channel.send({
+            embeds: [embedMessage],
+            components: [row, cancelButton],
+          });
+
+          const collector = msg.createMessageComponentCollector({ time: 120000 });
+
+          collector.on("collect", async (i) => {
+            if (i.customId == "cta_select" && i.user.id === user.id && i.values.length > 0) {
+              const selectedOption = question.options.find((opt) => opt.value === i.values[0]);
+              answers[question.id] = selectedOption.value;
+
+              embedMessage.setDescription(`Selected option: ${selectedOption.label}`);
+
+              await i.update({ embeds: [embedMessage], components: [] });
+              currentQuestion++;
+              collector.stop();
+              await askQuestion();
+            } else if (i.customId === "cta_cancel" && i.user.id === user.id) {
+              embedMessage.setColor(`#DB0019`);
+              embedMessage.setDescription("Configuration canceled.");
+              await i.update({ embeds: [embedMessage], components: [] });
+              collector.stop();
+            }
+          });
+        }
+      };
+
+      await askQuestion();
     }
   },
   async autoload(client) {
@@ -1084,6 +1419,8 @@ const CTA_Registration = {
         });
       }
 
+      await interaction.defferReply();
+
       try {
         const registeredMembers = await CTAMembers.find({
           $and: [{ gid: interaction.guildId }, { unregistered: false }],
@@ -1106,13 +1443,17 @@ const CTA_Registration = {
           }
         }
 
-        let message = ``;
+        let messageRegistered = ``;
+        let messageNotRegistered = ``;
+        let newlyRegistered = 0;
+        let notRegistered = [];
+        let embedsRegistered = [];
+        let embedsNotRegistered = [];
+        let pageRegistered = 1;
+        let pageNotRegistered = 1;
 
         if (membersNotRegistered.length > 0) {
-          let newlyRegistered = 0;
-          let notRegistered = [];
-
-          message += `### Newly registered memebrs:\n`;
+          messageRegistered += `### Newly registered memebrs:\n`;
           for await (const member of membersNotRegistered) {
             await interaction.guild.members.fetch(member).then(async (m) => {
               const registered = await CTAMembers.findOne({
@@ -1139,41 +1480,85 @@ const CTA_Registration = {
                   await newRegistration.save();
                   newlyRegistered++;
 
-                  message += `> ${m} - *${getDisplayName(m)}*\n`;
+                  messageRegistered += `> ${m} - *${getDisplayName(m)}*\n`;
                 }
+              }
+
+              if (messageRegistered.length > 3900) {
+                const embedMessage = new EmbedBuilder()
+                  .setColor(`#0000aa`)
+                  .setTitle(`Register all members`)
+                  .setDescription(messageRegistered)
+                  .setFooter({ text: `Page: ${pageRegistered}` });
+
+                embedsRegistered.push(embedMessage);
+                messageRegistered = ``;
+                pageRegistered++;
               }
             });
           }
           if (newlyRegistered == 0) {
-            message += `> *Didn't find any member to register.*`;
+            messageRegistered += `> *Didn't find any member to register.*`;
           }
 
           if (notRegistered.length > 0) {
-            message += `### Not registered\n*Members not registered due to their displayname was already registered as a game nickname or displayname contained not allowed characters.*\n`;
+            messageNotRegistered += `### Not registered\n*Members not registered due to their displayname was already registered as a game nickname or displayname contained not allowed characters.*\n`;
             for await (const member of notRegistered) {
-              message += `> ${member} - \`${getDisplayName(member)}\`\n`;
+              messageNotRegistered += `> ${member} - \`${getDisplayName(member)}\`\n`;
+
+              if (messageNotRegistered.length > 3900) {
+                const embedMessage = new EmbedBuilder()
+                  .setColor(`#aa0000`)
+                  .setTitle(`Not registered members`)
+                  .setDescription(messageNotRegistered)
+                  .setFooter({ text: `Page: ${pageNotRegistered}` });
+
+                embedsNotRegistered.push(embedMessage);
+                messageNotRegistered = ``;
+                pageNotRegistered++;
+              }
+            }
+
+            if (messageNotRegistered.length > 0) {
+              const embedMessage = new EmbedBuilder()
+                .setColor(`#aa0000`)
+                .setDescription(messageNotRegistered);
+
+              if (pageNotRegistered !== 1) {
+                embedMessage.setFooter({ text: `Page: ${pageNotRegistered}` });
+              }
+
+              embedsNotRegistered.push(embedMessage);
             }
           }
         } else {
-          message += `> All members are already registered!`;
+          messageRegistered += `> All members are already registered!`;
         }
 
-        const embedMessage = new EmbedBuilder()
-          .setColor(`#0000aa`)
-          .setTitle(`Register all members`)
-          .setDescription(message);
+        if (messageRegistered.length > 0) {
+          const embedMessage = new EmbedBuilder()
+            .setColor(`#0000aa`)
+            .setTitle(`Register all members`)
+            .setDescription(messageRegistered);
 
-        await interaction.reply({ embeds: [embedMessage] });
+          if (pageRegistered !== 1) {
+            embedMessage.setFooter({ text: `Page: ${pageRegistered}` });
+          }
+
+          embedsRegistered.push(embedMessage);
+        }
+
+        await interaction.followUp({ embeds: [...embedsRegistered, ...embedsNotRegistered] });
       } catch (err) {
         console.error(err);
-        return await interaction.reply({
+        return await interaction.followUp({
           content: `> [31b13e] Error while registering all members. Please try again later.`,
           ephemeral: true,
         });
       }
     } else if (interaction.options.getSubcommand() === "unregister") {
       if (!registration_perms) {
-        return await interaction.reply({
+        return await interaction.followUp({
           content: `> No permission to use this command.`,
           ephemeral: true,
         });
@@ -2332,7 +2717,7 @@ const CTA_Event = {
     .addSubcommand((subcommand) =>
       subcommand
         .setName("update")
-        .setDescription("Update existing CTA event.")
+        .setDescription("Update attendance of existing CTA event.")
         .addStringOption((option) =>
           option
             .setName("cta_id")
@@ -2389,7 +2774,7 @@ const CTA_Event = {
     .addSubcommand((subcommand) =>
       subcommand
         .setName("edit")
-        .setDescription("Creates new CTA event.")
+        .setDescription("Edit settings of existing CTA event.")
         .addStringOption((option) =>
           option
             .setName("cta_id")
