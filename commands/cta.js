@@ -1419,7 +1419,7 @@ const CTA_Registration = {
         });
       }
 
-      await interaction.defferReply();
+      await interaction.deferReply();
 
       try {
         const registeredMembers = await CTAMembers.find({
