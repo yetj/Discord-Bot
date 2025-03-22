@@ -699,13 +699,13 @@ const CTA_Setup = {
             for await (const type of answers["cta_types"]) {
               const ctaType = await CTAEventTypes.findOne({
                 gid: interaction.guildId,
-                name: type,
+                type: type,
               });
 
               if (!ctaType) {
                 const newCTAType = await new CTAEventTypes({
                   gid: interaction.guildId,
-                  name: type,
+                  type: type,
                 });
                 await newCTAType.save();
               }
