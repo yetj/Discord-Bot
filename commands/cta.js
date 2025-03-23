@@ -4016,8 +4016,19 @@ const CTA_Event = {
 
         if (cta.skip.length > 0) {
           let messageSkip = ``;
+          let skipMembersArray = [];
 
-          messageSkip += `> ` + cta.skip.map((m) => `<@${m}>`).join(" ");
+          for await (const member of cta.present) {
+            const memberName = registeredMembers.find((m) => m.id === member);
+            if (memberName) {
+              skipMembersArray.push(memberName.game_nickname);
+            } else {
+              skipMembersArray.push(member);
+            }
+          }
+
+          skipMembersArray.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+          messageSkip += `> ${skipMembersArray.join(", ")}`;
 
           const embedMessageSkip = new EmbedBuilder()
             .setColor(`#ff0000`)
@@ -4125,12 +4136,15 @@ const CTA_Event = {
 
         let presentCount = 0;
         let absentCount = 0;
+        let skipCount = 0;
 
         for await (const event of events) {
           if (event.present.indexOf(member.user.id) !== -1) {
             presentCount++;
           } else if (event.absent.indexOf(member.user.id) !== -1) {
             absentCount++;
+          } else if (event.skip.indexOf(member.user.id) !== -1) {
+            skipCount++;
           }
         }
 
@@ -4140,6 +4154,9 @@ const CTA_Event = {
         message += `**Total events:**\n> ${events.length}\n`;
         message += `**Present:**\n> ${presentCount}\n`;
         message += `**Absent:**\n> ${absentCount}\n`;
+        if (skipCount > 0) {
+          message += `**Skipped:**\n> ${skipCount}\n`;
+        }
 
         if (start_date || end_date) {
           message += `**Date filter:**\n> *${start_date ? start_date : "Beginning"} - ${
