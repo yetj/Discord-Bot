@@ -1051,21 +1051,22 @@ const CTA_Register = {
       option.setName("member").setDescription("Select member you want to register")
     ),
   async execute(interaction) {
+    await interaction.deferReply({ ephemeral: true });
     try {
       const configCTA = await CTAConfig.findOne({
         gid: interaction.guildId,
       });
 
       if (!configCTA || configCTA.ao_server.length < 1) {
-        return await interaction.reply({ content: `> Server is not set for registration.` });
+        return await interaction.followUp({ content: `> Server is not set for registration.` });
       }
 
       if (configCTA.ao_server == "-") {
-        return await interaction.reply({ content: `> Registration is disabled.` });
+        return await interaction.followUp({ content: `> Registration is disabled.` });
       }
 
       if (configCTA.member_role.length < 1) {
-        return await interaction.reply({ content: `Only members can register!` });
+        return await interaction.followUp({ content: `Only members can register!` });
       }
 
       const game_nickname = interaction.options.getString("game_nickname").trim();
@@ -1095,7 +1096,10 @@ const CTA_Register = {
           });
 
           if (!is_manager) {
-            return await interaction.reply({ content: `> You can't register other users!` });
+            return await interaction.followUp({
+              content: `> You can't register other users!`,
+              ephemeral: true,
+            });
           }
         }
 
@@ -1108,7 +1112,7 @@ const CTA_Register = {
         });
 
         if (registered) {
-          return await interaction.reply({
+          return await interaction.followUp({
             content: `> This member or this game nickname is already registered for <@${registered.id}> with nickname **${registered.game_nickname}**.`,
             ephemeral: true,
           });
@@ -1135,14 +1139,14 @@ const CTA_Register = {
           console.error("[CTA_Register] Error while setting nickname to the member", err);
         }
 
-        return await interaction.reply({
+        return await interaction.followUp({
           content: `> Member ${member} successfully registered with game nickname: \`${game_nickname}\`!`,
           ephemeral: true,
         });
       }
 
       if (!configCTA.allow_self_registration) {
-        return await interaction.reply({
+        return await interaction.followUp({
           content: `> Self registration is disabled. Please ask Recruiter to register you.`,
           ephemeral: true,
         });
@@ -1161,7 +1165,7 @@ const CTA_Register = {
       });
 
       if (registered) {
-        return await interaction.reply({
+        return await interaction.followUp({
           content: `> You or your game nickname is already registered for <@${registered.id}> with nickname **${registered.game_nickname}**.`,
           ephemeral: true,
         });
@@ -1178,13 +1182,13 @@ const CTA_Register = {
 
       member.roles.add(configCTA.member_role);
 
-      await interaction.reply({
+      await interaction.followUp({
         content: `> Registration completed with game nickname: \`${game_nickname}\`!`,
         ephemeral: true,
       });
     } catch (err) {
       console.error(err);
-      return await interaction.reply({
+      return await interaction.followUp({
         content: `> [b7dcae] Failed to register. Please try again later.`,
         ephemeral: true,
       });
