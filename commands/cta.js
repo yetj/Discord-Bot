@@ -1136,7 +1136,7 @@ const CTA_Register = {
         try {
           await member.setNickname(game_nickname, "[AUTO] Registration");
         } catch (err) {
-          console.error("[CTA_Register] Error while setting nickname to the member", err);
+          console.error("[CTA_Register] Error while setting nickname to the member");
         }
 
         return await interaction.followUp({
@@ -1217,6 +1217,17 @@ const CTA_Registration = {
         .setName("register_all")
         .setDescription(
           "Register all Members with in-game nickname based on their discord display name."
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("update")
+        .setDescription("Update registered game nickname for member")
+        .addUserOption((option) =>
+          option.setName("member").setDescription("Select member").setRequired(true)
+        )
+        .addStringOption((option) =>
+          option.setName("game_nickname").setDescription("Nickname from the game").setRequired(true)
         )
     )
     .addSubcommand((subcommand) =>
@@ -1576,6 +1587,78 @@ const CTA_Registration = {
           ephemeral: true,
         });
       }
+    } else if (interaction.options.getSubcommand() === "update") {
+      if (!registration_perms) {
+        return await interaction.followUp({
+          content: `> No permission to use this command.`,
+          ephemeral: true,
+        });
+      }
+
+      try {
+        const member = interaction.options.getMember("member") ?? null;
+        const game_nickname = interaction.options.getString("game_nickname") ?? null;
+
+        if (!member) {
+          return await interaction.reply({
+            content: `> Please select member to update.`,
+            ephemeral: true,
+          });
+        }
+
+        if (!game_nickname || game_nickname.length < 3) {
+          return await interaction.reply({
+            content: `> Please provide game nickname to update.`,
+            ephemeral: true,
+          });
+        }
+
+        const registeredGameNickname = await CTAMembers.findOne({
+          $and: [
+            { gid: interaction.guildId },
+            { game_nickname: game_nickname.trim() },
+            { unregistered: false },
+          ],
+        });
+
+        if (registeredGameNickname) {
+          return await interaction.reply({
+            content: `> Game nickname \`${game_nickname}\` is already registered for <@${registeredGameNickname.id}>.`,
+            ephemeral: true,
+          });
+        }
+
+        const registered = await CTAMembers.findOne({
+          $and: [{ gid: interaction.guildId }, { id: member.user.id }, { unregistered: false }],
+        });
+
+        if (!registered) {
+          return await interaction.reply({
+            content: `> ${member} is not registered.`,
+            ephemeral: true,
+          });
+        }
+
+        registered.game_nickname = game_nickname.trim();
+        await registered.save();
+
+        try {
+          await member.setNickname(game_nickname, "[AUTO] Registration update");
+        } catch (err) {
+          console.error(`> [CTA-d022de] Bot doesn't have permission to change nickname.`);
+        }
+
+        await interaction.reply({
+          content: `> Updated ${member}'s game nickname to: \`${game_nickname}\``,
+          ephemeral: true,
+        });
+      } catch (err) {
+        console.error(err);
+        return await interaction.followUp({
+          content: `> [dea384] Error while updating registration. Please try again later.`,
+          ephemeral: true,
+        });
+      }
     } else if (interaction.options.getSubcommand() === "unregister") {
       if (!registration_perms) {
         return await interaction.followUp({
@@ -1635,7 +1718,7 @@ const CTA_Registration = {
         registered.unregistered_reason = reason;
         registered.unregistered_date = new Date();
 
-        registered.save();
+        await registered.save();
 
         const rolesToRemove = await member.roles.cache.filter(
           (role) =>
