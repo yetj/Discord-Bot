@@ -4018,7 +4018,7 @@ const CTA_Event = {
           let messageSkip = ``;
           let skipMembersArray = [];
 
-          for await (const member of cta.present) {
+          for await (const member of cta.skip) {
             const memberName = registeredMembers.find((m) => m.id === member);
             if (memberName) {
               skipMembersArray.push(memberName.game_nickname);
