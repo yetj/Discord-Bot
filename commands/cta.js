@@ -4199,6 +4199,28 @@ const CTA_Event = {
 
       try {
         if (action === "add") {
+          const types = await CTAEventTypes.find({
+            gid: interaction.guildId,
+          });
+
+          if (types.length >= 10) {
+            return await interaction.reply({
+              content: `> You can't have more than 10 CTA types.`,
+              ephemeral: true,
+            });
+          }
+
+          const availableTypes = await CTAEventTypes.find({
+            $and: [{ gid: interaction.guildId }, { type: name }],
+          });
+
+          if (availableTypes.length > 0) {
+            return await interaction.reply({
+              content: `> CTA type \`${name}\` already exists.`,
+              ephemeral: true,
+            });
+          }
+
           const newType = await new CTAEventTypes({
             gid: interaction.guildId,
             type: name,
