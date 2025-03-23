@@ -23,6 +23,7 @@ const isValidDate = require("../utils/isValidDate");
 const formattedDate = require("../utils/formattedDate");
 const fs = require("fs");
 const readline = require("readline");
+const { Readable } = require("stream");
 
 const CTA_Setup = {
   data: new SlashCommandBuilder()
@@ -2887,6 +2888,7 @@ const CTA_Event = {
       );
     }
 
+    choices = [];
     if (focusedOption.name === "cta_type") {
       try {
         const types = await CTAEventTypes.find({
@@ -3545,7 +3547,7 @@ const CTA_Event = {
         });
       }
     } else if (interaction.options.getSubcommand() === "update_online") {
-      await interaction.deferReply();
+      await interaction.deferReply({ ephemeral: true });
 
       if (!cta_perms) {
         return await interaction.followUp({
@@ -3571,17 +3573,13 @@ const CTA_Event = {
         await collector.on("collect", async (collectedMessage) => {
           if (collectedMessage.attachments.size > 0) {
             const attachment = collectedMessage.attachments.first();
-            const filePath = `./${attachment.name}`;
 
             try {
               const response = await fetch(attachment.url);
-              const buffer = await response.arrayBuffer();
-              fs.writeFileSync(filePath, Buffer.from(buffer));
+              const buffer = Buffer.from(await response.arrayBuffer());
 
-              parsedData = await this.parseFile(filePath);
-
-              fs.unlinkSync(filePath);
-            } catch (error) {
+              parsedData = await this.parseFile(buffer);
+            } catch (err) {
               console.error(err);
               return await interaction.followUp({
                 content: `> [4f7d96] Error while processing online list. Please try again later.`,
@@ -4306,7 +4304,13 @@ const CTA_Event = {
       .filter((entry) => entry !== null);
   },
   async parseFile(filePath) {
-    const fileStream = fs.createReadStream(filePath);
+    let fileStream;
+
+    if (Buffer.isBuffer(filePath)) {
+      fileStream = Readable.from(filePath.toString("utf-8").split("\n"));
+    } else {
+      fileStream = fs.createReadStream(filePath);
+    }
     const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
 
     let data = [];
