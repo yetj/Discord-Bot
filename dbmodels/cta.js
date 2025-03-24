@@ -101,16 +101,17 @@ CTAEventsSchema.pre("save", async function (next) {
 
 const CTAEvents = mongoose.model("CTAEvents", CTAEventsSchema);
 
-const CTAEventGroupsSchema = new mongoose.Schema({
+const CTAEventStatsSchema = new mongoose.Schema({
   gid: String,
   name: String,
   types: { type: [String], default: [] },
-  start: Date,
-  end: Date,
-  only_mandatory: Boolean,
-  only_created_by: { type: [String], default: [] },
+  start: { type: Date, default: 0 },
+  end: {type: Date, default: 0},
+  mandatory: { type: String, default: "" },
+  weight: { type: [Number], default: [] },
+  created_by: { type: [String], default: [] },
 });
-const CTAEventGroups = mongoose.model("CTAEventGroups", CTAEventGroupsSchema);
+const CTAEventStats = mongoose.model("CTAEventStats", CTAEventStatsSchema);
 
 module.exports = {
   CTAConfig,
@@ -118,5 +119,5 @@ module.exports = {
   CTAVacations,
   CTAEventTypes,
   CTAEvents,
-  CTAEventGroups,
+  CTAEventStats,
 };

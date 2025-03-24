@@ -8,6 +8,7 @@ const {
   RoleSelectMenuBuilder,
   ChannelSelectMenuBuilder,
   StringSelectMenuBuilder,
+  UserSelectMenuBuilder,
   ButtonStyle,
 } = require("discord.js");
 const {
@@ -16,7 +17,7 @@ const {
   CTAVacations,
   CTAEventTypes,
   CTAEvents,
-  CTAEventGroups,
+  CTAEventStats,
 } = require("../dbmodels/cta");
 const getDisplayName = require("../utils/getDisplayName");
 const isValidDate = require("../utils/isValidDate");
@@ -2001,8 +2002,8 @@ const CTA_Vacations = {
         });
       }
 
-      const start = new Date(start_date + "T00:00:00Z");
-      const end = new Date(end_date + "T23:59:59Z");
+      const start = new Date(start_date + "T00:00:00");
+      const end = new Date(end_date + "T23:59:59");
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -2057,11 +2058,11 @@ const CTA_Vacations = {
           messageOverlaping += `**ID:**\n> ${overlappingVacations.vacations_id}\n`;
           messageOverlaping += `**Start date:**\n> ${formattedDate(
             overlappingVacations.start,
-            "date_utc"
+            "date"
           )}\n`;
           messageOverlaping += `**End date:**\n> ${formattedDate(
             overlappingVacations.end,
-            "date_utc"
+            "date"
           )}\n`;
           messageOverlaping += `**Days:**\n> ${overlappingVacations.days}\n`;
           messageOverlaping += `**Reason:**\n> *${overlappingVacations.reason}*\n`;
@@ -2104,8 +2105,8 @@ const CTA_Vacations = {
 
         message += `### Vacations added for <@${newVacations.uid}> - ${getDisplayName(member)}\n`;
         message += `**ID:**\n> ${newVacations.vacations_id}\n`;
-        message += `**Start date:**\n> ${formattedDate(newVacations.start, "date_utc")}\n`;
-        message += `**End date:**\n> ${formattedDate(newVacations.end, "date_utc")}\n`;
+        message += `**Start date:**\n> ${formattedDate(newVacations.start, "date")}\n`;
+        message += `**End date:**\n> ${formattedDate(newVacations.end, "date")}\n`;
         message += `**Days:**\n> ${newVacations.days}\n`;
         message += `**Total days:**\n> ${totalDays}\n`;
         message += `**Reason:**\n> *${newVacations.reason}*\n`;
@@ -2127,8 +2128,8 @@ const CTA_Vacations = {
 
             messageLog += `**User:** <@${newVacations.uid}> - ${getDisplayName(member)}\n`;
             messageLog += `**ID:** ${newVacations.vacations_id}\n`;
-            messageLog += `**Start date:** ${formattedDate(newVacations.start, "date_utc")}\n`;
-            messageLog += `**End date:** ${formattedDate(newVacations.end, "date_utc")}\n`;
+            messageLog += `**Start date:** ${formattedDate(newVacations.start, "date")}\n`;
+            messageLog += `**End date:** ${formattedDate(newVacations.end, "date")}\n`;
             messageLog += `**Days:** ${newVacations.days}\n`;
             messageLog += `**Total days:** ${totalDays}\n`;
             messageLog += `**Reason:** *${newVacations.reason}*\n`;
@@ -2204,8 +2205,8 @@ const CTA_Vacations = {
 
             messageLog += `**User:** <@${vacations.uid}> - ${getDisplayName(member)}\n`;
             messageLog += `**ID:** ${vacations.vacations_id}\n`;
-            messageLog += `**Start date:** ${formattedDate(vacations.start, "date_utc")}\n`;
-            messageLog += `**End date:** ${formattedDate(vacations.end, "date_utc")}\n`;
+            messageLog += `**Start date:** ${formattedDate(vacations.start, "date")}\n`;
+            messageLog += `**End date:** ${formattedDate(vacations.end, "date")}\n`;
             messageLog += `**Days:** ${vacations.days}\n`;
             messageLog += `**Reason:** *${vacations.reason}*\n`;
 
@@ -2291,8 +2292,8 @@ const CTA_Vacations = {
 
         message += `### Vacations stopped for <@${newVacations.uid}> - ${getDisplayName(member)}\n`;
         message += `**ID:**\n> ${newVacations.vacations_id}\n`;
-        message += `**Start date:**\n> ${formattedDate(newVacations.start, "date_utc")}\n`;
-        message += `**End date:**\n> ${formattedDate(newVacations.end, "date_utc")}\n`;
+        message += `**Start date:**\n> ${formattedDate(newVacations.start, "date")}\n`;
+        message += `**End date:**\n> ${formattedDate(newVacations.end, "date")}\n`;
         message += `**Days:**\n> ${newVacations.days}\n`;
         message += `**Total days:**\n> ${totalDays}\n`;
         message += `**Reason:**\n> *${newVacations.reason}*\n`;
@@ -2320,8 +2321,8 @@ const CTA_Vacations = {
 
             messageLog += `**User:** <@${activeVacation.uid}> - ${getDisplayName(member)}\n`;
             messageLog += `**ID:** ${activeVacation.vacations_id}\n`;
-            messageLog += `**Start date:** ${formattedDate(activeVacation.start, "date_utc")}\n`;
-            messageLog += `**End date:** ${formattedDate(activeVacation.end, "date_utc")}\n`;
+            messageLog += `**Start date:** ${formattedDate(activeVacation.start, "date")}\n`;
+            messageLog += `**End date:** ${formattedDate(activeVacation.end, "date")}\n`;
             messageLog += `**Days:** ${activeVacation.days}\n`;
             messageLog += `**Reason:** *${activeVacation.reason}*\n`;
 
@@ -2442,8 +2443,8 @@ const CTA_Vacations = {
 
         for await (const vacation of vacations) {
           message += `**#${vacation.vacations_id}** `;
-          message += `\`${formattedDate(vacation.start, "date_utc")}\` -> `;
-          message += `\`${formattedDate(vacation.end, "date_utc")}\``;
+          message += `\`${formattedDate(vacation.start, "date")}\` -> `;
+          message += `\`${formattedDate(vacation.end, "date")}\``;
           message += `\n> *${vacation.reason}*\n`;
         }
 
@@ -2527,8 +2528,8 @@ const CTA_Vacations = {
           });
 
           message += `* **#${vacation.vacations_id}** | `;
-          message += `\`${formattedDate(vacation.start, "date_utc")}\` -> `;
-          message += `\`${formattedDate(vacation.end, "date_utc")}\` | `;
+          message += `\`${formattedDate(vacation.start, "date")}\` -> `;
+          message += `\`${formattedDate(vacation.end, "date")}\` | `;
           message += `${vacation.days} | `;
           if (member) {
             message += `<@${vacation.uid}> - ${getDisplayName(member)}`;
@@ -2623,14 +2624,14 @@ const CTA_Vacations = {
 
         let start;
         if (start_date) {
-          start = new Date(start_date + "T00:00:00Z");
+          start = new Date(start_date + "T00:00:00");
         } else {
           start = vacations.start;
         }
 
         let end;
         if (end_date) {
-          end = new Date(end_date + "T23:59:59Z");
+          end = new Date(end_date + "T23:59:59");
         } else {
           end = vacations.end;
         }
@@ -2674,30 +2675,24 @@ const CTA_Vacations = {
         let message = `### Vacations updated for <@${vacations.uid}> - ${getDisplayName(member)}\n`;
         message += `**ID:**\n> ${vacations.vacations_id}\n`;
 
-        if (
-          start_date &&
-          formattedDate(vacations.start, "date_utc") !== formattedDate(start, "date_utc")
-        ) {
+        if (start_date && formattedDate(vacations.start, "date") !== formattedDate(start, "date")) {
           message += `**Start date:**\n> ${formattedDate(
             vacations.start,
-            "date_utc"
-          )} -> ${formattedDate(start, "date_utc")}\n`;
+            "date"
+          )} -> ${formattedDate(start, "date")}\n`;
           vacations.start = start;
         } else {
-          message += `**Start date:**\n> ${formattedDate(vacations.start, "date_utc")}\n`;
+          message += `**Start date:**\n> ${formattedDate(vacations.start, "date")}\n`;
         }
 
-        if (
-          end_date &&
-          formattedDate(vacations.end, "date_utc") !== formattedDate(end, "date_utc")
-        ) {
-          message += `**End date:**\n> ${formattedDate(
-            vacations.end,
-            "date_utc"
-          )} -> ${formattedDate(end, "date_utc")}\n`;
+        if (end_date && formattedDate(vacations.end, "date") !== formattedDate(end, "date")) {
+          message += `**End date:**\n> ${formattedDate(vacations.end, "date")} -> ${formattedDate(
+            end,
+            "date"
+          )}\n`;
           vacations.end = end;
         } else {
-          message += `**End date:**\n> ${formattedDate(vacations.end, "date_utc")}\n`;
+          message += `**End date:**\n> ${formattedDate(vacations.end, "date")}\n`;
         }
 
         if (days !== vacations.days) {
@@ -2733,15 +2728,15 @@ const CTA_Vacations = {
             if (start_date) {
               messageLog += `**Start date:** ${formattedDate(
                 vacations.start,
-                "date_utc"
-              )} -> ${formattedDate(start, "date_utc")}\n`;
+                "date"
+              )} -> ${formattedDate(start, "date")}\n`;
             }
 
             if (end_date) {
               messageLog += `**End date:** ${formattedDate(
                 vacations.end,
-                "date_utc"
-              )} -> ${formattedDate(end, "date_utc")}\n`;
+                "date"
+              )} -> ${formattedDate(end, "date")}\n`;
             }
 
             if (days !== vacations.days) {
@@ -3178,13 +3173,23 @@ const CTA_Event = {
           });
         }
 
+        const activeVacations = await CTAVacations.find({
+          $and: [
+            { gid: interaction.guildId },
+            { start: { $lte: new Date() } },
+            { end: { $gte: new Date() } },
+          ],
+        });
+
         const availabilityData = await this.checkAvailability({
           registeredMembers,
           availableMembers,
+          activeVacations,
         });
 
         present = availabilityData.present;
         absent = availabilityData.absent;
+        on_vacation = availabilityData.on_vacation;
         not_registered = availabilityData.not_registered;
 
         const newCTA = await new CTAEvents({
@@ -3196,6 +3201,7 @@ const CTA_Event = {
           weight: weight !== null ? weight : 1,
           present: present,
           absent: absent,
+          on_vacation: on_vacation,
           not_registered: not_registered,
           not_registered_names: not_registered_names,
         });
@@ -3213,6 +3219,9 @@ const CTA_Event = {
         }
         message += `**Present members:**\n> ${present.length}\n`;
         message += `**Absent members:**\n> ${absent.length}\n`;
+        if (on_vacation.length > 0) {
+          message += `**Members on vacations:**\n> ${on_vacation.length}\n`;
+        }
         if (not_registered.length + not_registered_names.length > 0) {
           message += `**Not registered members:**\n> ${
             not_registered.length + not_registered_names.length
@@ -3226,8 +3235,24 @@ const CTA_Event = {
 
         embeds.push(embedMessage);
 
+        if (on_vacation.length > 0) {
+          let messageOnVacation = ``;
+
+          messageOnVacation +=
+            `> ` +
+            on_vacation
+              .map((v) => registeredMembers.find((m) => m.id == v)?.game_nickname ?? `<@${v}>`)
+              .join(", ");
+
+          const embedMessageOnVacation = new EmbedBuilder()
+            .setColor(`#b5f71c`)
+            .setTitle(`Members on Vacations`)
+            .setDescription(messageOnVacation);
+
+          embeds.push(embedMessageOnVacation);
+        }
+
         let messageNotRegistered = ``;
-        let embedMessageNotRegistered = null;
 
         if (not_registered_names.length > 0) {
           messageNotRegistered += `> ` + not_registered_names.map((m) => `${m}`).join(", ");
@@ -3241,7 +3266,7 @@ const CTA_Event = {
         }
 
         if (messageNotRegistered.length > 0) {
-          embedMessageNotRegistered = new EmbedBuilder()
+          const embedMessageNotRegistered = new EmbedBuilder()
             .setColor(`#ff0000`)
             .setTitle(`Not registered members`)
             .setDescription(messageNotRegistered);
@@ -3435,10 +3460,19 @@ const CTA_Event = {
           });
         }
 
+        const activeVacations = await CTAVacations.find({
+          $and: [
+            { gid: interaction.guildId },
+            { start: { $lte: cta.created } },
+            { end: { $gte: cta.created } },
+          ],
+        });
+
         if (action === "add") {
           const availabilityData = await this.checkAvailability({
             registeredMembers,
             availableMembers,
+            activeVacations,
           });
 
           for await (const member of availabilityData.present) {
@@ -3473,6 +3507,10 @@ const CTA_Event = {
               cta.skip.splice(cta.skip.indexOf(member), 1);
               updates.push(`> <@${member}> removed from skip list.`);
             }
+            if (cta.on_vacation.indexOf(member) !== -1 && changed === true) {
+              cta.on_vacation.splice(cta.on_vacation.indexOf(member), 1);
+              updates.push(`> <@${member}> removed from on vacation list.`);
+            }
           }
 
           for await (const member of availabilityData.not_registered) {
@@ -3485,6 +3523,7 @@ const CTA_Event = {
               ...new Set([...cta.not_registered, ...availabilityData.not_registered]),
             ];
           }
+
           if (not_registered_names) {
             for await (const member of not_registered_names) {
               if (cta.not_registered_names.indexOf(member) === -1) {
@@ -3502,6 +3541,7 @@ const CTA_Event = {
           const availabilityData = await this.checkAvailability({
             registeredMembers,
             availableMembers,
+            activeVacations,
           });
 
           for await (const member of availabilityData.present) {
@@ -3531,6 +3571,10 @@ const CTA_Event = {
               cta.not_registered.splice(cta.not_registered.indexOf(member), 1);
               updates.push(`> <@${member}> removed from not registered.`);
             }
+            if (cta.on_vacation.indexOf(member) !== -1 && changed === true) {
+              cta.on_vacation.splice(cta.on_vacation.indexOf(member), 1);
+              updates.push(`> <@${member}> removed from on vacation.`);
+            }
           }
 
           if (not_registered_names.length > 0) {
@@ -3546,6 +3590,7 @@ const CTA_Event = {
           const availabilityData = await this.checkAvailability({
             registeredMembers,
             availableMembers,
+            activeVacations,
           });
 
           for await (const member of availabilityData.present) {
@@ -3579,6 +3624,10 @@ const CTA_Event = {
               cta.not_registered.splice(cta.not_registered.indexOf(member), 1);
               updates.push(`> <@${member}> removed from not registered.`);
             }
+            if (cta.on_vacation.indexOf(member) !== -1 && changed === true) {
+              cta.on_vacation.splice(cta.on_vacation.indexOf(member), 1);
+              updates.push(`> <@${member}> removed from on vaction.`);
+            }
           }
 
           if (not_registered_names.length > 0) {
@@ -3599,6 +3648,9 @@ const CTA_Event = {
         if (cta.skip.length > 0) {
           message += `**Skipping members:**\n> ${cta.skip.length}\n`;
         }
+        if (cta.on_vacation.length > 0) {
+          message += `**Members on vacations:**\n> ${cta.on_vacation.length}\n`;
+        }
         message += `**Not registered members:**\n> ${
           cta.not_registered.length + cta.not_registered_names.length
         }\n`;
@@ -3617,12 +3669,15 @@ const CTA_Event = {
 
           messageUpdate += `${updates.join("\n")}`;
 
-          const embedMessageUpdates = new EmbedBuilder()
-            .setColor(`#0000c6`)
-            .setTitle(`Updates`)
-            .setDescription(messageUpdate);
+          if (messageUpdate.length > 4000) {
+          } else {
+            const embedMessageUpdates = new EmbedBuilder()
+              .setColor(`#0000c6`)
+              .setTitle(`Updates`)
+              .setDescription(messageUpdate);
 
-          embeds.push(embedMessageUpdates);
+            embeds.push(embedMessageUpdates);
+          }
         }
 
         await interaction.reply({ embeds: embeds, ephemeral: true });
@@ -3977,6 +4032,9 @@ const CTA_Event = {
         if (cta.skip.length > 0) {
           message += `**Skipping members:**\n> ${cta.skip.length}\n`;
         }
+        if (cta.on_vacation.length > 0) {
+          message += `**Members on vacations:**\n> ${cta.on_vacation.length}\n`;
+        }
         if (cta.not_registered.length + cta.not_registered_names.length > 0) {
           message += `**Not registered members:**\n> ${
             cta.not_registered.length + cta.not_registered_names.length
@@ -4038,6 +4096,30 @@ const CTA_Event = {
           embeds.push(embedMessageSkip);
         }
 
+        if (cta.on_vacation.length > 0) {
+          let messageOnVacations = ``;
+          let onVacationsMembersArray = [];
+
+          for await (const member of cta.on_vacation) {
+            const memberName = registeredMembers.find((m) => m.id === member);
+            if (memberName) {
+              onVacationsMembersArray.push(memberName.game_nickname);
+            } else {
+              onVacationsMembersArray.push(member);
+            }
+          }
+
+          onVacationsMembersArray.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+          messageOnVacations += `> ${onVacationsMembersArray.join(", ")}`;
+
+          const embedMessageOnVacations = new EmbedBuilder()
+            .setColor(`#a1f039`)
+            .setTitle(`Members on Vacations`)
+            .setDescription(messageOnVacations);
+
+          embeds.push(embedMessageOnVacations);
+        }
+
         let messagePresentMembers = ``;
         let presentMembersArray = [];
 
@@ -4096,17 +4178,17 @@ const CTA_Event = {
       let dateFilter = {};
 
       if (start_date && !end_date) {
-        dateFilter.created = { $gte: new Date(start_date + "T00:00:00Z") };
+        dateFilter.created = { $gte: new Date(start_date + "T00:00:00") };
       }
 
       if (!start_date && end_date) {
-        dateFilter.created = { $lte: new Date(end_date + "T23:59:59Z") };
+        dateFilter.created = { $lte: new Date(end_date + "T23:59:59") };
       }
 
       if (start_date && end_date) {
         dateFilter.created = {
-          $gte: new Date(start_date + "T00:00:00Z"),
-          $lte: new Date(end_date + "T23:59:59Z"),
+          $gte: new Date(start_date + "T00:00:00"),
+          $lte: new Date(end_date + "T23:59:59"),
         };
       }
 
@@ -4373,14 +4455,21 @@ const CTA_Event = {
 
     return { errors, availableMembers };
   },
-  async checkAvailability({ registeredMembers, availableMembers }) {
+  async checkAvailability({ registeredMembers, availableMembers, activeVacations }) {
     let present = [];
     let absent = [];
+    let on_vacation = [];
     let not_registered = [];
+
+    const activeVacationsArray = activeVacations.map((v) => v.uid);
 
     // check if registered members are present in the channel
     for await (const member of registeredMembers) {
-      if (availableMembers.indexOf(member.id) !== -1) {
+      if (activeVacationsArray.indexOf(member.id) !== -1) {
+        if (on_vacation.indexOf(member.id) === -1) {
+          on_vacation.push(member.id);
+        }
+      } else if (availableMembers.indexOf(member.id) !== -1) {
         if (present.indexOf(member.id) === -1) {
           present.push(member.id);
         }
@@ -4400,7 +4489,7 @@ const CTA_Event = {
       }
     }
 
-    return { present, absent, not_registered };
+    return { present, absent, on_vacation, not_registered };
   },
   async extractUniqueMembers(text) {
     const regex = /<@(\d+)>/g;
@@ -4458,4 +4547,894 @@ const CTA_Event = {
   },
 };
 
-module.exports = { CTA_Setup, CTA_Register, CTA_Registration, CTA_Vacations, CTA_Event };
+const CTA_EventStats = {
+  data: new SlashCommandBuilder()
+    .setName("cta_stats")
+    .setDescription("CTA stats")
+    .addSubcommand((subcommand) =>
+      subcommand.setName("create").setDescription("Create new CTA event stats group.")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("delete")
+        .setDescription("Delete CTA event stats group.")
+        .addStringOption((option) =>
+          option
+            .setName("cta_stats_id")
+            .setDescription("CTA stats group you want to remove.")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("details")
+        .setDescription("Show details about CTA event stats group.")
+        .addStringOption((option) =>
+          option
+            .setName("cta_stats_id")
+            .setDescription("CTA stats group you want to check.")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("show")
+        .setDescription("Show stats for CTA event stats group.")
+        .addStringOption((option) =>
+          option
+            .setName("cta_stats_id")
+            .setDescription("CTA stats group you want to get stats.")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
+        .addNumberOption((option) =>
+          option
+            .setName("min_attendance")
+            .setDescription("Minimum percentage of attendance.")
+            .setMinValue(0)
+            .setMaxValue(100)
+        )
+        .addNumberOption((option) =>
+          option
+            .setName("max_attendance")
+            .setDescription("Maximum percentage of attendance.")
+            .setMinValue(0)
+            .setMaxValue(100)
+        )
+        .addStringOption((option) =>
+          option
+            .setName("sort_by_column")
+            .setDescription("Sort output by column: (default: Game nickname)")
+            .addChoices(
+              { name: "Game nickname", value: "game_nickname" },
+              { name: "Present", value: "present" },
+              { name: "Absent", value: "absent" },
+              { name: "Skip", value: "skip" },
+              { name: "On vacations", value: "on_vacation" },
+              { name: "Activity Percent", value: "activity" }
+            )
+        )
+        .addStringOption((option) =>
+          option
+            .setName("order")
+            .setDescription("Order (default: Ascending)")
+            .addChoices({ name: "Ascending", value: "asc" }, { name: "Descending", value: "desc" })
+        )
+        .addStringOption((option) =>
+          option
+            .setName("separator")
+            .setDescription("How do you want to separate stats in file? (default: Tab)")
+            .addChoices(
+              { name: "Tab", value: "tab" },
+              { name: "Comma", value: "comma" },
+              { name: "Semicolon", value: "semicolon" }
+            )
+        )
+    ),
+  async autocomplete(interaction) {
+    const focusedOption = interaction.options.getFocused(true);
+    let choices = [];
+    if (focusedOption.name === "cta_stats_id") {
+      try {
+        const stats = await CTAEventStats.find({
+          gid: interaction.guildId,
+        }).sort({ name: 1 });
+
+        for await (const entry of stats) {
+          choices.push({
+            name: `${entry.name}`,
+            value: entry._id.toString(),
+          });
+        }
+      } catch (err) {
+        console.error("[f1fccb] ", err);
+      }
+
+      const filtered = choices.filter((choice) =>
+        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase())
+      );
+      const limitedResults = filtered.slice(0, 20);
+      await interaction.respond(
+        limitedResults.map((choice) => ({ name: choice.name, value: choice.value }))
+      );
+    }
+  },
+  async execute(interaction) {
+    let manager_perms = false;
+    let configCTA;
+
+    if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
+      manager_perms = true;
+    }
+
+    try {
+      configCTA = await CTAConfig.findOne({
+        gid: interaction.guildId,
+      });
+
+      if (!configCTA || configCTA.ao_server.length < 1) {
+        return await interaction.reply({
+          content: `> Server is not set for events.`,
+          ephemeral: true,
+        });
+      }
+
+      if (configCTA.ao_server == "-") {
+        return await interaction.reply({ content: `> Events are disabled.`, ephemeral: true });
+      }
+
+      const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
+        cache: true,
+        force: true,
+      });
+
+      if (!manager_perms) {
+        configCTA.manager_roles.forEach((role) => {
+          if (interactionUser.roles.cache.has(role)) {
+            manager_perms = true;
+          }
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      return await interaction.reply({
+        content: `> [63c7d8] Error while checking perms. Please try again later.`,
+        ephemeral: true,
+      });
+    }
+
+    if (!manager_perms) {
+      return await interaction.reply({
+        content: `> No permission to use this command.`,
+        ephemeral: true,
+      });
+    }
+
+    if (interaction.options.getSubcommand() === "create") {
+      const user = interaction.user;
+      const channel = interaction.channel;
+
+      await interaction.deferReply({ ephemeral: true });
+
+      const questions = [
+        {
+          id: "name",
+          title: "CTA Stats Group Name",
+          description: "Provide a name for the CTA stats group. *(Required: 3-16 characters)*",
+          type: "text",
+          min_length: 3,
+          max_length: 16,
+          required: true,
+        },
+        {
+          id: "types",
+          title: "CTA Types",
+          description: "Please select CTA Types that should be included in statistics.",
+          type: "cta_types",
+        },
+        {
+          id: "start",
+          title: "Start date",
+          description:
+            "Please provide start date of CTA events for statistics. Format: `YYYY-MM-DD`",
+          type: "text",
+          validator: "date",
+        },
+        {
+          id: "end",
+          title: "End date",
+          description: "Please provide end date of CTA events for statistics. Format: `YYYY-MM-DD`",
+          type: "text",
+          validator: "date",
+        },
+        {
+          id: "mandatory",
+          title: "Mandatory",
+          description: "Select what you want to include in the statistics",
+          type: "select",
+          options: [
+            { label: "Only mandatory events", value: "mando" },
+            { label: "Only non-mandatory events", value: "nonmando" },
+            { label: "All events", value: "all" },
+          ],
+          limit: 1,
+        },
+        {
+          id: "weight",
+          title: "Weight",
+          description: "Select CTA event weights you want to include in statistics.",
+          type: "select",
+          options: [
+            { label: "1", value: "1" },
+            { label: "2", value: "2" },
+            { label: "3", value: "3" },
+            { label: "4", value: "4" },
+            { label: "5", value: "5" },
+          ],
+          limit: 5,
+        },
+        {
+          id: "created_by",
+          title: "Created by",
+          description: "Which users' events should be included in the statistics?",
+          type: "members",
+        },
+      ];
+
+      let answers = {};
+      let currentQuestion = 0;
+
+      const cancelButton = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("cta_stats_cancel")
+          .setLabel("Cancel creation")
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      const skipButton = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("cta_stats_skip")
+          .setLabel("Skip question")
+          .setStyle(ButtonStyle.Primary)
+      );
+
+      await interaction.followUp({
+        content: "> *Starting interactive CTA statistics creation.*",
+        ephemeral: true,
+      });
+
+      let configurationMessages = [];
+
+      const askQuestion = async () => {
+        if (currentQuestion >= questions.length) {
+          if (answers?.start && answers?.end) {
+            if (new Date(answers.start) > new Date(answers.end)) {
+              return await interaction.reply({
+                content: `> Start date can't be later than end date.`,
+                ephemeral: true,
+              });
+            }
+          }
+
+          let mando = "";
+          let mandoDescription = "";
+
+          if (answers?.mandatory && answers.mandatory[0] === "mando") {
+            mando = "1";
+            mandoDescription = "Only mandatory events";
+          } else if (answers?.mandatory && answers.mandatory[0] === "nonmando") {
+            mando = "0";
+            mandoDescription = "Only non-mandatory events";
+          } else if (answers?.mandatory && answers.mandatory[0] === "all") {
+            mando = "";
+            mandoDescription = "";
+          }
+
+          let name = answers.name;
+          let types = answers?.types ?? [];
+          let start = answers?.start ? new Date(answers.start + "T00:00:00") : "";
+          let end = answers?.end ? new Date(answers.end + "T23:59:59") : "";
+          let weight = answers?.weight ?? [];
+          let created_by = answers?.created_by ?? [];
+
+          try {
+            const newStats = await new CTAEventStats({
+              gid: interaction.guildId,
+              name,
+              types,
+              start,
+              end,
+              mandatory: mando,
+              weight,
+              created_by,
+            });
+
+            await newStats.save();
+          } catch (err) {
+            console.error(err);
+            return await interaction.followUp({
+              content: `> [96a57a] Error while creating stats group. Please try again later.`,
+              ephemeral: true,
+            });
+          }
+
+          let summaryMessage = `### CTA Stats Group Summary\n\n`;
+          summaryMessage += `**Name:**\n> ${answers.name}\n`;
+
+          if (answers?.types && answers.types.length > 0) {
+            summaryMessage += `**Only these CTA Types:**\n> ${answers.types.join(", ")}\n`;
+          }
+
+          if (answers?.start && answers?.end) {
+            summaryMessage += `**Only from this Date range:**\n> ${answers.start} - ${answers.end}\n`;
+          }
+
+          if (answers?.start && !answers?.end) {
+            summaryMessage += `**Only from this Date range:**\n> ${answers.start} - Now\n`;
+          }
+
+          if (!answers?.start && answers?.end) {
+            summaryMessage += `**Only from this Date range:**\n> Beginning - ${answers.end}\n`;
+          }
+
+          if (mando.length > 0) {
+            summaryMessage += `**Mandatory:**\n> ${mandoDescription}\n`;
+          }
+
+          if (answers?.weight && answers.weight.length > 0) {
+            summaryMessage += `**Only selected Weights:**\n> ${answers.weight.join(", ")}\n`;
+          }
+
+          if (answers?.created_by && answers.created_by.length > 0) {
+            summaryMessage += `**Only events created by:**\n> <@${answers.created_by.join(
+              ">, <@"
+            )}>\n`;
+          }
+
+          const embedMessage = new EmbedBuilder()
+            .setColor(`#00DB19`)
+            .setDescription(summaryMessage);
+
+          await channel.send({ embeds: [embedMessage] });
+
+          for await (const message of configurationMessages) {
+            try {
+              await message.delete();
+            } catch (err) {
+              console.error(`[CTA_SETUP-95003e] Can't remove message: \`${err.message}\``);
+            }
+          }
+
+          return;
+        }
+
+        let skipDescription = `\n\n*You can skip this question by clicking on the **Skip** button below.*\nIf you skip this question, events will not be filtered by this value.`;
+
+        const question = questions[currentQuestion];
+
+        let components = [cancelButton];
+
+        if (question?.required === true) {
+          skipDescription = "";
+        } else {
+          components.push(skipButton);
+        }
+
+        const questionEmbed = new EmbedBuilder()
+          .setColor(`#26d1dd`)
+          .setTitle(question.title)
+          .setDescription(question.description + skipDescription);
+
+        if (question.type === "text") {
+          const questionMessage = await channel.send({
+            embeds: [questionEmbed],
+            components: components,
+          });
+
+          configurationMessages.push(questionMessage);
+
+          let canceled = false;
+
+          const filter = (msg) => msg.author.id === user.id;
+          const collector = channel.createMessageCollector({ filter, time: 300000 });
+
+          const buttonCollector = questionMessage.createMessageComponentCollector({ time: 300000 });
+
+          buttonCollector.on("collect", async (i) => {
+            if (i.customId === "cta_stats_cancel" && i.user.id === user.id) {
+              questionEmbed.setDescription("Configuration canceled.");
+              questionEmbed.setColor(`#DB0019`);
+              await i.update({ embeds: [questionEmbed], components: [] });
+              canceled = true;
+              buttonCollector.stop();
+              collector.stop();
+            }
+            if (i.customId === "cta_stats_skip" && i.user.id === user.id) {
+              questionEmbed.setDescription("Question skipped.");
+              questionEmbed.setColor(`#dfb600`);
+              await i.update({ embeds: [questionEmbed], components: [] });
+              currentQuestion++;
+              canceled = true;
+              buttonCollector.stop();
+              collector.stop();
+              await askQuestion();
+            }
+          });
+
+          collector.on("collect", async (msg) => {
+            let valid = true;
+
+            if (question?.validator && question.validator === "date") {
+              if (!isValidDate(msg.content)) {
+                valid = false;
+              }
+            }
+
+            if (question?.min_length && msg.content.length < question.min_length) {
+              valid = false;
+            }
+
+            if (question?.max_length && msg.content.length > question.max_length) {
+              valid = false;
+            }
+
+            if (valid) {
+              questionEmbed.setDescription(`Provided information: **${msg.content}**`);
+              await questionMessage.edit({ embeds: [questionEmbed], components: [] });
+              answers[question.id] = msg.content;
+              currentQuestion++;
+              collector.stop();
+              await askQuestion();
+            } else {
+              questionEmbed.setDescription(
+                `Provided answer **${msg.content}** is incorrect. Please try again.`
+              );
+              questionEmbed.setColor(`#DB0019`);
+              await questionMessage.edit({ embeds: [questionEmbed], components: [] });
+              collector.stop();
+              await askQuestion();
+            }
+
+            try {
+              await msg.delete();
+            } catch (err) {
+              console.error(`[CTA_SETUP-4e0d96] Can't remove message: \`${err.message}\``);
+            }
+          });
+
+          collector.on("end", (collected) => {
+            if (collected.size === 0 && !canceled) {
+              channel.send({
+                content: "> *You didn't provide any answer. Creation canceled.*",
+                ephemeral: true,
+              });
+            }
+          });
+        } else if (question.type === "select") {
+          const row = new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+              .setCustomId("cta_stats_select")
+              .setPlaceholder(question.title)
+              .addOptions(question.options)
+              .setMaxValues(question.limit ?? 25)
+          );
+
+          const questionMessage = await channel.send({
+            embeds: [questionEmbed],
+            components: [row, ...components],
+          });
+
+          configurationMessages.push(questionMessage);
+
+          const collector = questionMessage.createMessageComponentCollector({ time: 300000 });
+
+          collector.on("collect", async (i) => {
+            if (i.customId == "cta_stats_select" && i.user.id === user.id && i.values.length > 0) {
+              answers[question.id] = i.values;
+
+              let formatedAnswers = i.values.map((v) => {
+                return question.options.find((o) => o.value === v).label;
+              });
+
+              questionEmbed.setDescription(
+                `Selected option(s): **${formatedAnswers.join("**, **")}**`
+              );
+
+              await i.update({ embeds: [questionEmbed], components: [] });
+              currentQuestion++;
+              collector.stop();
+              await askQuestion();
+            } else if (i.customId === "cta_stats_cancel" && i.user.id === user.id) {
+              questionEmbed.setColor(`#DB0019`);
+              questionEmbed.setDescription("Configuration canceled.");
+              await i.update({ embeds: [questionEmbed], components: [] });
+              collector.stop();
+            } else if (i.customId === "cta_stats_skip" && i.user.id === user.id) {
+              questionEmbed.setDescription("Question skipped.");
+              questionEmbed.setColor(`#dfb600`);
+              await i.update({ embeds: [questionEmbed], components: [] });
+              currentQuestion++;
+              collector.stop();
+              await askQuestion();
+            }
+          });
+        } else if (question.type === "cta_types") {
+          const types = await CTAEventTypes.find({
+            gid: interaction.guildId,
+          }).sort({ type: 1 });
+
+          let options = [];
+
+          for await (const type of types) {
+            options.push({
+              label: type.type,
+              value: type.type,
+            });
+          }
+
+          const row = new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+              .setCustomId("cta_stats_select")
+              .setPlaceholder(question.title)
+              .addOptions(options)
+              .setMaxValues(options.length)
+          );
+
+          const questionMessage = await channel.send({
+            embeds: [questionEmbed],
+            components: [row, ...components],
+          });
+
+          configurationMessages.push(questionMessage);
+
+          const collector = questionMessage.createMessageComponentCollector({ time: 300000 });
+
+          collector.on("collect", async (i) => {
+            if (i.customId == "cta_stats_select" && i.user.id === user.id && i.values.length > 0) {
+              answers[question.id] = i.values;
+
+              questionEmbed.setDescription(`Selected option(s): **${i.values.join("**, **")}**`);
+
+              await i.update({ embeds: [questionEmbed], components: [] });
+              currentQuestion++;
+              collector.stop();
+              await askQuestion();
+            } else if (i.customId === "cta_stats_cancel" && i.user.id === user.id) {
+              questionEmbed.setColor(`#DB0019`);
+              questionEmbed.setDescription("Configuration canceled.");
+              await i.update({ embeds: [questionEmbed], components: [] });
+              collector.stop();
+            } else if (i.customId === "cta_stats_skip" && i.user.id === user.id) {
+              questionEmbed.setDescription("Question skipped.");
+              questionEmbed.setColor(`#dfb600`);
+              await i.update({ embeds: [questionEmbed], components: [] });
+              currentQuestion++;
+              collector.stop();
+              await askQuestion();
+            }
+          });
+        } else if (question.type === "members") {
+          const row = new ActionRowBuilder().addComponents(
+            new UserSelectMenuBuilder()
+              .setCustomId("cta_stats_members")
+              .setPlaceholder("Select members")
+              .setMinValues(1)
+              .setMaxValues(25)
+          );
+
+          const questionMessage = await channel.send({
+            embeds: [questionEmbed],
+            components: [row, ...components],
+          });
+
+          configurationMessages.push(questionMessage);
+
+          const collector = questionMessage.createMessageComponentCollector({ time: 300000 });
+
+          collector.on("collect", async (i) => {
+            if (i.customId == "cta_stats_members" && i.user.id === user.id && i.values.length > 0) {
+              answers[question.id] = i.values;
+
+              questionEmbed.setDescription(`Selected members(s): <@${i.values.join(">, <@")}>`);
+
+              await i.update({ embeds: [questionEmbed], components: [] });
+              currentQuestion++;
+              collector.stop();
+              await askQuestion();
+            } else if (i.customId === "cta_stats_cancel" && i.user.id === user.id) {
+              questionEmbed.setColor(`#DB0019`);
+              questionEmbed.setDescription("Configuration canceled.");
+              await i.update({ embeds: [questionEmbed], components: [] });
+              collector.stop();
+            } else if (i.customId === "cta_stats_skip" && i.user.id === user.id) {
+              questionEmbed.setDescription("Question skipped.");
+              questionEmbed.setColor(`#dfb600`);
+              await i.update({ embeds: [questionEmbed], components: [] });
+              currentQuestion++;
+              collector.stop();
+              await askQuestion();
+            }
+          });
+        }
+      };
+
+      await askQuestion();
+    } else if (interaction.options.getSubcommand() === "delete") {
+      const cta_stats_id = interaction.options.getString("cta_stats_id");
+
+      try {
+        const removedCTAStats = await CTAEventStats.findOneAndDelete({
+          $and: [{ gid: interaction.guildId }, { _id: cta_stats_id }],
+        });
+
+        if (!removedCTAStats) {
+          return await interaction.reply({
+            content: `> Couldn't find CTA stats group with ID: \`${cta_stats_id}\``,
+            ephemeral: true,
+          });
+        }
+
+        await interaction.reply({
+          content: `> CTA event stats group named **${removedCTAStats.name}** has been removed.`,
+          ephemeral: true,
+        });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [338fac] Error while removing CTA. Please try again later.`,
+          ephemeral: true,
+        });
+      }
+    } else if (interaction.options.getSubcommand() === "details") {
+      await interaction.deferReply({ ephemeral: true });
+      const cta_stats_id = interaction.options.getString("cta_stats_id");
+      try {
+        const ctaStats = await CTAEventStats.findOne({
+          $and: [{ gid: interaction.guildId }, { _id: cta_stats_id }],
+        });
+
+        if (!ctaStats) {
+          return await interaction.followUp({
+            content: `> Couldn't find CTA stats group with ID: \`${cta_stats_id}\``,
+            ephemeral: true,
+          });
+        }
+
+        let message = ``;
+
+        message += `**Name:**\n> ${ctaStats.name}\n`;
+
+        message += `**Only these CTA Types:**\n`;
+        if (ctaStats.types.length > 0) {
+          message += `> ${ctaStats.types.join(", ")}\n`;
+        } else {
+          message += `> *No filter set*\n`;
+        }
+
+        message += `**Only from this Date range:**\n`;
+        if (ctaStats.start && ctaStats.end) {
+          message += `> ${formattedDate(ctaStats.start, "date")} - ${formattedDate(
+            ctaStats.end
+          )}\n`;
+        } else if (ctaStats.start && !ctaStats.end) {
+          message += `> ${formattedDate(ctaStats.start, "date")} - Now\n`;
+        } else if (!ctaStats.start && ctaStats.end) {
+          message += `> Beginning - ${formattedDate(ctaStats.end, "date")}\n`;
+        } else {
+          message += `> *No filter set*\n`;
+        }
+
+        message += `**Mandatory:**\n`;
+        if (ctaStats.mandatory.length > 0) {
+          message += `> ${
+            ctaStats.mandatory === "1" ? "Only mandatory events" : "Only non-mandatory events"
+          }\n`;
+        } else {
+          message += `> *No filter set*\n`;
+        }
+
+        message += `**Only selected Weights:**\n`;
+        if (ctaStats.weight.length > 0) {
+          message += `> ${ctaStats.weight.join(", ")}\n`;
+        } else {
+          message += `> *No filter set*\n`;
+        }
+
+        message += `**Only events created by:**\n`;
+        if (ctaStats.created_by.length > 0) {
+          message += `> <@${ctaStats.created_by.join(">, <@")}>\n`;
+        } else {
+          message += `> *No filter set*\n`;
+        }
+
+        const embedMessage = new EmbedBuilder()
+          .setTitle(`CTA Stats Group Details`)
+          .setColor(`#0AA2FF`)
+          .setDescription(message);
+
+        await interaction.followUp({ embeds: [embedMessage], ephemeral: true });
+      } catch (err) {
+        console.error(err);
+        return await interaction.followUp({
+          content: `> [cf967b] Error . Please try again later.`,
+          ephemeral: true,
+        });
+      }
+    } else if (interaction.options.getSubcommand() === "show") {
+      await interaction.deferReply({ ephemeral: true });
+      const cta_stats_id = interaction.options.getString("cta_stats_id");
+      const min_attendance = interaction.options.getNumber("min_attendance") ?? 0;
+      const max_attendance = interaction.options.getNumber("max_attendance") ?? 100;
+      const sort_by_column = interaction.options.getString("sort_by_column") ?? "game_nickname";
+      const order = interaction.options.getString("order") ?? "asc";
+      let separator = interaction.options.getString("separator") ?? "tab";
+
+      if (min_attendance > max_attendance) {
+        return await interaction.followUp({
+          content: `> Minimum attendance can't be higher than maximum attendance.`,
+          ephemeral: true,
+        });
+      }
+
+      if (separator === "tab") {
+        separator = "\t";
+      } else if (separator === "comma") {
+        separator = ",";
+      } else if (separator === "semicolon") {
+        separator = ";";
+      }
+
+      try {
+        const ctaStats = await CTAEventStats.findOne({
+          $and: [{ gid: interaction.guildId }, { _id: cta_stats_id }],
+        });
+
+        if (!ctaStats) {
+          return await interaction.followUp({
+            content: `> Couldn't find CTA stats group with ID: \`${cta_stats_id}\``,
+            ephemeral: true,
+          });
+        }
+
+        let filters = {};
+
+        if (ctaStats.types.length > 0) {
+          filters.type = { $in: ctaStats.types };
+        }
+
+        if (ctaStats.start && ctaStats.end) {
+          filters.created = { $gte: ctaStats.start, $lte: ctaStats.end };
+        } else if (ctaStats.start && !ctaStats.end) {
+          filters.created = { $gte: ctaStats.start };
+        } else if (!ctaStats.start && ctaStats.end) {
+          filters.created = { $lte: ctaStats.end };
+        }
+
+        if (ctaStats.mandatory.length > 0) {
+          filters.mandatory = ctaStats.mandatory;
+        }
+
+        if (ctaStats.weight.length > 0) {
+          filters.weight = { $in: ctaStats.weight };
+        }
+
+        if (ctaStats.created_by.length > 0) {
+          filters.creator_id = { $in: ctaStats.created_by };
+        }
+
+        const members = await CTAMembers.find({ gid: interaction.guildId, unregistered: false });
+
+        if (!members || members.length < 1) {
+          return await interaction.followUp({
+            content: `> Couldn't find any registered members.`,
+            ephemeral: true,
+          });
+        }
+
+        const ctaEvents = await CTAEvents.find({
+          $and: [{ gid: interaction.guildId }, filters],
+        });
+
+        if (!ctaEvents || ctaEvents.length < 1) {
+          return await interaction.followUp({
+            content: `> Couldn't find any events for selected filters.`,
+            ephemeral: true,
+          });
+        }
+
+        const stats = [];
+
+        for await (const member of members) {
+          let present = 0;
+          let absent = 0;
+          let skip = 0;
+          let on_vacation = 0;
+          let totalPossibleEvents = 0;
+
+          for await (const event of ctaEvents) {
+            if (event.present.includes(member.id)) present += event.weight;
+            if (event.absent.includes(member.id)) absent += event.weight;
+            if (event.skip.includes(member.id)) skip += event.weight;
+            if (event.on_vacation.includes(member.id)) on_vacation += event.weight;
+
+            if (
+              !event.not_registered.includes(member.id) &&
+              !event.not_registered_names.includes(member.game_nickname) &&
+              !event.on_vacation.includes(member.id) &&
+              event.created > member.registered
+            ) {
+              totalPossibleEvents += event.weight;
+            }
+          }
+
+          const activity =
+            totalPossibleEvents > 0 ? ((present / totalPossibleEvents) * 100).toFixed(2) : 0;
+
+          stats.push({
+            game_nickname: member.game_nickname,
+            present: present,
+            absent: absent,
+            skip: skip,
+            on_vacation: on_vacation,
+            activity: activity,
+          });
+        }
+
+        const sortedStats = stats.sort((a, b) => {
+          if (order === "asc") {
+            return a[sort_by_column].localeCompare(b[sort_by_column]);
+          } else {
+            return b[sort_by_column].localeCompare(a[sort_by_column]);
+          }
+        });
+
+        const filteredStats = sortedStats.filter((stat) => {
+          return stat.activity >= min_attendance && stat.activity <= max_attendance;
+        });
+
+        if (filteredStats.length < 1) {
+          return await interaction.followUp({
+            content: `> Couldn't find any members and events with selected filters.`,
+            ephemeral: true,
+          });
+        }
+
+        let fileContent = `Member${separator}Present${separator}Absent${separator}Skip${separator}On vacations${separator}Activity\n`;
+
+        for await (const stat of filteredStats) {
+          fileContent += `${stat.game_nickname}${separator}${stat.present}${separator}${stat.absent}${separator}${stat.skip}${separator}${stat.on_vacation}${separator}${stat.activity}\n`;
+        }
+
+        const buffer = Buffer.from(fileContent, "utf-8");
+        files = [
+          {
+            attachment: buffer,
+            name: `member_stats.txt`,
+          },
+        ];
+
+        await interaction.followUp({
+          files: files,
+          content: `> CTA statistics generated based on template: **${ctaStats.name}**`,
+        });
+      } catch (err) {
+        console.error(err);
+        return await interaction.followUp({
+          content: `> [fe940f] Error while generating stats. Please try again later.`,
+          ephemeral: true,
+        });
+      }
+    }
+  },
+};
+
+module.exports = {
+  CTA_Setup,
+  CTA_Register,
+  CTA_Registration,
+  CTA_Vacations,
+  CTA_Event,
+  CTA_EventStats,
+};
