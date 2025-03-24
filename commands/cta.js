@@ -5383,10 +5383,18 @@ const CTA_EventStats = {
         }
 
         const sortedStats = stats.sort((a, b) => {
-          if (order === "asc") {
-            return a[sort_by_column].localeCompare(b[sort_by_column]);
+          if (sort_by_column === "game_nickname") {
+            if (order === "asc") {
+              return a[sort_by_column].localeCompare(b[sort_by_column]);
+            } else {
+              return b[sort_by_column].localeCompare(a[sort_by_column]);
+            }
           } else {
-            return b[sort_by_column].localeCompare(a[sort_by_column]);
+            if (order === "asc") {
+              return a[sort_by_column] - b[sort_by_column];
+            } else {
+              return b[sort_by_column] - a[sort_by_column];
+            }
           }
         });
 
