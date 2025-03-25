@@ -4022,26 +4022,27 @@ const CTA_Event = {
         }
 
         let message = ``;
+        let embeds = [];
 
-        message += `**Event name:**\n> ${cta.name}\n`;
-        message += `**Event type:**\n> ${cta.type}\n`;
-        message += `**Mandatory:**\n> ${cta.mandatory === true ? "Yes" : "No"}\n`;
-        message += `**Weight:**\n> ${cta.weight}\n`;
-        message += `**Present members:**\n> ${cta.present.length}\n`;
-        message += `**Absent members:**\n> ${cta.absent.length}\n`;
+        message += `**Event name:** ${cta.name}\n`;
+        message += `**Event type:** ${cta.type}\n`;
+        message += `**Event date:** ${formattedDate(cta.created)}\n`;
+        message += `**Mandatory:** ${cta.mandatory === true ? "Yes" : "No"}\n`;
+        message += `**Weight:** ${cta.weight}\n`;
+        message += `\n`;
+        message += `**Present members:** ${cta.present.length}\n`;
+        message += `**Absent members:** ${cta.absent.length}\n`;
         if (cta.skip.length > 0) {
-          message += `**Skipping members:**\n> ${cta.skip.length}\n`;
+          message += `**Skipping members:** ${cta.skip.length}\n`;
         }
         if (cta.on_vacation.length > 0) {
-          message += `**Members on vacations:**\n> ${cta.on_vacation.length}\n`;
+          message += `**Members on vacations:** ${cta.on_vacation.length}\n`;
         }
         if (cta.not_registered.length + cta.not_registered_names.length > 0) {
-          message += `**Not registered members:**\n> ${
+          message += `**Not registered members:** ${
             cta.not_registered.length + cta.not_registered_names.length
           }\n`;
         }
-
-        let embeds = [];
 
         const embedMessage = new EmbedBuilder()
           .setColor(`#0AA2FF`)
@@ -4134,7 +4135,7 @@ const CTA_Event = {
           }
 
           presentMembersArray.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-          messagePresentMembers += `> ${presentMembersArray.join("\n> ")}`;
+          messagePresentMembers += `> ${presentMembersArray.join(", ")}`;
         } else {
           messagePresentMembers += `> *No present members.*`;
         }
