@@ -2055,17 +2055,14 @@ const CTA_Vacations = {
 
           messageOverlaping = `### You already have vacations in this period!\n\n`;
 
-          messageOverlaping += `**ID:**\n> ${overlappingVacations.vacations_id}\n`;
-          messageOverlaping += `**Start date:**\n> ${formattedDate(
+          messageOverlaping += `**ID:** ${overlappingVacations.vacations_id}\n`;
+          messageOverlaping += `**Start date:** ${formattedDate(
             overlappingVacations.start,
             "date"
           )}\n`;
-          messageOverlaping += `**End date:**\n> ${formattedDate(
-            overlappingVacations.end,
-            "date"
-          )}\n`;
-          messageOverlaping += `**Days:**\n> ${overlappingVacations.days}\n`;
-          messageOverlaping += `**Reason:**\n> *${overlappingVacations.reason}*\n`;
+          messageOverlaping += `**End date:** ${formattedDate(overlappingVacations.end, "date")}\n`;
+          messageOverlaping += `**Days:** ${overlappingVacations.days}\n`;
+          messageOverlaping += `**Reason:** *${overlappingVacations.reason}*\n`;
 
           messageOverlaping += `\n**You can't have overlapping vacations!**\n`;
           messageOverlaping += `*Use command \`/vacations update\` to update your existing vacations or add vacations in another period of time.*`;
@@ -2104,15 +2101,15 @@ const CTA_Vacations = {
         let message = ``;
 
         message += `### Vacations added for <@${newVacations.uid}> - ${getDisplayName(member)}\n`;
-        message += `**ID:**\n> ${newVacations.vacations_id}\n`;
-        message += `**Start date:**\n> ${formattedDate(newVacations.start, "date")}\n`;
-        message += `**End date:**\n> ${formattedDate(newVacations.end, "date")}\n`;
-        message += `**Days:**\n> ${newVacations.days}\n`;
-        message += `**Total days:**\n> ${totalDays}\n`;
-        message += `**Reason:**\n> *${newVacations.reason}*\n`;
+        message += `**ID:** ${newVacations.vacations_id}\n`;
+        message += `**Start date:** ${formattedDate(newVacations.start, "date")}\n`;
+        message += `**End date:** ${formattedDate(newVacations.end, "date")}\n`;
+        message += `**Days:** ${newVacations.days}\n`;
+        message += `**Total days:** ${totalDays}\n`;
+        message += `**Reason:** *${newVacations.reason}*\n`;
 
         if (newVacations.uid !== newVacations.added_by) {
-          message += `\n**Added by:**\n> <@${newVacations.added_by}>\n`;
+          message += `\n**Added by:** <@${newVacations.added_by}>\n`;
         }
 
         const embedMessage = new EmbedBuilder().setColor(`#00ff00`).setDescription(message);
@@ -2291,19 +2288,19 @@ const CTA_Vacations = {
         let message = ``;
 
         message += `### Vacations stopped for <@${newVacations.uid}> - ${getDisplayName(member)}\n`;
-        message += `**ID:**\n> ${newVacations.vacations_id}\n`;
-        message += `**Start date:**\n> ${formattedDate(newVacations.start, "date")}\n`;
-        message += `**End date:**\n> ${formattedDate(newVacations.end, "date")}\n`;
-        message += `**Days:**\n> ${newVacations.days}\n`;
-        message += `**Total days:**\n> ${totalDays}\n`;
-        message += `**Reason:**\n> *${newVacations.reason}*\n`;
+        message += `**ID:** ${newVacations.vacations_id}\n`;
+        message += `**Start date:** ${formattedDate(newVacations.start, "date")}\n`;
+        message += `**End date:** ${formattedDate(newVacations.end, "date")}\n`;
+        message += `**Days:** ${newVacations.days}\n`;
+        message += `**Total days:** ${totalDays}\n`;
+        message += `**Reason:** *${newVacations.reason}*\n`;
 
         if (newVacations.uid !== newVacations.added_by) {
-          message += `\n**Added by:**\n> <@${newVacations.added_by}>\n`;
+          message += `\n**Added by:** <@${newVacations.added_by}>\n`;
         }
 
-        message += `\n**Force stopped by:**\n> <@${activeVacation.force_end_by}>\n`;
-        message += `**Force stop reason:**\n> *${activeVacation.force_end_reason}*\n`;
+        message += `\n**Force stopped by:** <@${activeVacation.force_end_by}>\n`;
+        message += `**Force stop reason:** *${activeVacation.force_end_reason}*\n`;
 
         const embedMessage = new EmbedBuilder()
           .setColor(`#DB0000`)
@@ -2330,8 +2327,8 @@ const CTA_Vacations = {
               messageLog += `\n**Added by:** <@${activeVacation.added_by}>\n`;
             }
 
-            messageLog += `\n**Force stopped by:**\n> <@${activeVacation.force_end_by}>\n`;
-            messageLog += `**Force stop reason:**\n> *${activeVacation.force_end_reason}*\n`;
+            messageLog += `\n**Force stopped by:** <@${activeVacation.force_end_by}>\n`;
+            messageLog += `**Force stop reason:** *${activeVacation.force_end_reason}*\n`;
 
             const embedMessageLog = new EmbedBuilder()
               .setColor(`#ff0000`)
@@ -2673,40 +2670,40 @@ const CTA_Vacations = {
         });
 
         let message = `### Vacations updated for <@${vacations.uid}> - ${getDisplayName(member)}\n`;
-        message += `**ID:**\n> ${vacations.vacations_id}\n`;
+        message += `**ID:** ${vacations.vacations_id}\n`;
 
         if (start_date && formattedDate(vacations.start, "date") !== formattedDate(start, "date")) {
-          message += `**Start date:**\n> ${formattedDate(
-            vacations.start,
+          message += `**Start date:** ${formattedDate(vacations.start, "date")} -> ${formattedDate(
+            start,
             "date"
-          )} -> ${formattedDate(start, "date")}\n`;
+          )}\n`;
           vacations.start = start;
         } else {
-          message += `**Start date:**\n> ${formattedDate(vacations.start, "date")}\n`;
+          message += `**Start date:** ${formattedDate(vacations.start, "date")}\n`;
         }
 
         if (end_date && formattedDate(vacations.end, "date") !== formattedDate(end, "date")) {
-          message += `**End date:**\n> ${formattedDate(vacations.end, "date")} -> ${formattedDate(
+          message += `**End date:** ${formattedDate(vacations.end, "date")} -> ${formattedDate(
             end,
             "date"
           )}\n`;
           vacations.end = end;
         } else {
-          message += `**End date:**\n> ${formattedDate(vacations.end, "date")}\n`;
+          message += `**End date:** ${formattedDate(vacations.end, "date")}\n`;
         }
 
         if (days !== vacations.days) {
-          message += `**Days:**\n> ${vacations.days} -> ${days}\n`;
+          message += `**Days:** ${vacations.days} -> ${days}\n`;
           vacations.days = days;
         } else {
-          message += `**Days:**\n> ${vacations.days}\n`;
+          message += `**Days:** ${vacations.days}\n`;
         }
 
         if (reason && reason !== vacations.reason) {
-          message += `**Reason:**\n> *${vacations.reason}* -> *${reason}*\n`;
+          message += `**Reason:** *${vacations.reason}* -> *${reason}*\n`;
           vacations.reason = reason;
         } else {
-          message += `**Reason:**\n> *${vacations.reason}*\n`;
+          message += `**Reason:** *${vacations.reason}*\n`;
         }
 
         await vacations.save();
@@ -3211,19 +3208,19 @@ const CTA_Event = {
         let embeds = [];
         let message = ``;
 
-        message += `**Event name:**\n> ${name}\n`;
-        message += `**Event type:**\n> ${cta_type}\n`;
-        message += `**Mandatory:**\n> ${mandatory === true ? "Yes" : "No"}\n`;
+        message += `**Event name:** ${name}\n`;
+        message += `**Event type:** ${cta_type}\n`;
+        message += `**Mandatory:** ${mandatory === true ? "Yes" : "No"}\n`;
         if (weight !== null) {
-          message += `**Weight:**\n> ${weight !== null ? weight : 1}\n`;
+          message += `**Weight:** ${weight !== null ? weight : 1}\n`;
         }
-        message += `**Present members:**\n> ${present.length}\n`;
-        message += `**Absent members:**\n> ${absent.length}\n`;
+        message += `**Present members:** ${present.length}\n`;
+        message += `**Absent members:** ${absent.length}\n`;
         if (on_vacation.length > 0) {
-          message += `**Members on vacations:**\n> ${on_vacation.length}\n`;
+          message += `**Members on vacations:** ${on_vacation.length}\n`;
         }
         if (not_registered.length + not_registered_names.length > 0) {
-          message += `**Not registered members:**\n> ${
+          message += `**Not registered members:** ${
             not_registered.length + not_registered_names.length
           }\n`;
         }
@@ -3643,15 +3640,15 @@ const CTA_Event = {
 
         let message = ``;
 
-        message += `**Present members:**\n> ${cta.present.length}\n`;
-        message += `**Absent members:**\n> ${cta.absent.length}\n`;
+        message += `**Present members:** ${cta.present.length}\n`;
+        message += `**Absent members:** ${cta.absent.length}\n`;
         if (cta.skip.length > 0) {
-          message += `**Skipping members:**\n> ${cta.skip.length}\n`;
+          message += `**Skipping members:** ${cta.skip.length}\n`;
         }
         if (cta.on_vacation.length > 0) {
-          message += `**Members on vacations:**\n> ${cta.on_vacation.length}\n`;
+          message += `**Members on vacations:** ${cta.on_vacation.length}\n`;
         }
-        message += `**Not registered members:**\n> ${
+        message += `**Not registered members:** ${
           cta.not_registered.length + cta.not_registered_names.length
         }\n`;
 
@@ -3800,10 +3797,10 @@ const CTA_Event = {
 
           let message = ``;
 
-          message += `**Present members:**\n> ${cta.present.length}\n`;
-          message += `**Absent members:**\n> ${cta.absent.length}\n`;
-          message += `**Skipping members:**\n> ${cta.skip.length}\n`;
-          message += `**Not registered members:**\n> ${
+          message += `**Present members:** ${cta.present.length}\n`;
+          message += `**Absent members:** ${cta.absent.length}\n`;
+          message += `**Skipping members:** ${cta.skip.length}\n`;
+          message += `**Not registered members:** ${
             cta.not_registered.length + cta.not_registered_names.length
           }\n`;
 
@@ -4233,16 +4230,16 @@ const CTA_Event = {
 
         let message = ``;
 
-        message += `**Registration date:**\n> ${formattedDate(registeredMember.registered)}\n`;
-        message += `**Total events:**\n> ${events.length}\n`;
-        message += `**Present:**\n> ${presentCount}\n`;
-        message += `**Absent:**\n> ${absentCount}\n`;
+        message += `**Registration date:** ${formattedDate(registeredMember.registered)}\n`;
+        message += `**Total events:** ${events.length}\n`;
+        message += `**Present:** ${presentCount}\n`;
+        message += `**Absent:** ${absentCount}\n`;
         if (skipCount > 0) {
-          message += `**Skipped:**\n> ${skipCount}\n`;
+          message += `**Skipped:** ${skipCount}\n`;
         }
 
         if (start_date || end_date) {
-          message += `**Date filter:**\n> *${start_date ? start_date : "Beginning"} - ${
+          message += `**Date filter:** *${start_date ? start_date : "Beginning"} - ${
             end_date ? end_date : "Now"
           }*\n`;
         }
@@ -4862,34 +4859,34 @@ const CTA_EventStats = {
           }
 
           let summaryMessage = `### CTA Stats Group Summary\n\n`;
-          summaryMessage += `**Name:**\n> ${answers.name}\n`;
+          summaryMessage += `**Name:** ${answers.name}\n`;
 
           if (answers?.types && answers.types.length > 0) {
-            summaryMessage += `**Only these CTA Types:**\n> ${answers.types.join(", ")}\n`;
+            summaryMessage += `**Only these CTA Types:** ${answers.types.join(", ")}\n`;
           }
 
           if (answers?.start && answers?.end) {
-            summaryMessage += `**Only from this Date range:**\n> ${answers.start} - ${answers.end}\n`;
+            summaryMessage += `**Only from this Date range:** ${answers.start} - ${answers.end}\n`;
           }
 
           if (answers?.start && !answers?.end) {
-            summaryMessage += `**Only from this Date range:**\n> ${answers.start} - Now\n`;
+            summaryMessage += `**Only from this Date range:** ${answers.start} - Now\n`;
           }
 
           if (!answers?.start && answers?.end) {
-            summaryMessage += `**Only from this Date range:**\n> Beginning - ${answers.end}\n`;
+            summaryMessage += `**Only from this Date range:** Beginning - ${answers.end}\n`;
           }
 
           if (mando.length > 0) {
-            summaryMessage += `**Mandatory:**\n> ${mandoDescription}\n`;
+            summaryMessage += `**Mandatory:** ${mandoDescription}\n`;
           }
 
           if (answers?.weight && answers.weight.length > 0) {
-            summaryMessage += `**Only selected Weights:**\n> ${answers.weight.join(", ")}\n`;
+            summaryMessage += `**Only selected Weights:** ${answers.weight.join(", ")}\n`;
           }
 
           if (answers?.created_by && answers.created_by.length > 0) {
-            summaryMessage += `**Only events created by:**\n> <@${answers.created_by.join(
+            summaryMessage += `**Only events created by:** <@${answers.created_by.join(
               ">, <@"
             )}>\n`;
           }
