@@ -946,6 +946,8 @@ const MultiThreadsCreatorCommands = {
 
       const modalSent = interaction.customId;
 
+      interaction.deferReply({ ephemeral: true });
+
       if (!modalSent.startsWith("mtc-modal-")) {
         return;
       }
@@ -1021,7 +1023,7 @@ const MultiThreadsCreatorCommands = {
             }
           }
 
-          await interaction.reply({
+          await interaction.followUp({
             content: `> Created **${createdThreads.length}** thread(s):\n${createdThreads
               .map((t) => `> <#${t.channel}> ${t.thread}`)
               .join("\n")}`,
@@ -1029,7 +1031,7 @@ const MultiThreadsCreatorCommands = {
           });
         } catch (err) {
           console.error(err);
-          return await interaction.reply({
+          return await interaction.followUp({
             content: `[3gffds] There was a Database error. Please try again later.`,
             ephemeral: true,
           });
