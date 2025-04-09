@@ -1412,6 +1412,8 @@ const CTA_Registration = {
 
         let message = ``;
 
+        message += `### Registered members:\n> ${registeredMembers.length}\n`;
+
         message += `### Members without role <@&${configCTA.member_role}>:\n`;
         if (membersWithoutMemberRole.length > 0) {
           for await (const member of membersWithoutMemberRole) {
@@ -1435,7 +1437,7 @@ const CTA_Registration = {
           .setTitle(`Members membership`)
           .setDescription(message);
 
-        await interaction.reply({ ephemeral: true, embeds: [embedMessage] });
+        await interaction.reply({ embeds: [embedMessage] });
       } catch (err) {
         console.error(err);
         return await interaction.reply({
