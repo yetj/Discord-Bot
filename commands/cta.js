@@ -2789,6 +2789,14 @@ const CTA_Event = {
         .addNumberOption((option) =>
           option.setName("weight").setDescription("Event weight (default: 1)")
         )
+        .addStringOption((option) =>
+          option.setName("members").setDescription("Multiple Members mentions (separated by space)")
+        )
+        .addStringOption((option) =>
+          option
+            .setName("game_nicknames")
+            .setDescription("Multiple Game Nicknames (separated by comma)")
+        )
         .addChannelOption((option) =>
           option
             .setName("channel")
@@ -3062,14 +3070,19 @@ const CTA_Event = {
       const cta_type = interaction.options.getString("cta_type");
       const mandatory = interaction.options.getBoolean("mandatory") ?? null;
       const weight = interaction.options.getNumber("weight") ?? null;
+      const members = interaction.options.getString("members") ?? null;
+      const game_nicknames = interaction.options.getString("game_nicknames") ?? null;
       const channel = interaction.options.getChannel("channel") ?? null;
       const channels = interaction.options.getString("channels") ?? null;
       const battle_ids = interaction.options.getString("battle_ids") ?? null;
 
       // check if only one option is selected
-      if ([channel, channels, battle_ids].filter((v) => v !== null).length !== 1) {
+      if (
+        [members, game_nicknames, channel, channels, battle_ids].filter((v) => v !== null)
+          .length !== 1
+      ) {
         return await interaction.reply({
-          content: `> You can create CTA only from one option: \`channel\`, \`channels\` or \`battle_ids\`.\n> You have to select only ONE option.`,
+          content: `> You can create CTA only from one option: \`members\`, \`game_nicknames\`, \`channel\`, \`channels\` or \`battle_ids\`.\n> You have to select only ONE option.`,
           ephemeral: true,
         });
       }
@@ -3113,6 +3126,24 @@ const CTA_Event = {
         let not_registered_names = [];
 
         let availableMembers = [];
+
+        if (members !== null) {
+          availableMembers = await this.extractUniqueMembers(members);
+        }
+
+        if (game_nicknames !== null) {
+          let game_nicknames_array = game_nicknames.split(",");
+
+          for await (const nickname of game_nicknames_array) {
+            const member = registeredMembers.find((m) => m.game_nickname === nickname.trim());
+            if (member) {
+              availableMembers.push(member.id);
+            } else {
+              not_registered_names.push(nickname.trim());
+            }
+          }
+        }
+
         if (channel !== null) {
           const channelData = await this.getChannelMembers({
             interaction,
