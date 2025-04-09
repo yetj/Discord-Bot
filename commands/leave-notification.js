@@ -168,6 +168,17 @@ module.exports = {
       try {
         const notifications = await LeaveNotification.find({ gid: member.guild.id });
 
+        if (member.id === client.user.id) {
+          const result = LeaveNotification.deleteMany({ gid: member.guild.id });
+
+          if (result.deletedCount > 0) {
+            console.log(
+              `>>> [LEAVE-NOTIFICATION] Bot removed from server - removed notifications connected with server ID: #${member.guild.id}`
+            );
+          }
+          return;
+        }
+
         const bot = await member.guild.members.fetch(client.user.id, { force: true });
 
         const hasPermsToViewAuditLog = await bot.permissions.has(PermissionFlagsBits.ViewAuditLog);
