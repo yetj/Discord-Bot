@@ -2811,6 +2811,11 @@ const CTA_Event = {
         .addStringOption((option) =>
           option.setName("battle_ids").setDescription("Battle IDs from API (separated by comma)")
         )
+        .addStringOption((option) =>
+          option
+            .setName("custom_date")
+            .setDescription("Custom Event date (date format: YYYY-MM-DD HH:MM)")
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -3075,6 +3080,7 @@ const CTA_Event = {
       const channel = interaction.options.getChannel("channel") ?? null;
       const channels = interaction.options.getString("channels") ?? null;
       const battle_ids = interaction.options.getString("battle_ids") ?? null;
+      const custom_date = interaction.options.getString("custom_date") ?? null;
 
       // check if only one option is selected
       if (
@@ -3093,6 +3099,47 @@ const CTA_Event = {
           content: `> You have to set Guild Names first.`,
           ephemeral: true,
         });
+      }
+
+      // TODO - finish option adding custom date
+      let custom_date_timestamp = null;
+      if (custom_date) {
+        const dateRegex = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/;
+        const match = custom_date.match(dateRegex);
+
+        if (!match) {
+          return await interaction.reply({
+            content: `> Date format is incorrect (1). Please use: \`YYYY-MM-DD HH:MM\``,
+            ephemeral: true,
+          });
+        }
+
+        const [, year, month, day, hour, minute] = match.map(Number);
+
+        if (
+          month < 1 ||
+          month > 12 ||
+          day < 1 ||
+          day > 31 ||
+          hour < 0 ||
+          hour > 23 ||
+          minute < 0 ||
+          minute > 59
+        ) {
+          return await interaction.reply({
+            content: `> Date format is incorrect (2). Please use: \`YYYY-MM-DD HH:MM\``,
+            ephemeral: true,
+          });
+        }
+
+        custom_date_timestamp = new Date(year, month - 1, day, hour, minute).getTime();
+
+        if (isNaN(custom_date_timestamp)) {
+          return await interaction.reply({
+            content: `> Date format is incorrect (3). Please use: \`YYYY-MM-DD HH:MM\``,
+            ephemeral: true,
+          });
+        }
       }
 
       try {
@@ -3226,6 +3273,7 @@ const CTA_Event = {
           gid: interaction.guildId,
           name: name,
           type: cta_type,
+          created: custom_date_timestamp ?? new Date(),
           creator_id: interaction.user.id,
           mandatory: mandatory !== null ? mandatory : false,
           weight: weight !== null ? weight : 1,
