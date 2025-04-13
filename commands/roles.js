@@ -253,7 +253,8 @@ module.exports = {
                 { name: "Mention", value: "mention" },
                 { name: "Discord Name (TAG)", value: "username" },
                 { name: "Formated IDs", value: "formated_ids" },
-                { name: "Shadow mention", value: "shadow_mention" }
+                { name: "Shadow mention", value: "shadow_mention" },
+                { name: "ID & Display name", value: "id_display_name" }
               )
               .setRequired(true)
           )
@@ -1058,6 +1059,10 @@ module.exports = {
           } else if (list_type == "formated_ids") {
             postArray.push(`\`<@${member.user.id}>\``);
             len += member.user.id.length + 5;
+            sort = false;
+          } else if (list_type == "id_display_name") {
+            postArray.push(`${member.user.id} - ${getDisplayName(member)}`);
+            len += member.user.id.length + getDisplayName(member).length + 3;
             sort = false;
           } else {
             postArray.push(member.toString());
