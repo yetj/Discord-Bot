@@ -1099,7 +1099,7 @@ module.exports = {
             postArray = [];
             len = 0;
             page++;
-          } else if (embed_post && len > 4000) {
+          } else if (embed_post && !result_as_file && len > 3900) {
             let content = ``;
 
             if (sort) {
