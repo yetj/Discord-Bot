@@ -1043,30 +1043,35 @@ module.exports = {
       let len = 0;
       let embeds = [];
       let sort = true;
+      let separatorLen = separator.length;
 
       if (filteredMembers.size) {
         for await (const [index, member] of filteredMembers) {
           if (list_type == "ids") {
             postArray.push(member.user.id);
-            len += member.user.id.length;
+            len += member.user.id.length + separatorLen;
             sort = false;
           } else if (list_type == "display_name") {
-            postArray.push(getDisplayName(member));
-            len += getDisplayName(member).length;
+            let out = getDisplayName(member);
+            postArray.push(out);
+            len += out.length + separatorLen;
           } else if (list_type == "username") {
             postArray.push(member.user.username);
-            len += member.user.username.length;
+            len += member.user.username.length + separatorLen;
           } else if (list_type == "formated_ids") {
-            postArray.push(`\`<@${member.user.id}>\``);
-            len += member.user.id.length + 5;
+            let out = `\`<@${member.user.id}>\``;
+            postArray.push(out);
+            len += out.length + separatorLen;
             sort = false;
           } else if (list_type == "id_display_name") {
-            postArray.push(`${member.user.id} - ${getDisplayName(member)}`);
-            len += member.user.id.length + getDisplayName(member).length + 3;
+            let out = `${member.user.id} - ${getDisplayName(member)}`;
+            postArray.push(out);
+            len += out.length + separatorLen;
             sort = false;
           } else {
-            postArray.push(member.toString());
-            len += member.toString().length;
+            let out = member.toString();
+            postArray.push(out);
+            len += out.length + separatorLen;
             sort = false;
           }
 
@@ -1114,7 +1119,7 @@ module.exports = {
             }
 
             const embed = new EmbedBuilder()
-              .setColor("#2222cc")
+              .setColor("#20f7ec")
               .setDescription(content)
               .setFooter({ text: `Page ${page}` });
 
