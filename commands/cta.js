@@ -3377,18 +3377,18 @@ const CTA_Event = {
 
       try {
         const removedCTA = await CTAEvents.findOneAndDelete({
-          $and: [{ gid: interaction.guildId }, { cta_id: cta_id }],
+          $and: [{ gid: interaction.guildId }, { _id: cta_id }],
         });
 
         if (!removedCTA) {
           return await interaction.reply({
-            content: `> Couldn't find CTA event with ID: \`${cta_id}\``,
+            content: `> Couldn't find CTA event with selected ID.`,
             ephemeral: true,
           });
         }
 
         await interaction.reply({
-          content: `> CTA event with ID: \`${cta_id}\` has been removed.`,
+          content: `> CTA event with ID: \`${removedCTA.cta_id}\` has been removed.`,
           ephemeral: true,
         });
       } catch (err) {
