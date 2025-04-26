@@ -4,13 +4,12 @@ const {
   ChannelType,
   EmbedBuilder,
 } = require("discord.js");
-const VoiceTempSettings = require("../dbmodels/voice-temp-settings.js");
-const VoiceTempChannels = require("../dbmodels/voice-temp-channels.js");
+const { VoiceTempSettings, VoiceTempChannels } = require("../dbmodels/voice-temp.js");
 const getDisplayName = require("../utils/getDisplayName.js");
 
-module.exports = {
+const VoiceTempSetup = {
   data: new SlashCommandBuilder()
-    .setName("voice-temp")
+    .setName("voice-temp-setup")
     .setDescription("Clone voice temporary voice channels after join.")
     .addSubcommand((subcommand) =>
       subcommand
@@ -248,3 +247,79 @@ module.exports = {
     });
   },
 };
+
+const VoiceTempChannelOptions = {
+  data: new SlashCommandBuilder()
+    .setName("voice-temp")
+    .setDescription("Manage voice temp channels")
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("limit")
+        .setDescription("Set member limit for voice temp channels ")
+        .addIntegerOption((option) =>
+          option
+            .setName("max-members")
+            .setDescription(
+              "Set max members limit for your voice temp channel (default: 0 - no limit)"
+            )
+            .setRequired(true)
+        )
+    ),
+  async execute(interaction) {
+    if (interaction.options.getSubcommand() === "limit") {
+      const max_members = interaction.options.getInteger("max-members");
+
+      if (max_members < 0 || max_members > 99) {
+        const embedMessage = new EmbedBuilder()
+          .setColor("#ff0000")
+          .setDescription(`Please set the limit between 0 and 99`);
+
+        return await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+      }
+
+      const voiceChannelId = interaction.member.voice.channelId;
+
+      if (!voiceChannelId) {
+        const embedMessage = new EmbedBuilder()
+          .setColor("#ff0000")
+          .setDescription(`You are NOT connected to any voice channel`);
+
+        return await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+      }
+
+      try {
+        const tempChannel = await VoiceTempChannels.findOne({
+          gid: interaction.guildId,
+          channel_id: voiceChannelId,
+          owner_id: interaction.user.id,
+        });
+
+        if (!tempChannel) {
+          const embedMessage = new EmbedBuilder()
+            .setColor("#ff0000")
+            .setDescription(`Voice are not owner of the channel you are connected to.`);
+
+          return await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+        }
+
+        await interaction.guild.channels.edit(voiceChannelId, {
+          userLimit: max_members,
+        });
+
+        const embedMessage = new EmbedBuilder()
+          .setColor("#009900")
+          .setDescription(`Voice channel limit has been set to ${max_members}.`);
+
+        await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [3fbc95] Error while checking channel ownership. Please try again later.`,
+          ephemeral: true,
+        });
+      }
+    }
+  },
+};
+
+module.exports = { VoiceTempSetup, VoiceTempChannelOptions };
