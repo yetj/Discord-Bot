@@ -459,7 +459,14 @@ module.exports = {
             if (found.update_nick === true) {
               if (found.prefix.length > 0) {
                 let space_after_prefix = found?.space_after_prefix ? " " : "";
-                let newNickname = found.prefix + space_after_prefix + getDisplayName(member);
+
+                let newNickname = "";
+
+                if (getDisplayName(member).startsWith(found.prefix + space_after_prefix)) {
+                  newNickname = getDisplayName(member);
+                } else {
+                  newNickname = found.prefix + space_after_prefix + getDisplayName(member);
+                }
 
                 if (newNickname.length > 32) {
                   newNickname = newNickname.substring(0, 31);
@@ -730,8 +737,18 @@ module.exports = {
                       let newNickname = "";
                       try {
                         let space_after_prefix = result?.space_after_prefix ? " " : "";
-                        newNickname =
-                          result.prefix + space_after_prefix + getDisplayName(sourceMember);
+
+                        if (
+                          getDisplayName(sourceMember).startsWith(
+                            result.prefix + space_after_prefix
+                          )
+                        ) {
+                          newNickname = getDisplayName(sourceMember);
+                        } else {
+                          newNickname =
+                            result.prefix + space_after_prefix + getDisplayName(sourceMember);
+                        }
+
                         if (newNickname.length > 32) {
                           newNickname = newNickname.substring(0, 31);
                         }
@@ -792,8 +809,17 @@ module.exports = {
 
                     if (result.update_nick === true) {
                       let space_after_prefix = result?.space_after_prefix ? " " : "";
-                      let newNickname =
-                        result.prefix + space_after_prefix + getDisplayName(sourceMember);
+                      let newNickname = "";
+
+                      if (
+                        getDisplayName(sourceMember).startsWith(result.prefix + space_after_prefix)
+                      ) {
+                        newNickname = getDisplayName(sourceMember);
+                      } else {
+                        newNickname =
+                          result.prefix + space_after_prefix + getDisplayName(sourceMember);
+                      }
+
                       if (newNickname.length > 32) {
                         newNickname = newNickname.substring(0, 31);
                       }
