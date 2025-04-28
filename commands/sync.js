@@ -967,8 +967,16 @@ module.exports = {
 
                     if (result.update_nick === true) {
                       let space_after_prefix = result?.space_after_prefix ? " " : "";
-                      let newNickname =
-                        result.prefix + space_after_prefix + getDisplayName(newMember);
+                      let newNickname = "";
+
+                      if (
+                        getDisplayName(newMember).startsWith(result.prefix + space_after_prefix)
+                      ) {
+                        newNickname = getDisplayName(newMember);
+                      } else {
+                        newNickname =
+                          result.prefix + space_after_prefix + getDisplayName(newMember);
+                      }
                       if (newNickname.length > 32) {
                         newNickname = newNickname.substring(0, 31);
                       }
