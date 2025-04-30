@@ -563,6 +563,7 @@ const MultiThreadsCreatorCommands = {
         });
       }
     } else if (interaction.options.getSubcommand() === "update_button_cfg") {
+      const mtc_button_name = interaction.options.getString("mtc_button_name");
       const name = interaction.options.getString("name") ?? null;
       const description = interaction.options.getString("description") ?? null;
       const color = interaction.options.getString("color") ?? null;
@@ -869,6 +870,8 @@ const MultiThreadsCreatorCommands = {
         return;
       }
 
+      await interaction.deferReply({ ephemeral: true });
+
       let manager_perms = false;
 
       try {
@@ -893,7 +896,7 @@ const MultiThreadsCreatorCommands = {
         }
 
         if (!manager_perms) {
-          return await interaction.reply({
+          return await interaction.followUp({
             content: `> *You don't have permissions to use that button.*`,
             ephemeral: true,
           });
@@ -908,7 +911,7 @@ const MultiThreadsCreatorCommands = {
           });
 
           if (!mtrEntry) {
-            return await interaction.reply({
+            return await interaction.followUp({
               content: `> Entry doesn't exist in database.`,
               ephemeral: true,
             });
@@ -935,7 +938,7 @@ const MultiThreadsCreatorCommands = {
         }
       } catch (err) {
         console.error(err);
-        return await interaction.reply({
+        return await interaction.followUp({
           content: `[h0jk2] There was a Database error. Please try again later.`,
           ephemeral: true,
         });
@@ -946,7 +949,7 @@ const MultiThreadsCreatorCommands = {
 
       const modalSent = interaction.customId;
 
-      interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ ephemeral: true });
 
       if (!modalSent.startsWith("mtc-modal-")) {
         return;
@@ -961,7 +964,7 @@ const MultiThreadsCreatorCommands = {
           });
 
           if (!mtrEntry) {
-            return await interaction.reply({
+            return await interaction.followUp({
               content: `> Entry doesn't exist in database.`,
               ephemeral: true,
             });
