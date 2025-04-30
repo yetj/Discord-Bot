@@ -870,7 +870,7 @@ const MultiThreadsCreatorCommands = {
         return;
       }
 
-      await interaction.deferReply({ ephemeral: true });
+      //await interaction.deferReply({ ephemeral: true });
 
       let manager_perms = false;
 
@@ -896,7 +896,7 @@ const MultiThreadsCreatorCommands = {
         }
 
         if (!manager_perms) {
-          return await interaction.followUp({
+          return await interaction.reply({
             content: `> *You don't have permissions to use that button.*`,
             ephemeral: true,
           });
@@ -911,7 +911,7 @@ const MultiThreadsCreatorCommands = {
           });
 
           if (!mtrEntry) {
-            return await interaction.followUp({
+            return await interaction.reply({
               content: `> Entry doesn't exist in database.`,
               ephemeral: true,
             });
@@ -930,15 +930,17 @@ const MultiThreadsCreatorCommands = {
             .setMaxLength(50)
             .setRequired(true);
 
-          const modalActionRow = new ActionRowBuilder().addComponents(threadTitle);
+          const modalActionRow = new ActionRowBuilder();
 
-          modal.addComponents(modalActionRow);
+          await modalActionRow.addComponents(threadTitle);
+
+          await modal.addComponents(modalActionRow);
 
           await interaction.showModal(modal);
         }
       } catch (err) {
         console.error(err);
-        return await interaction.followUp({
+        return await interaction.reply({
           content: `[h0jk2] There was a Database error. Please try again later.`,
           ephemeral: true,
         });
