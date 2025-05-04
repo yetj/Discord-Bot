@@ -73,7 +73,7 @@ module.exports = {
     }
 
     if (mentionIDs.size === 0) {
-      return await interaction.reply({
+      return await interaction.followUp({
         content: `> *Not found any user mentions in this message.*`,
         ephemeral: true,
       });
