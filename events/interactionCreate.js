@@ -1,11 +1,19 @@
+const getDisplayName = require("../utils/getDisplayName");
+
 module.exports = {
   name: "interactionCreate",
   async execute(client, interaction) {
     if (!interaction.isChatInputCommand() && !interaction.isAutocomplete()) return;
 
-    console.log(
-      `>> ${interaction.user.tag} in #${interaction.channel.name} triggered an interaction ${interaction.commandName}.`
-    );
+    if (interaction.isChatInputCommand()) {
+      let log = `>> [${interaction.guild.name}] `;
+      log += `${getDisplayName(interaction.member)} `;
+      log += `on #${interaction.channel.name} `;
+      log += `used /${interaction.commandName} `;
+      log += `${interaction.options.getSubcommand(false) ?? ""}`;
+
+      console.log(log);
+    }
 
     const command = interaction.client.commands.get(interaction.commandName);
 
@@ -22,12 +30,12 @@ module.exports = {
 
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp({
-          content: `> *There was an error while executing this command!* 🙄\n> Error message: \`${error.message}\`*`,
+          content: `> *There was an error while executing this command!* 🙄\n> Error message:\n\`${error.message}\``,
           ephemeral: true,
         });
       } else {
         await interaction.reply({
-          content: `> *There was an error while executing this command!* 🙄\n> *Error message: \`${error.message}\`*`,
+          content: `> *There was an error while executing this command!* 🙄\n> *Error message:\n\`${error.message}\``,
           ephemeral: true,
         });
       }
