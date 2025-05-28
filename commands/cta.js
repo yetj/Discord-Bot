@@ -1107,8 +1107,7 @@ const CTA_Register = {
             }
           });
         }
-
-        if (!is_manager || !is_recruiter) {
+        if (!is_manager && !is_recruiter) {
           return await interaction.followUp({
             content: `> You can't register other users!`,
             ephemeral: true,
