@@ -1067,7 +1067,7 @@ const CTA_Register = {
       }
 
       if (configCTA.member_role.length < 1) {
-        return await interaction.followUp({ content: `Only members can register!` });
+        return await interaction.followUp({ content: `> Member role is not set!` });
       }
 
       const game_nickname = interaction.options.getString("game_nickname").trim();
@@ -1079,29 +1079,40 @@ const CTA_Register = {
           interaction.memberPermissions.has(PermissionFlagsBits.Administrator))
       ) {
         let is_manager = false;
+        let is_recruiter = false;
 
         if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
           is_manager = true;
+          is_recruiter = true;
         }
 
-        if (!is_manager && configCTA.manager_roles.length > 1) {
-          const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
-            cache: true,
-            force: true,
-          });
+        const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
+          cache: true,
+          force: true,
+        });
 
+        if (!is_manager) {
           configCTA.manager_roles.forEach((role) => {
             if (interactionUser.roles.cache.has(role)) {
               is_manager = true;
+              is_recruiter = true;
             }
           });
+        }
 
-          if (!is_manager) {
-            return await interaction.followUp({
-              content: `> You can't register other users!`,
-              ephemeral: true,
-            });
-          }
+        if (!is_recruiter) {
+          configCTA.registration_roles.forEach((role) => {
+            if (interactionUser.roles.cache.has(role)) {
+              is_recruiter = true;
+            }
+          });
+        }
+
+        if (!is_manager || !is_recruiter) {
+          return await interaction.followUp({
+            content: `> You can't register other users!`,
+            ephemeral: true,
+          });
         }
 
         const registered = await CTAMembers.findOne({
