@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, BitField } = require("discord.js");
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require("discord.js");
 const getDisplayName = require("../utils/getDisplayName");
 
 module.exports = {
@@ -92,13 +92,16 @@ module.exports = {
                 { name: "👁 Read", value: "read" },
                 { name: "📝 Write", value: "write" },
                 { name: "🔊 Talk", value: "talk" },
-                { name: "🔇 No Talk", value: "notalk" },
+                { name: "🔇 Read but No Talk", value: "notalk" },
                 { name: "⛔ No Access", value: "none" },
                 { name: "❌ Remove perms - set default", value: "remove" }
               )
           )
           .addBooleanOption((option) =>
             option.setName("is_voice").setDescription("Is it voice channel?")
+          )
+          .addBooleanOption((option) =>
+            option.setName("set_instead").setDescription("Set perms instead of only editing?")
           )
           .addStringOption((option) =>
             option
@@ -562,6 +565,7 @@ module.exports = {
       const channels = interaction.options.getString("channels");
       const permissions = interaction.options.getString("permissions");
       const is_voice = interaction.options.getBoolean("is_voice") ?? false;
+      const set_instead = interaction.options.getBoolean("set_instead") ?? false;
       const separator = interaction.options.getString("separator") ?? " ";
 
       // VIEW_CHANNEL - 0x0000000000000400
@@ -570,14 +574,61 @@ module.exports = {
       // SPEAK - 0x0000000000200000
       // STREAM - 0x0000000000000200
 
-      const NO_ACCESS = { ViewChannel: false, SendMessages: null };
-      const READ_ONLY = { ViewChannel: true, SendMessages: false };
-      const READ_WRITE = { ViewChannel: true, SendMessages: true };
-      const NO_SPEAK = { ViewChannel: false, Connect: false, Speak: false, Stream: false };
-      const TALK = { ViewChannel: true, Connect: true, Speak: true, Stream: true };
+      const NO_ACCESS = {
+        [PermissionFlagsBits.ViewChannel]: false,
+        [PermissionFlagsBits.SendMessages]: null,
+      };
+      const SET_NO_ACCESS = {
+        deny: [PermissionFlagsBits.ViewChannel],
+      };
+      const READ_ONLY = {
+        [PermissionFlagsBits.ViewChannel]: true,
+        [PermissionFlagsBits.SendMessages]: false,
+      };
+      const SET_READ_ONLY = {
+        allow: [PermissionFlagsBits.ViewChannel],
+        deny: [PermissionFlagsBits.SendMessages],
+      };
+      const READ_WRITE = {
+        [PermissionFlagsBits.ViewChannel]: true,
+        [PermissionFlagsBits.SendMessages]: true,
+      };
+      const SET_READ_WRITE = {
+        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
+      };
+      const NO_SPEAK = {
+        [PermissionFlagsBits.ViewChannel]: true,
+        [PermissionFlagsBits.Connect]: true,
+        [PermissionFlagsBits.SendMessages]: false,
+        [PermissionFlagsBits.Speak]: false,
+        [PermissionFlagsBits.Stream]: false,
+      };
+      const SET_NO_SPEAK = {
+        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect],
+        deny: [
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.Speak,
+          PermissionFlagsBits.Stream,
+        ],
+      };
+      const TALK = {
+        [PermissionFlagsBits.ViewChannel]: true,
+        [PermissionFlagsBits.Connect]: true,
+        [PermissionFlagsBits.Speak]: true,
+        [PermissionFlagsBits.Stream]: true,
+      };
+      const SET_TALK = {
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.Connect,
+          PermissionFlagsBits.Speak,
+          PermissionFlagsBits.Stream,
+        ],
+      };
 
       let promises = [];
       let permissionSet = {};
+      let setPermissionSet = {};
 
       let messageReply = "";
 
@@ -587,18 +638,23 @@ module.exports = {
       switch (permissions) {
         case "read":
           permissionSet = READ_ONLY;
+          setPermissionSet = SET_READ_ONLY;
           break;
         case "write":
           permissionSet = READ_WRITE;
+          setPermissionSet = SET_READ_WRITE;
           break;
         case "talk":
           permissionSet = TALK;
+          setPermissionSet = SET_TALK;
           break;
         case "notalk":
           permissionSet = NO_SPEAK;
+          setPermissionSet = SET_NO_SPEAK;
           break;
-        case ("none", "no"):
+        case "none":
           permissionSet = NO_ACCESS;
+          setPermissionSet = SET_NO_ACCESS;
           break;
       }
 
@@ -612,9 +668,9 @@ module.exports = {
         }
 
         let roleData =
-          interaction.guild.roles.cache.find((r) => {
+          (await interaction.guild.roles.cache.find((r) => {
             return r.name === role || r.id === role;
-          }) || null;
+          })) || null;
 
         if (roleData) {
           rolesCount++;
@@ -641,6 +697,10 @@ module.exports = {
             if (channelData) {
               if (permissions === "remove") {
                 promises.push(channelData.permissionOverwrites.delete(roleData.id));
+              } else if (set_instead) {
+                promises.push(
+                  channelData.permissionOverwrites.set([{ id: roleData, ...setPermissionSet }])
+                );
               } else {
                 promises.push(channelData.permissionOverwrites.edit(roleData.id, permissionSet));
               }
