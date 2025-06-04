@@ -157,6 +157,34 @@ const CTA_Setup = {
     )
     .addSubcommand((subcommand) =>
       subcommand
+        .setName("discord_roles_skip")
+        .setDescription(
+          "Set Discord Roles Skip, that will be ignored while registering and checking attendance"
+        )
+        .addRoleOption((option) => option.setName("role").setDescription("Role").setRequired(true))
+        .addBooleanOption((option) =>
+          option
+            .setName("remove_instead")
+            .setDescription("Do you want to remove that role? (default: no)")
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("game_roles_skip")
+        .setDescription(
+          "Set guild roles that should be ignored when checking attendance from killboard or online status."
+        )
+        .addStringOption((option) =>
+          option.setName("game_role").setDescription("Game role").setRequired(true)
+        )
+        .addBooleanOption((option) =>
+          option
+            .setName("remove_instead")
+            .setDescription("Do you want to remove that role? (default: no)")
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
         .setName("interactive")
         .setDescription(
           "Bot will ask you for all the settings. It will overwrite the current settings if they exist."
@@ -245,9 +273,7 @@ const CTA_Setup = {
               return await interaction.reply(`> This role doesn't have manager perms.`);
             }
 
-            configCTA.manager_roles = configCTA.manager_roles.filter((id) => {
-              id !== role.id;
-            });
+            configCTA.manager_roles = configCTA.manager_roles.filter((id) => id !== role.id);
 
             await configCTA.save();
           } else {
@@ -329,9 +355,7 @@ const CTA_Setup = {
               return await interaction.reply(`> This role doesn't have event perms.`);
             }
 
-            configCTA.cta_roles = configCTA.cta_roles.filter((id) => {
-              id !== role.id;
-            });
+            configCTA.cta_roles = configCTA.cta_roles.filter((id) => id !== role.id);
 
             await configCTA.save();
           } else {
@@ -376,9 +400,9 @@ const CTA_Setup = {
               return await interaction.reply(`> This role doesn't have registration perms.`);
             }
 
-            configCTA.registration_roles = configCTA.registration_roles.filter((id) => {
-              id !== role.id;
-            });
+            configCTA.registration_roles = configCTA.registration_roles.filter(
+              (id) => id !== role.id
+            );
 
             await configCTA.save();
           } else {
@@ -423,9 +447,7 @@ const CTA_Setup = {
               return await interaction.reply(`> This guild name is not on the list.`);
             }
 
-            configCTA.guild_names = configCTA.guild_names.filter((guild) => {
-              guild !== guild_name;
-            });
+            configCTA.guild_names = configCTA.guild_names.filter((guild) => guild !== guild_name);
 
             await configCTA.save();
           } else {
@@ -479,6 +501,102 @@ const CTA_Setup = {
         console.error(err);
         return await interaction.reply(
           `> [39d088] Error while updating allow_self_registration. Please try again later.`
+        );
+      }
+    } else if (interaction.options.getSubcommand() === "discord_roles_skip") {
+      const role = interaction.options.getRole("role");
+      const remove_instead = interaction.options.getBoolean("remove_instead") ?? false;
+
+      try {
+        if (!configCTA && remove_instead) {
+          return await interaction.reply(
+            `> Skipping Discord Roles are not set yet. Nothing to remove.`
+          );
+        }
+
+        let action = "";
+
+        if (!configCTA) {
+          const newConfig = await new CTAConfig({
+            gid: interaction.guildId,
+            discord_roles_skip: [role.id],
+          });
+          await newConfig.save();
+        } else {
+          if (remove_instead) {
+            action = "removed";
+            if (configCTA.discord_roles_skip.indexOf(role.id) === -1) {
+              return await interaction.reply(`> This role is not added.`);
+            }
+
+            configCTA.discord_roles_skip = configCTA.discord_roles_skip.filter(
+              (id) => id !== role.id
+            );
+
+            await configCTA.save();
+          } else {
+            action = "added";
+            if (configCTA.discord_roles_skip.indexOf(role.id) !== -1) {
+              return await interaction.reply(`> This role is already on the list.`);
+            }
+
+            configCTA.discord_roles_skip.push(role.id);
+            await configCTA.save();
+          }
+        }
+
+        return await interaction.reply(`> Skip Role Discord role has been ${action}.`);
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply(
+          `> [d0dc23] Error while modyfing registration role. Please try again later.`
+        );
+      }
+    } else if (interaction.options.getSubcommand() === "game_roles_skip") {
+      const game_role = interaction.options.getString("game_role").trim().toLowerCase();
+      const remove_instead = interaction.options.getBoolean("remove_instead") ?? false;
+
+      try {
+        if (!configCTA && remove_instead) {
+          return await interaction.reply(`> Game roles are not set yet. Nothing to remove.`);
+        }
+
+        let action = "";
+
+        if (!configCTA) {
+          const newConfig = await new CTAConfig({
+            gid: interaction.guildId,
+            game_roles_skip: [game_role],
+          });
+          await newConfig.save();
+        } else {
+          if (remove_instead) {
+            action = "removed";
+            if (configCTA.game_roles_skip.indexOf(game_role) === -1) {
+              return await interaction.reply(`> This game role is not on the list.`);
+            }
+
+            configCTA.game_roles_skip = configCTA.game_roles_skip.filter(
+              (role) => role !== game_role
+            );
+
+            await configCTA.save();
+          } else {
+            action = "added";
+            if (configCTA.game_roles_skip.indexOf(game_role) !== -1) {
+              return await interaction.reply(`> This game role is already on the list.`);
+            }
+
+            configCTA.game_roles_skip.push(game_role);
+            await configCTA.save();
+          }
+        }
+
+        return await interaction.reply(`> Game role has been ${action}.`);
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply(
+          `> [be5395] Errror while modyfing Game role skip. Please try again later.`
         );
       }
     } else if (interaction.options.getSubcommand() === "show") {
@@ -565,6 +683,24 @@ const CTA_Setup = {
           message += `*true*\n`;
         } else {
           message += `*false*\n`;
+        }
+
+        message += `### Skip Discord Roles:\n`;
+        if (configCTA.discord_roles_skip?.length > 0) {
+          configCTA.discord_roles_skip.forEach((id) => {
+            message += `<@&${id}> - \`${id}\`\n`;
+          });
+        } else {
+          message += `*not set*\n`;
+        }
+
+        message += `### Skip in-game Roles:\n`;
+        if (configCTA.game_roles_skip.length > 0) {
+          configCTA.game_roles_skip.forEach((role) => {
+            message += `\`${role}\`\n`;
+          });
+        } else {
+          message += `*not set*\n`;
         }
 
         const embedMessage = new EmbedBuilder()
@@ -657,6 +793,21 @@ const CTA_Setup = {
           ],
         },
         {
+          id: "discord_roles_skip",
+          title: "Discord roles to Skip on Attendance",
+          description:
+            "If user have that role will be skipped while checking attendance. Usually used for alts.",
+          type: "role",
+        },
+        {
+          id: "game_roles_skip",
+          title: "Game roles to skip on attendance",
+          description:
+            "If user have that in-game role will, be skipped while checking attendance and won't be shown as unregistered nickname. Usually used for alts. If you want to provide more than 1 role use comma(,) to separate them. The case of letters doesn't matter.",
+          type: "text",
+          toLowerCase: true,
+        },
+        {
           id: "cta_types",
           title: "CTA Types",
           description:
@@ -694,6 +845,8 @@ const CTA_Setup = {
                 guild_names: answers["guild_names"],
                 ao_server: answers["ao_server"],
                 allow_self_registration: answers["self_registration"] === "true" ? true : false,
+                discord_roles_skip: answers["discord_roles_skip"] ?? [],
+                game_roles_skip: answers["game_roles_skip"] ?? [],
               },
               { upsert: true, new: true }
             );
@@ -840,7 +993,26 @@ const CTA_Setup = {
           });
 
           collector.on("collect", async (msg) => {
-            let options = msg.content.split(",").map((option) => option.trim());
+            let options = [];
+            if (question?.toLowerCase && question.toLowerCase === true) {
+              options = Array.from(
+                new Set(
+                  msg.content
+                    .split(",")
+                    .map((option) => option.trim().toLowerCase())
+                    .filter((option) => option.length > 0)
+                )
+              );
+            } else {
+              options = Array.from(
+                new Set(
+                  msg.content
+                    .split(",")
+                    .map((option) => option.trim())
+                    .filter((option) => option.length > 0)
+                )
+              );
+            }
             questionEmbed.setDescription(`Provided options: ${options.join(", ")}`);
             await questionMessage.edit({ embeds: [questionEmbed], components: [] });
             try {
@@ -1107,6 +1279,7 @@ const CTA_Register = {
             }
           });
         }
+
         if (!is_manager && !is_recruiter) {
           return await interaction.followUp({
             content: `> You can't register other users!`,
@@ -1409,7 +1582,25 @@ const CTA_Registration = {
         // checking registered members without a role
         for await (const member of registeredMembers) {
           if (guildMembersWithMemberRoleMap.indexOf(member.id) === -1) {
-            membersWithoutMemberRole.push(member.id);
+            // check if member has any of the roles to skip
+            let shouldSkip = false;
+
+            if (configCTA.discord_roles_skip?.length > 0) {
+              const memberTmp = await interaction.guild.members.fetch(member.id, {
+                force: true,
+              });
+
+              for (const role of configCTA.discord_roles_skip) {
+                if (memberTmp._roles.includes(role)) {
+                  shouldSkip = true;
+                  break;
+                }
+              }
+            }
+
+            if (!shouldSkip) {
+              membersWithoutMemberRole.push(member.id);
+            }
           }
         }
 
@@ -1476,6 +1667,20 @@ const CTA_Registration = {
           guildMembersWithMemberRole = members.filter((member) =>
             member._roles.includes(configCTA.member_role)
           );
+        });
+
+        // check if member has any of the roles to skip
+        guildMembersWithMemberRole = guildMembersWithMemberRole.filter((member) => {
+          let shouldSkip = false;
+          if (configCTA.discord_roles_skip?.length > 0) {
+            for (const role of configCTA.discord_roles_skip) {
+              if (member._roles.includes(role)) {
+                shouldSkip = true;
+                break;
+              }
+            }
+          }
+          return !shouldSkip;
         });
 
         let registeredMembersMap = registeredMembers.map((m) => m.id);
@@ -3111,7 +3316,6 @@ const CTA_Event = {
         });
       }
 
-      // TODO - finish option adding custom date
       let custom_date_timestamp = null;
       if (custom_date) {
         const dateRegex = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/;
@@ -3859,6 +4063,22 @@ const CTA_Event = {
           let newNotRegisteredNames = [];
 
           for await (const member of parsedData) {
+            // check if there are any roles to skip and if user have that role ingame
+            if (configCTA.game_roles_skip?.length > 0 && member.roles?.length > 0) {
+              let shouldSkip = false;
+
+              for await (const role of member.roles) {
+                if (configCTA.game_roles_skip.indexOf(role.toLowerCase()) !== -1) {
+                  shouldSkip = true;
+                  break;
+                }
+              }
+
+              if (shouldSkip) {
+                continue;
+              }
+            }
+
             const registeredMember = registeredMembers.find(
               (m) => m.game_nickname === member.characterName
             );
@@ -4535,11 +4755,25 @@ const CTA_Event = {
         continue;
       }
 
-      await ch.members.each((m) => {
+      for await (const [index, m] of ch.members) {
+        let shouldSkip = false;
+        if (configCTA.discord_roles_skip?.length > 0) {
+          for await (const r of configCTA.discord_roles_skip) {
+            if (m.roles.cache.has(r)) {
+              shouldSkip = true;
+              break;
+            }
+          }
+        }
+
+        if (shouldSkip) {
+          continue;
+        }
+
         if (m.roles.cache.has(configCTA.member_role)) {
           availableMembers.push(m.user.id);
         }
-      });
+      }
     }
 
     return { errors, availableMembers };
@@ -5487,9 +5721,9 @@ const CTA_EventStats = {
           }
         });
 
-        const filteredStats = sortedStats.filter((stat) => {
-          return stat.activity >= min_attendance && stat.activity <= max_attendance;
-        });
+        const filteredStats = sortedStats.filter(
+          (stat) => stat.activity >= min_attendance && stat.activity <= max_attendance
+        );
 
         if (filteredStats.length < 1) {
           return await interaction.followUp({

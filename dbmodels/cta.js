@@ -12,6 +12,8 @@ const CTAConfigSchema = new mongoose.Schema({
   guild_names: { type: [String], default: [] },
   ao_server: { type: String, default: "" },
   allow_self_registration: { type: Boolean, default: false },
+  discord_roles_skip: { type: [String], default: [] },
+  game_roles_skip: { type: [String], default: [] },
 });
 const CTAConfig = mongoose.model("CTAConfig", CTAConfigSchema);
 
