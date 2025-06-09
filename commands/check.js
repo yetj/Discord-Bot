@@ -31,6 +31,17 @@ module.exports = {
     )
     .addSubcommand((subcommand) =>
       subcommand
+        .setName("channels_renaming")
+        .setDescription("Renames all channels on the server")
+        .addStringOption((option) =>
+          option.setName("find").setDescription("Find").setRequired(true)
+        )
+        .addStringOption((option) =>
+          option.setName("replace").setDescription("Replace with").setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
         .setName("channels_in_category")
         .setDescription("Check number of channels in specific category")
         .addChannelOption((option) =>
@@ -120,6 +131,35 @@ module.exports = {
     } else if (interaction.options.getSubcommand() === "channels_on_server") {
       await interaction.reply({
         content: `Channels on this server: **${interaction.guild.channels.cache.size}**`,
+      });
+    } else if (interaction.options.getSubcommand() === "channels_renaming") {
+      const find = interaction.options.getString("find");
+      const replace = interaction.options.getString("replace");
+
+      if (!find || !replace) {
+        return await interaction.reply({
+          content: "> ❌ Please provide both find and replace strings.",
+          ephemeral: true,
+        });
+      }
+
+      const channels = interaction.guild.channels.cache.filter((c) => c.name.includes(find));
+
+      if (channels.size === 0) {
+        return await interaction.reply({
+          content: `> No channels found with the name containing: **${find}**`,
+        });
+      }
+
+      const promises = channels.map((channel) => {
+        return channel.setName(channel.name.replace(find, replace));
+      });
+
+      await Promise.all(promises);
+
+      await interaction.reply({
+        content: `> Renamed **${channels.size}** channels from \`${find}\` to \`${replace}\``,
+        ephemeral: true,
       });
     } else if (interaction.options.getSubcommand() === "channels_in_category") {
       const category = interaction.options.getChannel("category");
