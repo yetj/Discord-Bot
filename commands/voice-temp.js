@@ -160,43 +160,51 @@ const VoiceTempSetup = {
       }
 
       if (newChannel) {
-        const configuredNewChannel = await VoiceTempSettings.findOne({
-          gid: newState.guild.id,
-          channel_id: newState.channelId,
-        });
+        try {
+          const configuredNewChannel = await VoiceTempSettings.findOne({
+            gid: newState.guild.id,
+            channel_id: newState.channelId,
+          });
 
-        if (configuredNewChannel) {
-          let newChannelName = configuredNewChannel.new_channel_name;
+          if (configuredNewChannel) {
+            let newChannelName = configuredNewChannel.new_channel_name;
 
-          newChannelName = newChannelName.replace("{username}", newState.member.user.username);
-          newChannelName = newChannelName.replace("{displayname}", getDisplayName(newState.member));
-          newChannelName = newChannelName.replace(
-            "{number}",
-            Math.floor(Math.random() * (9999 - 1000) + 1000)
-          );
-
-          const createdChannel = await newChannel.clone({ name: newChannelName });
-
-          if (createdChannel) {
-            const category = await newState.guild.channels.cache.get(
-              configuredNewChannel.new_channel_category
+            newChannelName = newChannelName.replace("{username}", newState.member.user.username);
+            newChannelName = newChannelName.replace(
+              "{displayname}",
+              getDisplayName(newState.member)
             );
-            const newPosition = category.children.cache.size;
+            newChannelName = newChannelName.replace(
+              "{number}",
+              Math.floor(Math.random() * (9999 - 1000) + 1000)
+            );
 
-            await createdChannel.setParent(configuredNewChannel.new_channel_category, {
-              lockPermissions: false,
-            });
-            await createdChannel.setPosition(newPosition - 1);
-            await newState.member.voice.setChannel(createdChannel);
+            const createdChannel = await newChannel.clone({ name: newChannelName });
 
-            const newDatabase = await new VoiceTempChannels({
-              gid: newState.guild.id,
-              channel_id: createdChannel.id,
-              owner_id: newState.member.id,
-            });
+            if (createdChannel) {
+              const category = await newState.guild.channels.cache.get(
+                configuredNewChannel.new_channel_category
+              );
+              const newPosition = category.children.cache.size;
 
-            await newDatabase.save();
+              await createdChannel.setParent(configuredNewChannel.new_channel_category, {
+                lockPermissions: false,
+              });
+
+              const newDatabase = await new VoiceTempChannels({
+                gid: newState.guild.id,
+                channel_id: createdChannel.id,
+                owner_id: newState.member.id,
+              });
+
+              await newDatabase.save();
+
+              await createdChannel.setPosition(newPosition - 1);
+              await newState.member.voice.setChannel(createdChannel);
+            }
           }
+        } catch (err) {
+          console.error("> [ef0daf] ", err);
         }
       }
 
