@@ -4,6 +4,7 @@ module.exports = {
   name: "interactionCreate",
   async execute(client, interaction) {
     if (!interaction.isChatInputCommand() && !interaction.isAutocomplete()) return;
+    if (!interaction.guild) return;
 
     if (interaction.isChatInputCommand()) {
       let log = `>> [${interaction.guild.name}] `;
