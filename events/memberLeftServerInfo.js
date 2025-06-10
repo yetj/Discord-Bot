@@ -5,7 +5,12 @@ module.exports = {
   async execute(client, member) {
     const chn = member.guild.systemChannel;
 
-    if (!chn) return console.log(`[${member.guild.name}] (LeaveInfo) System channel is not set.`);
+    if (!chn) {
+      return console.log(`[${member.guild.name}] (LeaveInfo) System channel is not set.`);
+    }
+    if (client.user.id === member.user.id) {
+      return console.log(`[${member.guild.name}] (LeaveInfo) Bot left the server.`);
+    }
 
     const canSee = chn.permissionsFor(client.user).has(PermissionsBitField.Flags.ViewChannel);
     const canWrite = chn.permissionsFor(client.user).has(PermissionsBitField.Flags.SendMessages);
