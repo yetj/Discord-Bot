@@ -1011,7 +1011,7 @@ const Balance_Command = {
             type: "add",
             payout_id: interactionUser.user.id,
             payout_name: getDisplayName(interactionUser),
-            receiver_id: guildMember.uuser.id,
+            receiver_id: guildMember.user.id,
             receiver_name: getDisplayName(guildMember),
             amount: amount,
           });
@@ -1053,7 +1053,7 @@ const Balance_Command = {
         if (logChannel) {
           embedMessage.setFooter({
             text: `Balance added by ${getDisplayName(interactionUser)} (#${
-              interactionUser.uuser.id
+              interactionUser.user.id
             })`,
           });
           await logChannel.send({ embeds: [embedMessage] });
