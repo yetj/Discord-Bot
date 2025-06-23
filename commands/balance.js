@@ -686,6 +686,9 @@ const Balance_Command = {
             .setName("above_zero")
             .setDescription("Show only users with balance above 0? (default: yes)")
         )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand.setName("import").setDescription("Import balance information from a file.")
     ),
   async execute(interaction) {
     let payout_perms = false;
@@ -1471,7 +1474,247 @@ const Balance_Command = {
           ephemeral: true,
         });
       }
+    } else if (interaction.options.getSubcommand() === "import") {
+      const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
+        force: true,
+      });
+
+      if (!manager_perms) {
+        return await interaction.followUp({
+          content: `> You don't have permission to use this command.`,
+          ephemeral: true,
+        });
+      }
+
+      await interaction.followUp({
+        content:
+          "> Post balance list to import in format:\n> `display name;balance` (one per line).",
+        ephemeral: true,
+      });
+
+      const filter = (m) => m.author.id === interaction.user.id;
+      const collector = await interaction.channel.createMessageCollector({ filter, time: 60000 });
+
+      let parsedData = [];
+
+      await collector.on("collect", async (collectedMessage) => {
+        if (collectedMessage.attachments.size > 0) {
+          const attachment = collectedMessage.attachments.first();
+
+          try {
+            const response = await fetch(attachment.url);
+            const buffer = Buffer.from(await response.arrayBuffer());
+
+            parsedData = await this.parseFile(buffer);
+          } catch (err) {
+            console.error(err);
+            return await interaction.followUp({
+              content: `> [e270f9] Error while processing online list. Please try again later.`,
+              ephemeral: true,
+            });
+          }
+        } else {
+          parsedData = await this.parseText(collectedMessage.content);
+        }
+        try {
+          collectedMessage.delete();
+        } catch (err) {
+          console.error(`> [38b574] (/balance impoort) No permissions to remove messages.`);
+        }
+        collector.stop();
+
+        if (parsedData.length < 1) {
+          return await interaction.followUp({
+            content: `> No data provided or provided in wrong format. Please try again.`,
+            ephemeral: true,
+          });
+        }
+
+        let usersNotFound = [];
+        let usersAdded = [];
+
+        for await (const user of parsedData) {
+          const member = await interaction.guild.members.cache.find(
+            (m) => getDisplayName(m) === user.displayName
+          );
+
+          if (!member) {
+            usersNotFound.push(user);
+            continue;
+          }
+
+          let balance = await Balance.findOne({
+            gid: interaction.guildId,
+            user_id: member.user.id,
+          });
+
+          if (!balance) {
+            balance = new Balance({
+              gid: interaction.guildId,
+              user_id: member.user.id,
+              user_name: getDisplayName(member),
+            });
+          }
+
+          balance.balance += user.amount;
+          await balance.save();
+
+          const logEntry = new BalanceLogs({
+            gid: interaction.guildId,
+            type: "add",
+            payout_id: interaction.user.id,
+            payout_name: getDisplayName(interactionUser),
+            receiver_id: member.user.id,
+            receiver_name: getDisplayName(member),
+            amount: user.amount,
+          });
+
+          await logEntry.save();
+
+          usersAdded.push({
+            userId: member.user.id,
+            ...user,
+          });
+        }
+
+        let message = ``;
+
+        message += `### Updated balance for **${usersAdded.length}** user(s):\n`;
+        let page = 1;
+
+        for await (const user of usersAdded) {
+          message += `> **${user.displayName}** got 💲${user.amount}\n`;
+
+          if (message.length > 3800) {
+            const embedMessage = new EmbedBuilder()
+              .setColor(`#4bdd11`)
+              .setTitle(`Balance Import`)
+              .setDescription(message)
+              .setFooter({
+                text: `Page ${page}`,
+              });
+
+            await interaction.followUp({ embeds: [embedMessage] });
+
+            if (configBalance.log_channel) {
+              const logChannel = await interaction.guild.channels.fetch(configBalance.log_channel);
+              if (logChannel) {
+                embedMessage.setFooter({
+                  text: `Balance imported by ${getDisplayName(interactionUser)} (#${
+                    interaction.user.id
+                  })`,
+                });
+                await logChannel.send({ embeds: [embedMessage] });
+              }
+            }
+
+            message = `### Updated balance for **${usersAdded.length}** user(s):\n`;
+            page++;
+          }
+        }
+
+        if (message.length > 0) {
+          const embedMessage = new EmbedBuilder()
+            .setColor(`#4bdd11`)
+            .setTitle(`Balance Import`)
+            .setDescription(message);
+
+          if (page > 1) {
+            embedMessage.setFooter({
+              text: `Page ${page}`,
+            });
+          }
+
+          await interaction.followUp({ embeds: [embedMessage] });
+
+          if (configBalance.log_channel) {
+            const logChannel = await interaction.guild.channels.fetch(configBalance.log_channel);
+            if (logChannel) {
+              embedMessage.setFooter({
+                text: `Balance imported by ${getDisplayName(interactionUser)} (#${
+                  interaction.user.id
+                })`,
+              });
+              await logChannel.send({ embeds: [embedMessage] });
+            }
+          }
+        }
+
+        if (usersNotFound.length > 0) {
+          let notFoundMessage = `### The following users were not found:\n`;
+          notFoundMessage += usersNotFound
+            .map((user) => `> ${user.displayName};${user.amount}`)
+            .join("\n");
+
+          try {
+            const embedMessage = new EmbedBuilder()
+              .setColor(`#c90c6a`)
+              .setTitle(`Balance Import - Users Not Found`)
+              .setDescription(notFoundMessage);
+
+            await interaction.followUp({ embeds: [embedMessage] });
+
+            if (configBalance.log_channel) {
+              const logChannel = await interaction.guild.channels.fetch(configBalance.log_channel);
+              if (logChannel) {
+                embedMessage.setFooter({
+                  text: `Balance imported by ${getDisplayName(interactionUser)} (#${
+                    interaction.user.id
+                  })`,
+                });
+                await logChannel.send({ embeds: [embedMessage] });
+              }
+            }
+          } catch (err) {
+            await interaction.followUp({
+              content: `> An error occurred while processing the request.\nError message: \`${err.message}\``,
+            });
+            console.error(`> [832084] (/balance import) ${err.message}`, err);
+          }
+        }
+      });
     }
+  },
+  async parseText(content) {
+    const lines = content.split("\n");
+    return lines
+      .map((line) => {
+        const match = line.match(/^(.+?);([\d., ]+)$/);
+        if (!match) return null;
+
+        if (match[1].trim() === "" || match[2].trim() === "") return null;
+
+        return {
+          displayName: match[1],
+          amount: parseInt(match[2].trim().replace(/[., ]/g, ""), 10),
+        };
+      })
+      .filter((entry) => entry !== null);
+  },
+  async parseFile(filePath) {
+    let fileStream;
+
+    if (Buffer.isBuffer(filePath)) {
+      fileStream = Readable.from(filePath.toString("utf-8").split("\n"));
+    } else {
+      fileStream = fs.createReadStream(filePath);
+    }
+    const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+
+    let data = [];
+
+    for await (const line of rl) {
+      const match = line.match(/^(.+?);([\d., ]+)$/);
+      if (!match) return null;
+
+      if (match[1].trim() === "" || match[2].trim() === "") return null;
+
+      data.push({
+        displayName: match[1],
+        amount: parseInt(match[2].trim().replace(/[., ]/g, ""), 10),
+      });
+    }
+    return data;
   },
 };
 
