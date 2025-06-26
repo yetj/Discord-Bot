@@ -27,6 +27,7 @@ const formattedDate = require("../utils/formattedDate");
 const fs = require("fs");
 const readline = require("readline");
 const { Readable } = require("stream");
+const path = require("path");
 
 const CTA_Setup = {
   data: new SlashCommandBuilder()
@@ -1102,25 +1103,25 @@ const CTA_Setup = {
           {
             title: "Creating new CTA event",
             content: `To create new CTA event you can use command \`/cta add\`. You will need to provide \`name\`, \`cta_type\` and choose the way from where you want to get attendance list. Possible options are:\n> \`members\` - where you need to mention all members who should be added to the event.\n> \`game_nicknames\` - where you need to provide game nicknames of all members who should be added to the event.\n> \`channel\` - where you need to select one Voice channel and all members who are in that channel will be added to the event.\n> \`channels\` - where you need to provide multiple Voice channel IDs and separate them with comma(,). All members who are in those channels will be added to the event.\n> \`battle_ids\` - where you need to provide battle board IDs separated with comma(,). All members who are registered in those battles will be added to the event.\nAdditionally you can provide:\n> \`mandatory\` - to determine if the event was mandatory (default: no).\n> \`weight\` - to determine the weight of the event (default: 1).\n> \`custom_date\` - to provide custom date for the event in the following format: **YYYY-MM-DD HH:MM** (default: current date and time).`,
-            file: `https://i.imgur.com/kmdaGNt.png`,
+            file: `../images/cta/cta_add_command.png`,
           },
           {
             title: `Updating online list from the game`,
             content: `This option gives you possibility to update online list of members from the game. It also automatically mark members who were skipping CTA.\n\nTo update online list you can use command \`/cta update_online\`. It will ask you to select one of the existing events. After that you will be asked to post an online list from the game. You can access it by opening Guild and clicking Copy button marked on the screen below. After that you can paste it in the chat and send a message Bot will update the online list.`,
-            file: `https://i.imgur.com/RRTDY2B.png`,
+            file: `../images/cta/cta_update_online.png`,
           },
           {
-            file: `https://i.imgur.com/kWLD7QU.png`,
+            file: `../images/cta/cta_game_online_list.png`,
           },
           {
             title: `Updating attendance list`,
             content: `Once the event is created you can use command \`/cta update\` to update the attendance list. It will ask you to select one of the existing event and choose one of the following \`action\`:\n> \`Add\` - to add people to the present list\n> \`Remove\` - to add people to the absent list\n> \`Skip\` - to mark people as skipped.\n\nAdditionally you need to select how do you want to add them, you can select from the following options:\n> \`members\` - you need to mention all members who you want to update\n> \`game_nicknames\` - you need to provide game nicknames of all members who you want to update\n> \`channel\` - you need to select one Voice channel and all members who are in that channel will be updates\n> \`channels\` - where you need to provide multiple Voice channel IDs and separate them with comma(,). All members who are in those channels will be updated.\n> \`battle_ids\` - where you need to provide battle board IDs separated with comma(,). All members who are registered in those battles will be added to the event.`,
-            file: `https://i.imgur.com/RflV5DL.png`,
+            file: `../images/cta/cta_update.png`,
           },
           {
             title: `Showing attendance list`,
             content: `To post an attendance list you can use command \`/cta show\` and select \`cta_id\` that you want to show. Example output is shown below.`,
-            file: `https://i.imgur.com/sGe0cKW.png`,
+            file: `../images/cta/cta_show_output.png`,
           },
         ],
       };
@@ -1137,9 +1138,11 @@ const CTA_Setup = {
         if (content.length > 0 && !msg.file) {
           await channel.send({ content: content });
         } else if (content.length === 0 && msg.file) {
-          await channel.send({ files: [new AttachmentBuilder(msg.file)] });
+          const imagePath = path.join(__dirname, msg.file);
+          await channel.send({ files: [new AttachmentBuilder(imagePath)] });
         } else if (content.length > 0 && msg.file) {
-          await channel.send({ content: content, files: [new AttachmentBuilder(msg.file)] });
+          const imagePath = path.join(__dirname, msg.file);
+          await channel.send({ content: content, files: [new AttachmentBuilder(imagePath)] });
         }
       }
 
