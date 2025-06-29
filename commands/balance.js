@@ -959,7 +959,7 @@ const Balance_Command = {
       const users = interaction.options.getString("users");
       const amount = interaction.options.getInteger("amount");
 
-      const usersArray = extractUniqueMembers(users);
+      const usersArray = await extractUniqueMembers(users);
 
       if (usersArray.length === 0) {
         return await interaction.followUp({
@@ -1066,7 +1066,7 @@ const Balance_Command = {
       const users = interaction.options.getString("users");
       const amount = interaction.options.getInteger("amount");
 
-      const usersArray = extractUniqueMembers(users);
+      const usersArray = await extractUniqueMembers(users);
 
       if (usersArray.length === 0) {
         return await interaction.followUp({
