@@ -1,5 +1,5 @@
-module.exports = async function extractUniqueMembers(text) {
-  const regex = /<@(\d+)>/g;
+module.exports = async function extractUniqueRoles(text) {
+  const regex = /<@&(\d+)>/g;
 
   const uniqueIDs = new Set();
 
