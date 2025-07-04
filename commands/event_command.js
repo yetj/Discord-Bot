@@ -12,6 +12,7 @@ const interactiveForm = require("../utils/interactiveForm");
 const getDisplayName = require("../utils/getDisplayName");
 const extractUniqueMembers = require("../utils/extractUniqueMembers");
 const extractUniqueRoles = require("../utils/extractUniqueRoles");
+const isValidDate = require("../utils/isValidDate");
 
 const Event_Command = {
   data: new SlashCommandBuilder()
@@ -120,7 +121,7 @@ const Event_Command = {
         .addStringOption((option) =>
           option
             .setName("start_date")
-            .setDescription("Start date in format YYYY-MM-DD HH:MM")
+            .setDescription("Start date in format YYYY-MM-DD HH:MM or HH:MM if today")
             .setRequired(true)
         )
         .addStringOption((option) =>
@@ -183,7 +184,9 @@ const Event_Command = {
             .setDescription("Custom message content for the event with mentions")
         )
         .addStringOption((option) =>
-          option.setName("start_date").setDescription("Start date in format YYYY-MM-DD HH:MM")
+          option
+            .setName("start_date")
+            .setDescription("Start date in format YYYY-MM-DD HH:MM or HH:MM if today")
         )
         .addBooleanOption((option) =>
           option.setName("allow_late_join").setDescription("Allow for late join? (default: true)")
@@ -339,6 +342,7 @@ const Event_Command = {
               "Please write roles that will be used in this event. Each role in new line.\nProvide each role in new line in format:\n`a/b/c/d/e/f/g/h/i`\nExample:\n`1/Role Name/1/1/1/🛡️/@Caller//<@1231423423>`\nWhere:\n`a` - role position from 1 to 99\n`b` - role name\n`c` - party number\n`d` - max participants (default: 1) | *(0 - no limit)*\n`e` - is that limit strict? if yes only provided number of participants can signup for that role (default: 1) *(0 - no, 1 - yes)*\n`f` - emoji assigned to that role (default: no emoji)\n`g` - required roles to be able to signup (default: empty) *(you need to mention all discord roles that can assign to that role)*\n`h` - requiured positions (default: empty) *you can provide here which positions has to be filled firstly, before users can signup for that role*\n`i` - pre signed up members (default: empty) *you can mentioin any member that you want to pre signup for the event*",
             type: "text",
             isRaw: true,
+            allowFiles: true,
           });
         } else if (method === "simple") {
           questions.push({
@@ -387,7 +391,7 @@ const Event_Command = {
             });
             await newTemplate.save();
 
-            let message = `> Event template named **${name}** created.}\n*You can preview it using \`/event template preview\`*`;
+            let message = `> Event template named **${name}** created.\n*You can preview it using \`/event template preview\`*`;
 
             const embedMessage = new EmbedBuilder()
               .setColor(`#00DB19`)
@@ -505,6 +509,7 @@ const Event_Command = {
                 type: "text",
                 isRaw: true,
                 currentValue: await this.unparseRoles(eventTemplate.roles, eventTemplate.isSimple),
+                allowFiles: true,
               });
             } else if (eventTemplate.isSimple === true) {
               questions.push({
@@ -536,11 +541,7 @@ const Event_Command = {
                   message += "> " + errors.join("\n> ");
                 }
 
-                const embedMessage = new EmbedBuilder()
-                  .setColor(`#DB0000`)
-                  .setTitle(`Errors`)
-                  .setDescription(message);
-
+                const embedMessage = new EmbedBuilder().setColor(`#DB0000`).setTitle(`Errors`);
                 await interaction.followUp({ embeds: [embedMessage], ephemeral: true });
               }
 
@@ -677,50 +678,30 @@ const Event_Command = {
       }
 
       let event_date_timestamp = null;
-      if (start_date) {
-        const dateRegex = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/;
-        const match = start_date.match(dateRegex);
+      if (isValidDate(start_date, "YYYY-MM-DD HH:mm")) {
+        event_date_timestamp = new Date(start_date).getTime();
+      } else if (isValidDate(start_date, "HH:mm")) {
+        const [hour, minute] = start_date.split(":").map(Number);
+        let now = new Date();
+        event_date_timestamp = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          hour,
+          minute
+        ).getTime();
+      } else {
+        return await interaction.followUp({
+          content: `> Invalid date format. Please use \`YYYY-MM-DD HH:MM\` or \`HH:MM\` for today.`,
+          ephemeral: true,
+        });
+      }
 
-        if (!match) {
-          return await interaction.followUp({
-            content: `> Date format is incorrect (1). Please use: \`YYYY-MM-DD HH:MM\``,
-            ephemeral: true,
-          });
-        }
-
-        const [, year, month, day, hour, minute] = match.map(Number);
-
-        if (
-          month < 1 ||
-          month > 12 ||
-          day < 1 ||
-          day > 31 ||
-          hour < 0 ||
-          hour > 23 ||
-          minute < 0 ||
-          minute > 59
-        ) {
-          return await interaction.followUp({
-            content: `> Date format is incorrect (2). Please use: \`YYYY-MM-DD HH:MM\``,
-            ephemeral: true,
-          });
-        }
-
-        event_date_timestamp = new Date(year, month - 1, day, hour, minute).getTime();
-
-        if (isNaN(event_date_timestamp)) {
-          return await interaction.followUp({
-            content: `> Date format is incorrect (3). Please use: \`YYYY-MM-DD HH:MM\``,
-            ephemeral: true,
-          });
-        }
-
-        if (event_date_timestamp < Date.now()) {
-          return await interaction.followUp({
-            content: `> Event date cannot be in the past. Please provide a future date.`,
-            ephemeral: true,
-          });
-        }
+      if (event_date_timestamp < Date.now()) {
+        return await interaction.followUp({
+          content: `> Event date cannot be in the past. Please provide a valid date.`,
+          ephemeral: true,
+        });
       }
 
       if (late_join_limit && (late_join_limit < 1 || late_join_limit > 60)) {
@@ -926,46 +907,28 @@ const Event_Command = {
 
       let event_date_timestamp = null;
       if (start_date) {
-        const dateRegex = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/;
-        const match = start_date.match(dateRegex);
-
-        if (!match) {
+        if (isValidDate(start_date, "YYYY-MM-DD HH:mm")) {
+          event_date_timestamp = new Date(start_date).getTime();
+        } else if (isValidDate(start_date, "HH:mm")) {
+          const [hour, minute] = start_date.split(":").map(Number);
+          let now = new Date();
+          event_date_timestamp = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+            hour,
+            minute
+          ).getTime();
+        } else {
           return await interaction.followUp({
-            content: `> Date format is incorrect (1). Please use: \`YYYY-MM-DD HH:MM\``,
-            ephemeral: true,
-          });
-        }
-
-        const [, year, month, day, hour, minute] = match.map(Number);
-
-        if (
-          month < 1 ||
-          month > 12 ||
-          day < 1 ||
-          day > 31 ||
-          hour < 0 ||
-          hour > 23 ||
-          minute < 0 ||
-          minute > 59
-        ) {
-          return await interaction.followUp({
-            content: `> Date format is incorrect (2). Please use: \`YYYY-MM-DD HH:MM\``,
-            ephemeral: true,
-          });
-        }
-
-        event_date_timestamp = new Date(year, month - 1, day, hour, minute).getTime();
-
-        if (isNaN(event_date_timestamp)) {
-          return await interaction.followUp({
-            content: `> Date format is incorrect (3). Please use: \`YYYY-MM-DD HH:MM\``,
+            content: `> Invalid date format. Please use \`YYYY-MM-DD HH:MM\` or \`HH:MM\` for today.`,
             ephemeral: true,
           });
         }
 
         if (event_date_timestamp < Date.now()) {
           return await interaction.followUp({
-            content: `> Event date cannot be in the past. Please provide a future date.`,
+            content: `> Event date cannot be in the past. Please provide a valid date.`,
             ephemeral: true,
           });
         }
@@ -1258,9 +1221,10 @@ const Event_Command = {
         {
           id: "start_date",
           title: "Event Start time",
-          description: "When the event will start. Please use format: `YYYY-MM-DD HH:mm`",
+          description:
+            "When the event will start. Please use format: `YYYY-MM-DD HH:mm` or `HH:mm` for today.",
           type: "date",
-          format: "YYYY-MM-DD HH:mm",
+          format: ["YYYY-MM-DD HH:mm", "HH:mm"],
         },
       ];
 
