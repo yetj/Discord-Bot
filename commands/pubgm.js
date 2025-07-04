@@ -210,7 +210,7 @@ module.exports = {
           `> *Color (**${role_color}**) is not valid. Please use format: \`FFFFFF\` *`
         );
 
-      interaction.deferReply();
+      await interaction.deferReply();
 
       // create region role
       await interaction.guild.roles
@@ -811,7 +811,7 @@ module.exports = {
       }
     } else if (interaction.options.getSubcommand() === "remove_roles_and_channels") {
       const roles = interaction.options.getString("roles").trim();
-      const tag_source = interaction.options.getString("tag").trim();
+      const tag_source = interaction.options.getString("tag") ?? null;
       const separator = interaction.options.getString("separator") ?? ",";
       const is_voice = interaction.options.getBoolean("is_voice") ?? false;
 
@@ -819,8 +819,8 @@ module.exports = {
 
       const rolesSplitted = roles.split(separator);
 
-      interaction.deferReply();
-      await interaction.reply(`> *Working on it...*`);
+      await interaction.deferReply();
+      await interaction.followUp(`> *Working on it...*`);
 
       let removedRoles = 0;
       let removedChannels = 0;
