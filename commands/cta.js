@@ -32,7 +32,7 @@ const path = require("path");
 const CTA_Setup = {
   data: new SlashCommandBuilder()
     .setName("setup_cta")
-    .setDescription("Configutre the bot.")
+    .setDescription("Configure the CTA module.")
     .addSubcommand((subcommand) =>
       subcommand
         .setName("member_role")
@@ -2275,7 +2275,10 @@ const CTA_Vacations = {
         });
       }
 
-      if ((start_date && !isValidDate(start_date)) || (end_date && !isValidDate(end_date))) {
+      if (
+        (start_date && !isValidDate(start_date, "YYYY-MM-DD")) ||
+        (end_date && !isValidDate(end_date, "YYYY-MM-DD"))
+      ) {
         return await interaction.reply({
           content: `> Date format is incorrect. Please use: \`YYYY-MM-DD\``,
           ephemeral: true,
@@ -2860,7 +2863,10 @@ const CTA_Vacations = {
         });
       }
 
-      if ((start_date && !isValidDate(start_date)) || (end_date && !isValidDate(end_date))) {
+      if (
+        (start_date && !isValidDate(start_date, "YYYY-MM-DD")) ||
+        (end_date && !isValidDate(end_date, "YYYY-MM-DD"))
+      ) {
         return await interaction.reply({
           content: `> Date format is incorrect. Please use: \`YYYY-MM-DD\``,
           ephemeral: true,
@@ -4554,7 +4560,10 @@ const CTA_Event = {
         });
       }
 
-      if ((start_date && !isValidDate(start_date)) || (end_date && !isValidDate(end_date))) {
+      if (
+        (start_date && !isValidDate(start_date, "YYYY-MM-DD")) ||
+        (end_date && !isValidDate(end_date, "YYYY-MM-DD"))
+      ) {
         return await interaction.reply({
           content: `> Date format is incorrect. Please use: \`YYYY-MM-DD\``,
           ephemeral: true,
@@ -5367,7 +5376,7 @@ const CTA_EventStats = {
             let valid = true;
 
             if (question?.validator && question.validator === "date") {
-              if (!isValidDate(msg.content)) {
+              if (!isValidDate(msg.content, "YYYY-MM-DD")) {
                 valid = false;
               }
             }
