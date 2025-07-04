@@ -61,9 +61,10 @@ const EventsSchema = new mongoose.Schema({
   organizerName: String,
   participantCount: { type: Number, default: 0 },
   signedCount: { type: Number, default: 1 }, // next number of signed up
-  allowLateJoin: { type: Boolean, default: false }, // Czy można dołączyć po rozpoczęciu
+  allowLateJoin: { type: Boolean, default: true }, // Czy można dołączyć po rozpoczęciu
   lateJoinLimit: { type: Number, default: 15 }, // Minuty po rozpoczęciu
-  channelId: { type: String, default: "" }, // ID kanału głosowego
+  signupSummaryInThread: { type: Boolean, default: false }, // Czy podsumowanie zapisów ma być w wątku
+  channelId: { type: String, default: "" }, // ID kanału dla wydarzenia
   messageId: { type: String, default: "" },
   usedTemplateId: { type: String, default: "" },
   roles: [RoleSchema],

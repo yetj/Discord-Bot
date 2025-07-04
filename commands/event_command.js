@@ -135,7 +135,7 @@ const Event_Command = {
             .addChannelTypes(ChannelType.GuildText)
         )
         .addBooleanOption((option) =>
-          option.setName("allow_late_join").setDescription("Allow for late join? (default: false)")
+          option.setName("allow_late_join").setDescription("Allow for late join? (default: true)")
         )
         .addNumberOption((option) =>
           option
@@ -186,7 +186,7 @@ const Event_Command = {
           option.setName("start_date").setDescription("Start date in format YYYY-MM-DD HH:MM")
         )
         .addBooleanOption((option) =>
-          option.setName("allow_late_join").setDescription("Allow for late join? (default: false)")
+          option.setName("allow_late_join").setDescription("Allow for late join? (default: true)")
         )
         .addNumberOption((option) =>
           option
@@ -661,7 +661,7 @@ const Event_Command = {
       const name = interaction.options.getString("name");
       const event_template_id = interaction.options.getString("event_template_id");
       const start_date = interaction.options.getString("start_date");
-      const allow_late_join = interaction.options.getBoolean("allow_late_join") ?? null;
+      const allow_late_join = interaction.options.getBoolean("allow_late_join") ?? true;
       const late_join_limit = interaction.options.getNumber("late_join_limit") ?? null;
       const own_description = interaction.options.getBoolean("own_description") ?? false;
       const own_image_url = interaction.options.getString("own_image_url") ?? null;
@@ -820,7 +820,7 @@ const Event_Command = {
             startDate: event_date_timestamp ? new Date(event_date_timestamp) : null,
             imageUrl: own_image_url ?? eventTemplate.imageUrl,
             buildUrl: own_build_url ?? eventTemplate.buildUrl,
-            allowLateJoin: allow_late_join ?? false,
+            allowLateJoin: allow_late_join ?? true,
             lateJoinLimit: late_join_limit ?? 15,
             organizerId: interaction.user.id,
             organizerName: getDisplayName(interactionUser),
@@ -974,13 +974,6 @@ const Event_Command = {
       if (late_join_limit && (late_join_limit < 1 || late_join_limit > 60)) {
         return await interaction.followUp({
           content: `> Late join limit must be between 1 and 60 minutes.`,
-          ephemeral: true,
-        });
-      }
-
-      if ((!allow_late_join || allow_late_join === false) && late_join_limit) {
-        return await interaction.followUp({
-          content: `> If you want to allow late join, you need to set \`allow_late_join\` to true.`,
           ephemeral: true,
         });
       }
@@ -2127,7 +2120,7 @@ const Event_Command = {
     for (const role of eventData.roles) {
       if (role.roleNumber === roleNumber) {
         role.participants.push({
-          participantNumber: eventData.signedCount + 1,
+          participantNumber: eventData.signedCount,
           discordId: member.user.id,
           name: getDisplayName(member),
         });
