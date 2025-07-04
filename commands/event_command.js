@@ -106,7 +106,7 @@ const Event_Command = {
     )
     .addSubcommand((subcommand) =>
       subcommand
-        .setName("create_advanced")
+        .setName("create")
         .setDescription("Create a new event from template")
         .addStringOption((option) =>
           option.setName("name").setDescription("Event name").setMaxLength(32).setRequired(true)
@@ -156,9 +156,9 @@ const Event_Command = {
           option.setName("own_build_url").setDescription("Custom build URL for the event")
         )
     )
-    .addSubcommand((subcommand) =>
-      subcommand.setName("create").setDescription("Create a new simple event with interactive form")
-    )
+    // .addSubcommand((subcommand) =>
+    //   subcommand.setName("create").setDescription("Create a new simple event with interactive form")
+    // )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("edit")
@@ -649,7 +649,7 @@ const Event_Command = {
           });
         }
       }
-    } else if (interaction.options.getSubcommand() === "create_advanced") {
+    } else if (interaction.options.getSubcommand() === "create") {
       if (!creator_perms) {
         return await interaction.followUp({
           content: `> You don't have permissions to create events.`,
@@ -1178,7 +1178,9 @@ const Event_Command = {
           ephemeral: true,
         });
       }
-    } else if (interaction.options.getSubcommand() === "create") {
+    }
+    /*
+    else if (interaction.options.getSubcommand() === "create") {
       const user = interaction.user;
       const channel = interaction.channel;
 
@@ -1234,6 +1236,7 @@ const Event_Command = {
 
       await interactiveForm("event_create", interaction, questions, callbackFunction);
     }
+      */
   },
   async autocomplete(interaction) {
     const focusedOption = interaction.options.getFocused(true);
