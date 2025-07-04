@@ -8,6 +8,7 @@ const {
   UserSelectMenuBuilder,
   ButtonStyle,
 } = require("discord.js");
+const isValidDate = require("./isValidDate");
 
 module.exports = async function interactiveForm(
   formName,
@@ -52,6 +53,10 @@ module.exports = async function interactiveForm(
     }
 
     let embeds = [];
+
+    await interaction.followUp({
+      content: `> ***Starting interactive form***`,
+    });
 
     const embedQuestion = new EmbedBuilder()
       .setColor(`#0000DB`)
@@ -361,6 +366,92 @@ module.exports = async function interactiveForm(
           currentQuestion++;
           collector.stop();
           await askQuestion();
+        }
+      });
+    } else if (question.type === "date") {
+      if (question?.currentValue) {
+        embedCurrentValue.setDescription(`\`${question.currentValue}\``);
+      }
+
+      const questionMessage = await channel.send({
+        embeds: [...embeds],
+        components: [buttonsRow],
+      });
+
+      const filter = (msg) => msg.author.id === user.id;
+      const collector = channel.createMessageCollector({ filter, time: 120000 });
+
+      const buttonCollector = questionMessage.createMessageComponentCollector({ time: 120000 });
+
+      let canceled = false;
+
+      buttonCollector.on("collect", async (i) => {
+        if (i.customId === `${formName}_cancel` && i.user.id === user.id) {
+          embedQuestion.setDescription("Canceled.");
+          embedQuestion.setColor(`#DB0019`);
+          await i.update({ embeds: [embedQuestion], components: [] });
+          canceled = true;
+          collector.stop();
+          buttonCollector.stop();
+        }
+
+        if (i.customId === `${formName}_skip` && i.user.id === user.id) {
+          embedQuestion.setDescription("Skipped.");
+          embedQuestion.setColor(`#dfb600`);
+          await i.update({ embeds: [embedQuestion], components: [] });
+          canceled = true;
+          currentQuestion++;
+          buttonCollector.stop();
+          collector.stop();
+          await askQuestion();
+        }
+      });
+
+      collector.on("collect", async (msg) => {
+        let providedDate = msg.content.trim();
+
+        if (!isValidDate(providedDate, question?.format ?? "YYYY-MM-DD")) {
+          await interaction.followUp({
+            content: `> Invalid date format. Please use the format: \`${
+              question?.format ?? "YYYY-MM-DD"
+            }\``,
+            ephemeral: true,
+          });
+          // await msg.reply({
+          //   content: `> Invalid date format. Please use the format: \`${
+          //     question?.format ?? "YYYY-MM-DD"
+          //   }\``,
+          // });
+
+          try {
+            await msg.delete();
+          } catch (err) {
+            console.error(`[d1d44c-${formName}] Can't remove message: \`${err.message}\``);
+          }
+
+          return;
+        }
+
+        answers[question.id] = providedDate;
+
+        embedQuestion.setDescription(`Selected date: **${providedDate}**`);
+        await questionMessage.edit({ embeds: [embedQuestion], components: [] });
+
+        try {
+          await msg.delete();
+        } catch (err) {
+          console.error(`[de1626-${formName}] Can't remove message: \`${err.message}\``);
+        }
+
+        currentQuestion++;
+        collector.stop();
+        buttonCollector.stop();
+        await askQuestion();
+      });
+
+      collector.on("end", (collected) => {
+        if (collected.size === 0 && !canceled) {
+          channel.send("> *You didn't provide any answer. Canceled.*");
         }
       });
     }
