@@ -228,9 +228,23 @@ module.exports = async function interactiveForm(
         }
       });
     } else if (question.type === "text") {
+      let files = [];
       if (question?.currentValue) {
         if (question?.isRaw && question.isRaw === true) {
-          embedCurrentValue.setDescription(`\`\`\`${question.currentValue}\`\`\``);
+          if (question.currentValue.length > 4000) {
+            const buffer = Buffer.from(question.currentValue, "utf-8");
+            files = [
+              {
+                attachment: buffer,
+                name: `current_value.txt`,
+              },
+            ];
+            embedCurrentValue.setDescription(
+              `Current value attached in the file: \`current_value.txt\``
+            );
+          } else {
+            embedCurrentValue.setDescription(`\`\`\`${question.currentValue}\`\`\``);
+          }
         } else {
           if (!Array.isArray(question.currentValue)) {
             question.currentValue = [question.currentValue];
@@ -241,12 +255,13 @@ module.exports = async function interactiveForm(
       }
 
       const questionMessage = await channel.send({
+        files: [...files],
         embeds: [...embeds],
         components: [buttonsRow],
       });
 
       const filter = (msg) => msg.author.id === user.id;
-      const collector = channel.createMessageCollector({ filter, time: 120000 });
+      const messageCollector = channel.createMessageCollector({ filter, time: 120000 });
 
       const buttonCollector = questionMessage.createMessageComponentCollector({ time: 120000 });
 
@@ -258,7 +273,7 @@ module.exports = async function interactiveForm(
           embedQuestion.setColor(`#DB0019`);
           await i.update({ embeds: [embedQuestion], components: [] });
           canceled = true;
-          collector.stop();
+          messageCollector.stop();
           buttonCollector.stop();
         }
 
@@ -269,12 +284,12 @@ module.exports = async function interactiveForm(
           canceled = true;
           currentQuestion++;
           buttonCollector.stop();
-          collector.stop();
+          messageCollector.stop();
           await askQuestion();
         }
       });
 
-      collector.on("collect", async (msg) => {
+      messageCollector.on("collect", async (msg) => {
         let options = null;
         if (question?.toLowerCase && question.toLowerCase === true) {
           options = Array.from(
@@ -288,9 +303,34 @@ module.exports = async function interactiveForm(
           embedQuestion.setDescription(`Provided options: ${options.join(", ")}`);
           await questionMessage.edit({ embeds: [embedQuestion], components: [] });
         } else if (question?.isRaw && question.isRaw === true) {
-          options = msg.content;
-          embedQuestion.setDescription(`Provided text:\n\n ${options}`);
-          await questionMessage.edit({ embeds: [embedQuestion], components: [] });
+          if (question?.allowFiles && question.allowFiles === true && msg.attachments.size > 0) {
+            const attachment = msg.attachments.first();
+            try {
+              const response = await fetch(attachment.url);
+              const buffer = Buffer.from(await response.arrayBuffer());
+
+              options = buffer.toString("utf-8");
+            } catch (err) {
+              console.error(`[2871c6-${formName}] Can't download attachment: \`${err.message}\``);
+            }
+          } else {
+            options = msg.content;
+          }
+
+          if (options.length > 4000) {
+            const buffer = Buffer.from(options, "utf-8");
+            files = [
+              {
+                attachment: buffer,
+                name: `roles.txt`,
+              },
+            ];
+            embedQuestion.setDescription(`Provided text attached in the file: \`roles.txt\``);
+            await questionMessage.edit({ files: files, embeds: [embedQuestion], components: [] });
+          } else {
+            embedQuestion.setDescription(`Provided text:\n\n ${options}`);
+            await questionMessage.edit({ embeds: [embedQuestion], components: [] });
+          }
         } else {
           options = Array.from(
             new Set(
@@ -310,12 +350,12 @@ module.exports = async function interactiveForm(
         }
         answers[question.id] = options;
         currentQuestion++;
-        collector.stop();
+        messageCollector.stop();
         buttonCollector.stop();
         await askQuestion();
       });
 
-      collector.on("end", (collected) => {
+      messageCollector.on("end", (collected) => {
         if (collected.size === 0 && !canceled) {
           channel.send("> *You didn't provide any answer. Canceled.*");
         }
@@ -409,26 +449,34 @@ module.exports = async function interactiveForm(
 
       collector.on("collect", async (msg) => {
         let providedDate = msg.content.trim();
+        let formats = question?.format ?? "YYYY-MM-DD";
+        let isValid = false;
+        let usedFormat = null;
+        if (Array.isArray(formats)) {
+          for (const format of formats) {
+            if (isValidDate(providedDate, format)) {
+              isValid = true;
+              usedFormat = format;
+              break;
+            }
+          }
+        } else {
+          isValid = isValidDate(providedDate, formats);
+          usedFormat = formats;
+        }
 
-        if (!isValidDate(providedDate, question?.format ?? "YYYY-MM-DD")) {
+        if (!isValid) {
           await interaction.followUp({
-            content: `> Invalid date format. Please use the format: \`${
-              question?.format ?? "YYYY-MM-DD"
+            content: `> Invalid date format. Please use one of the following formats: \`${
+              Array.isArray(formats) ? formats.join("`, `") : formats
             }\``,
             ephemeral: true,
           });
-          // await msg.reply({
-          //   content: `> Invalid date format. Please use the format: \`${
-          //     question?.format ?? "YYYY-MM-DD"
-          //   }\``,
-          // });
-
           try {
             await msg.delete();
           } catch (err) {
             console.error(`[d1d44c-${formName}] Can't remove message: \`${err.message}\``);
           }
-
           return;
         }
 
