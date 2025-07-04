@@ -1947,7 +1947,7 @@ const Event_Command = {
 
         if (role.participants.length > 0) {
           partyInfoMessage +=
-            `\n> ` +
+            `\n*  ` +
             role.participants.map((p) => `\`${p.participantNumber}\` ${p.name}`).join(", ");
         }
       }
@@ -1979,7 +1979,7 @@ const Event_Command = {
       }, {});
 
       for (const [reason, unsignedParticipants] of Object.entries(groupedByReason)) {
-        unsignedParticipantsMessage += `\n\n**${reasons[reason] || "Unknown Reason"}**:\n> `;
+        unsignedParticipantsMessage += `\n\n**${reasons[reason] || "Unknown Reason"}**:\n* `;
         unsignedParticipantsMessage += unsignedParticipants
           .map((p) => `\`${p.participantNumber}\` ${p.name}`)
           .join(", ");
