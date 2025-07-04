@@ -105,7 +105,7 @@ const Event_Command = {
     )
     .addSubcommand((subcommand) =>
       subcommand
-        .setName("create")
+        .setName("create_advanced")
         .setDescription("Create a new event from template")
         .addStringOption((option) =>
           option.setName("name").setDescription("Event name").setMaxLength(32).setRequired(true)
@@ -122,6 +122,11 @@ const Event_Command = {
             .setName("start_date")
             .setDescription("Start date in format YYYY-MM-DD HH:MM")
             .setRequired(true)
+        )
+        .addStringOption((option) =>
+          option
+            .setName("message_content")
+            .setDescription("Custom message content for the event with mentions")
         )
         .addChannelOption((option) =>
           option
@@ -151,6 +156,9 @@ const Event_Command = {
         )
     )
     .addSubcommand((subcommand) =>
+      subcommand.setName("create").setDescription("Create a new simple event with interactive form")
+    )
+    .addSubcommand((subcommand) =>
       subcommand
         .setName("edit")
         .setDescription("Edit an event")
@@ -168,6 +176,11 @@ const Event_Command = {
           option
             .setName("description")
             .setDescription("Event description (you will be asked to provide it later)")
+        )
+        .addStringOption((option) =>
+          option
+            .setName("message_content")
+            .setDescription("Custom message content for the event with mentions")
         )
         .addStringOption((option) =>
           option.setName("start_date").setDescription("Start date in format YYYY-MM-DD HH:MM")
@@ -364,6 +377,7 @@ const Event_Command = {
               gid: interaction.guildId,
               name: name,
               description: answers["description"] ?? "",
+              messageContent: answers["content_message"] ?? "",
               authorId: interaction.user.id,
               authorName: getDisplayName(interactionUser),
               isSimple: method === "simple",
@@ -469,6 +483,16 @@ const Event_Command = {
               currentValue: eventTemplate.description,
               canBeSkipped: true,
             },
+            {
+              id: "content_message",
+              title: "Event Content Message",
+              description:
+                "Content message of the event. You can use mentions here. This message will be sent when event is created.",
+              type: "text",
+              isRaw: true,
+              currentValue: eventTemplate.contentMessage,
+              canBeSkipped: true,
+            },
           ];
 
           if (skip_updating_roles === false) {
@@ -497,6 +521,7 @@ const Event_Command = {
 
           let callbackFunction = async (answers) => {
             eventTemplate.description = answers?.description ?? eventTemplate.description;
+            eventTemplate.contentMessage = answers?.content_message ?? eventTemplate.contentMessage;
 
             if (skip_updating_roles === false) {
               const { parsedRoles, errors } = await this.parseRoles(
@@ -623,7 +648,7 @@ const Event_Command = {
           });
         }
       }
-    } else if (interaction.options.getSubcommand() === "create") {
+    } else if (interaction.options.getSubcommand() === "create_advanced") {
       if (!creator_perms) {
         return await interaction.followUp({
           content: `> You don't have permissions to create events.`,
@@ -642,6 +667,7 @@ const Event_Command = {
       const own_image_url = interaction.options.getString("own_image_url") ?? null;
       const own_build_url = interaction.options.getString("own_build_url") ?? null;
       const event_channel = interaction.options.getChannel("event_channel") ?? channel;
+      const message_content = interaction.options.getString("message_content") ?? null;
 
       if (name.length > 20) {
         return await interaction.followUp({
@@ -790,6 +816,7 @@ const Event_Command = {
             gid: interaction.guildId,
             name: name,
             description: own_description_text ?? eventTemplate.description,
+            messageContent: message_content ?? eventTemplate.messageContent,
             startDate: event_date_timestamp ? new Date(event_date_timestamp) : null,
             imageUrl: own_image_url ?? eventTemplate.imageUrl,
             buildUrl: own_build_url ?? eventTemplate.buildUrl,
@@ -809,9 +836,17 @@ const Event_Command = {
 
           const embeds = await this.eventEmbeds(newEvent);
 
-          const eventMessage = await event_channel.send({
-            embeds: embeds,
-          });
+          let eventMessage;
+          if (message_content) {
+            eventMessage = await event_channel.send({
+              content: message_content,
+              embeds: embeds,
+            });
+          } else {
+            eventMessage = await event_channel.send({
+              embeds: embeds,
+            });
+          }
 
           newEvent.channelId = event_channel.id;
           newEvent.messageId = eventMessage.id;
@@ -880,6 +915,7 @@ const Event_Command = {
       const organizer = interaction.options.getUser("organizer") ?? null;
       const image_url = interaction.options.getString("image_url") ?? null;
       const build_url = interaction.options.getString("build_url") ?? null;
+      const message_content = interaction.options.getString("message_content") ?? null;
 
       if (name && name.length > 20) {
         return await interaction.followUp({
@@ -970,6 +1006,13 @@ const Event_Command = {
         });
       }
 
+      if (message_content && message_content.length > 2000) {
+        return await interaction.followUp({
+          content: `> Message content is too long. Please limit it to 2000 characters.`,
+          ephemeral: true,
+        });
+      }
+
       let description_text = null;
       if (description && description === true) {
         const embedOwnDesc = new EmbedBuilder()
@@ -1041,6 +1084,10 @@ const Event_Command = {
           event.description = description_text;
         }
 
+        if (message_content) {
+          event.messageContent = message_content;
+        }
+
         if (event_date_timestamp) {
           event.startDate = new Date(event_date_timestamp);
         }
@@ -1075,7 +1122,14 @@ const Event_Command = {
           .get(event.channelId)
           .messages.fetch(event.messageId);
 
-        await channel.edit({ embeds: embeds });
+        if (event.messageContent) {
+          await channel.edit({
+            content: event.messageContent,
+            embeds: embeds,
+          });
+        } else {
+          await channel.edit({ embeds: embeds });
+        }
 
         const embedMessage = new EmbedBuilder()
           .setColor(`#00DB19`)
@@ -1168,6 +1222,60 @@ const Event_Command = {
           ephemeral: true,
         });
       }
+    } else if (interaction.options.getSubcommand() === "create") {
+      const user = interaction.user;
+      const channel = interaction.channel;
+
+      const questions = [
+        // {
+        //   id: "name",
+        //   title: "Event Name",
+        //   description: "Name of the event.",
+        //   type: "text",
+        //   isRaw: true,
+        // },
+        // {
+        //   id: "content_message",
+        //   title: "Event Content message",
+        //   description:
+        //     "Content message of the event. You can use mentions here. This message will be sent when event is created.",
+        //   type: "text",
+        //   isRaw: true,
+        //   canBeSkipped: true,
+        // },
+        // {
+        //   id: "description",
+        //   title: "Event Description",
+        //   description: "Description of the event.",
+        //   type: "text",
+        //   isRaw: true,
+        //   canBeSkipped: true,
+        // },
+        // {
+        //   id: "event_type",
+        //   title: "Event type",
+        //   description:
+        //     "Select the type of event you want to create. You can choose between following options:\n- `1 member to 1 role` - You can provide multiple roles, but only one member can sign up for each role.\n- `∞ members to 1 roles` - You can provide multiple roles, and multiple members can sign up for each role.",
+        //   type: "select",
+        //   options: [
+        //     { label: "1 member to 1 role", value: "one_to_one" },
+        //     { label: "∞ members to 1 role", value: "many_to_one" },
+        //   ],
+        // },
+        {
+          id: "start_date",
+          title: "Event Start time",
+          description: "When the event will start. Please use format: `YYYY-MM-DD HH:mm`",
+          type: "date",
+          format: "YYYY-MM-DD HH:mm",
+        },
+      ];
+
+      let callbackFunction = async (answers) => {
+        console.log(answers);
+      };
+
+      await interactiveForm("event_create", interaction, questions, callbackFunction);
     }
   },
   async autocomplete(interaction) {
@@ -1320,8 +1428,12 @@ const Event_Command = {
         lateJoinEnd < now.getTime() &&
         !perms.helper
       ) {
-        console.log("[8a9f06] Late join is not allowed or expired");
         return;
+      }
+
+      if (event.organizerId === messageMember.user.id) {
+        perms.creator = true;
+        perms.helper = true;
       }
 
       // skip <user>, skip <user> <user> <user>
@@ -1932,9 +2044,16 @@ const Event_Command = {
     const message = await channel.messages.fetch(eventData.messageId);
     if (!message) return;
 
-    await message.edit({
-      embeds: embeds,
-    });
+    if (eventData.messageContent) {
+      await message.edit({
+        content: eventData.messageContent,
+        embeds: embeds,
+      });
+    } else {
+      await message.edit({
+        embeds: embeds,
+      });
+    }
   },
   async isSignedUp(eventData, member) {
     if (!eventData || !eventData.roles || !member) return false;

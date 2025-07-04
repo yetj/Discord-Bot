@@ -38,6 +38,7 @@ const EventTemplatesSchema = new mongoose.Schema({
   gid: String,
   name: String,
   description: { type: String, default: "" },
+  messageContent: { type: String, default: "" },
   authorId: String,
   authorName: String,
   isSimple: { type: Boolean, default: true },
@@ -53,6 +54,7 @@ const EventsSchema = new mongoose.Schema({
   name: String,
   startDate: Date,
   description: { type: String, default: "" },
+  messageContent: { type: String, default: "" },
   imageUrl: { type: String, default: "" },
   buildUrl: { type: String, default: "" },
   organizerId: String, // Discord ID organizatora
