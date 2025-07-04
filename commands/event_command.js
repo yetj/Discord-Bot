@@ -381,7 +381,7 @@ const Event_Command = {
               gid: interaction.guildId,
               name: name,
               description: answers["description"] ?? "",
-              messageContent: answers["content_message"] ?? "",
+              messageContent: answers["message_content"] ?? "",
               authorId: interaction.user.id,
               authorName: getDisplayName(interactionUser),
               isSimple: method === "simple",
@@ -488,13 +488,13 @@ const Event_Command = {
               canBeSkipped: true,
             },
             {
-              id: "content_message",
+              id: "message_content",
               title: "Event Content Message",
               description:
                 "Content message of the event. You can use mentions here. This message will be sent when event is created.",
               type: "text",
               isRaw: true,
-              currentValue: eventTemplate.contentMessage,
+              currentValue: eventTemplate.messageContent,
               canBeSkipped: true,
             },
           ];
@@ -526,7 +526,7 @@ const Event_Command = {
 
           let callbackFunction = async (answers) => {
             eventTemplate.description = answers?.description ?? eventTemplate.description;
-            eventTemplate.contentMessage = answers?.content_message ?? eventTemplate.contentMessage;
+            eventTemplate.messageContent = answers?.message_content ?? eventTemplate.messageContent;
 
             if (skip_updating_roles === false) {
               const { parsedRoles, errors } = await this.parseRoles(
@@ -1193,7 +1193,7 @@ const Event_Command = {
         //   isRaw: true,
         // },
         // {
-        //   id: "content_message",
+        //   id: "message_content",
         //   title: "Event Content message",
         //   description:
         //     "Content message of the event. You can use mentions here. This message will be sent when event is created.",
