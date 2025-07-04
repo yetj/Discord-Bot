@@ -11,6 +11,11 @@ module.exports = {
       log += `${getDisplayName(interaction.member)} `;
       log += `on #${interaction.channel.name} `;
       log += `used /${interaction.commandName} `;
+      log += `${
+        interaction.options.getSubcommandGroup(false)
+          ? interaction.options.getSubcommandGroup(false) + " "
+          : ""
+      } `;
       log += `${interaction.options.getSubcommand(false) ?? ""}`;
 
       console.log(log);
