@@ -842,6 +842,10 @@ const Event_Command = {
           threadContent += `➡️ To **sign-out** someone else from the event, please type \`-\` and mention the user.\n> Example: \`- @user\`\n`;
           threadContent += `➡️ To **sign-out** someone else from the event with a **"Miss" reason**, please type \`miss\` and mention the user.\n> Example: \`miss @user\`\n`;
           threadContent += `➡️ To **sign-out** someone else from the event with a **"MOR" reason**, please type \`mor\` and mention the user.\n> Example: \`mor @user\`\n`;
+          threadContent += `➡️ To **update** __position restrictions__ for a role, please type \`update reqPositions N / N\`, where \`N\` is a position number. You can provide multiple positions separating them with commas.\n> Example: \`update reqPositions 10,11,12 / 1,2,3\`\n`;
+          threadContent += `➡️ To **update** __required roles__, please type \`update reqRoles N / @role1, @role2\`, where \`N\` is a role number and @role is a role mention. You can provide multiple roles to update  by separating them with commas and multiple required roles by mentioning them and separating with spaces.\n> Example: \`update reqRoles 1,2,3 / @Role1 @Role2\`\n`;
+          threadContent += `➡️ To **update** __max participants__ for a role, please type \`update max N / X\`, where \`N\` is a role number and \`X\` is a number of max participants. You can provide multiple roles to update by separating them with commas.\n> Example: \`update max 1,2,3 / 5\`\n`;
+          threadContent += `➡️ To **update** __strict limit__ for a role, please type \`update strict N / yes or no\`, where \`N\` is a role number and \`no\` means no strict limit and \`yes\` means strict limit. You can provide multiple roles to update by separating them with commas.\n> Example: \`update strict 1,2,3 / yes\`\n`;
           threadContent += `*You can mention multiple users at the same time.*`;
 
           const embedMessageInstructions = new EmbedBuilder()
@@ -1342,10 +1346,38 @@ const Event_Command = {
       const matchIn = /^(\d{1,2})\s*((?:<@!?\d+>\s*)+)$/i.exec(content);
       const matchInSelf = /^(\d{1,2})$/.exec(content);
 
+      // update reqPositions X,X,X / Y,Y,Y or - (but not mixed)
+      const matchUpdateReqPositions =
+        /^update\s+reqPositions\s+([1-9][0-9]?(?:,[1-9][0-9]?)*|)\s*\/\s*((?:[1-9][0-9]?(?:,[1-9][0-9]?)*|-))$/i.exec(
+          content
+        );
+      // update reqRoles X,X,X / <@&423423> <@&423423> or - (but not mixed)
+      const matchUpdateReqRoles =
+        /^update\s+reqRoles\s+([1-9][0-9]?(?:,[1-9][0-9]?)*|)\s*\/\s*((?:<@&\d+>\s*)+|-)$/i.exec(
+          content
+        );
+      // update max X,X,X / Z
+      const matchUpdateMax =
+        /^update\s+max\s+([1-9][0-9]?(?:,[1-9][0-9]?)*|)\s*\/\s*([0-9]{1,2})$/i.exec(content);
+      // update strict X,X,X / W
+      const matchUpdateStrict =
+        /^update\s+strict\s+([1-9][0-9]?(?:,[1-9][0-9]?)*|)\s*\/\s*(yes|no)$/i.exec(content);
+
       let event;
       let configEvent;
 
-      if (matchSkip || matchMor || matchOut || matchOutSelf || matchIn || matchInSelf) {
+      if (
+        matchSkip ||
+        matchMor ||
+        matchOut ||
+        matchOutSelf ||
+        matchIn ||
+        matchInSelf ||
+        matchUpdateReqPositions ||
+        matchUpdateReqRoles ||
+        matchUpdateMax ||
+        matchUpdateStrict
+      ) {
         try {
           configEvent = await EventConfig.findOne({
             gid: guild.id,
@@ -1586,6 +1618,165 @@ const Event_Command = {
           await message.react("✅");
           embedMessage.setColor(`#24da5b`);
         }
+
+        return await message.reply({ embeds: [embedMessage] });
+      }
+
+      // update reqPositions X,X,X / Y,Y,Y lub - (ale nie mieszane)
+      else if (matchUpdateReqPositions) {
+        if (!perms.creator) return;
+
+        const positionsToUpdate = matchUpdateReqPositions[1]
+          .split(",")
+          .map((p) => p.trim())
+          .filter((p) => p !== "");
+        const newRequirementsRaw = matchUpdateReqPositions[2].trim();
+
+        // Sprawdź czy podano tylko "-" lub tylko liczby
+        let newRequirements = [];
+        if (newRequirementsRaw === "-") {
+          newRequirements = [];
+        } else {
+          newRequirements = newRequirementsRaw
+            .split(",")
+            .map((r) => r.trim())
+            .filter((r) => r !== "");
+        }
+
+        let response = await this.updateRequiredPositions(
+          guild,
+          event,
+          positionsToUpdate,
+          newRequirements
+        );
+
+        const embedMessage = new EmbedBuilder().setDescription(response.message);
+
+        if (response.success === false) {
+          await message.react("❌");
+          embedMessage.setColor(`#eb5151`);
+        } else {
+          await message.react("✅");
+          embedMessage.setColor(`#24da5b`);
+        }
+
+        embedMessage.setFooter({ text: `Executed by: ${getDisplayName(messageMember)}` });
+
+        return await message.reply({ embeds: [embedMessage] });
+      }
+
+      // update reqRoles X,X,X / <@&...> lub - (ale nie mieszane)
+      else if (matchUpdateReqRoles) {
+        if (!perms.creator) return;
+
+        const positionsToUpdate = matchUpdateReqRoles[1]
+          .split(",")
+          .map((p) => p.trim())
+          .filter((p) => p !== "");
+        const newRolesRaw = matchUpdateReqRoles[2].trim();
+
+        let newRoles = [];
+        if (newRolesRaw === "-") {
+          newRoles = [];
+        } else {
+          newRoles = Array.from(newRolesRaw.matchAll(/<@&(\d+)>/g)).map((m) => m[1]);
+        }
+
+        let newValidRoles = [];
+        if (newRoles.length > 0) {
+          for (const roleId of newRoles) {
+            const role = await guild.roles.cache.get(roleId);
+            if (role) {
+              newValidRoles.push(roleId);
+            }
+          }
+        }
+
+        let response = await this.updateRequiredRoles(
+          guild,
+          event,
+          positionsToUpdate,
+          newValidRoles
+        );
+
+        const embedMessage = new EmbedBuilder().setDescription(response.message);
+
+        if (response.success === false) {
+          await message.react("❌");
+          embedMessage.setColor(`#eb5151`);
+        } else {
+          await message.react("✅");
+          embedMessage.setColor(`#24da5b`);
+        }
+
+        embedMessage.setFooter({ text: `Executed by: ${getDisplayName(messageMember)}` });
+
+        return await message.reply({ embeds: [embedMessage] });
+      }
+
+      // update max X,X,X / Z
+      else if (matchUpdateMax) {
+        if (!perms.creator) return;
+
+        const positionsToUpdate = matchUpdateMax[1]
+          .split(",")
+          .map((p) => p.trim())
+          .filter((p) => p !== "");
+        const newMaxString = matchUpdateMax[2].trim();
+
+        const newMax = parseInt(newMaxString);
+
+        if (isNaN(newMax) || newMax < 0 || newMax > 99) return;
+
+        let response = await this.updateMaxParticipants(guild, event, positionsToUpdate, newMax);
+
+        const embedMessage = new EmbedBuilder().setDescription(response.message);
+
+        if (response.success === false) {
+          await message.react("❌");
+          embedMessage.setColor(`#eb5151`);
+        } else {
+          await message.react("✅");
+          embedMessage.setColor(`#24da5b`);
+        }
+
+        embedMessage.setFooter({ text: `Executed by: ${getDisplayName(messageMember)}` });
+
+        return await message.reply({ embeds: [embedMessage] });
+      }
+
+      // update strict X,X,X / W
+      else if (matchUpdateStrict) {
+        if (!perms.creator) return;
+
+        const positionsToUpdate = matchUpdateStrict[1]
+          .split(",")
+          .map((p) => p.trim())
+          .filter((p) => p !== "");
+        const newStrictString = matchUpdateStrict[2].trim();
+
+        let newStrict = false;
+        if (newStrictString.toLowerCase() === "yes") {
+          newStrict = true;
+        } else if (newStrictString.toLowerCase() === "no") {
+          newStrict = false;
+        } else {
+          return; // Invalid input
+        }
+
+        let response = await this.updateStrictMax(guild, event, positionsToUpdate, newStrict);
+
+        const embedMessage = new EmbedBuilder().setDescription(response.message);
+
+        if (response.success === false) {
+          await message.react("❌");
+          embedMessage.setColor(`#eb5151`);
+        } else {
+          await message.react("✅");
+          embedMessage.setColor(`#24da5b`);
+        }
+
+        embedMessage.setFooter({ text: `Executed by: ${getDisplayName(messageMember)}` });
 
         return await message.reply({ embeds: [embedMessage] });
       }
@@ -2335,6 +2526,152 @@ const Event_Command = {
     }
 
     return { manager: manager_perms, creator: creator_perms, helper: helper_perms };
+  },
+  async updateRequiredPositions(guild, eventData, positionsToUpdate, newRequirements) {
+    if (!eventData || !eventData.roles) return false;
+
+    let updated = false;
+    let updatedPositions = [];
+    let notUpdatedPositions = [];
+    for (const pos of positionsToUpdate) {
+      const role = eventData.roles.find((r) => r.roleNumber.toString() === pos);
+      if (role) {
+        role.requiredSignedUps = newRequirements;
+        updated = true;
+        updatedPositions.push(role.roleNumber);
+      } else {
+        notUpdatedPositions.push(pos);
+      }
+    }
+
+    if (!updated) {
+      return { success: false, message: `No roles found to update` };
+    }
+
+    await eventData.save();
+    await this.reloadEvent(guild, eventData);
+
+    let newRequirementsString = newRequirements.length
+      ? `\`${newRequirements.join("`, `")}\``
+      : "`no requirements`";
+
+    return {
+      success: true,
+      message: `✅ Positions with number(s): \`${updatedPositions.join(
+        "`, `"
+      )}\` updated to require: ${newRequirementsString}${
+        notUpdatedPositions.length > 0
+          ? `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``
+          : ""
+      }`,
+    };
+  },
+  async updateRequiredRoles(guild, eventData, positionsToUpdate, newRoles) {
+    if (!eventData || !eventData.roles) return false;
+
+    let updated = false;
+    let updatedPositions = [];
+    let notUpdatedPositions = [];
+    for (const pos of positionsToUpdate) {
+      const role = eventData.roles.find((r) => r.roleNumber.toString() === pos);
+      if (role) {
+        role.requiredRoles = newRoles;
+        updated = true;
+        updatedPositions.push(role.roleNumber);
+      } else {
+        notUpdatedPositions.push(pos);
+      }
+    }
+
+    if (!updated) {
+      return { success: false, message: `No roles found to update` };
+    }
+
+    await eventData.save();
+    await this.reloadEvent(guild, eventData);
+
+    let newRolesString = newRoles.length ? `\`${newRoles.join("`, `")}\`` : "`no required roles`";
+
+    return {
+      success: true,
+      message: `Positions with number(s) \`${updatedPositions.join(
+        "`, `"
+      )}\` updated to require roles: ${newRolesString}${
+        notUpdatedPositions.length > 0
+          ? `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``
+          : ""
+      }`,
+    };
+  },
+  async updateMaxParticipants(guild, eventData, positionsToUpdate, newMax) {
+    if (!eventData || !eventData.roles) return false;
+
+    let updated = false;
+    let updatedPositions = [];
+    let notUpdatedPositions = [];
+    for (const pos of positionsToUpdate) {
+      const role = eventData.roles.find((r) => r.roleNumber.toString() === pos);
+      if (role) {
+        role.maxParticipants = newMax;
+        updated = true;
+        updatedPositions.push(role.roleNumber);
+      } else {
+        notUpdatedPositions.push(pos);
+      }
+    }
+
+    if (!updated) {
+      return { success: false, message: `No roles found to update` };
+    }
+
+    await eventData.save();
+    await this.reloadEvent(guild, eventData);
+
+    return {
+      success: true,
+      message: `✅ Positions with number(s): \`${updatedPositions.join(
+        "`, `"
+      )}\` updated to have max participants: \`${newMax}\`${
+        notUpdatedPositions.length > 0
+          ? `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``
+          : ""
+      }`,
+    };
+  },
+  async updateStrictMax(guild, eventData, positionsToUpdate, newStrict) {
+    if (!eventData || !eventData.roles) return false;
+
+    let updated = false;
+    let updatedPositions = [];
+    let notUpdatedPositions = [];
+    for (const pos of positionsToUpdate) {
+      const role = eventData.roles.find((r) => r.roleNumber.toString() === pos);
+      if (role) {
+        role.strictMax = newStrict;
+        updated = true;
+        updatedPositions.push(role.roleNumber);
+      } else {
+        notUpdatedPositions.push(pos);
+      }
+    }
+
+    if (!updated) {
+      return { success: false, message: `No roles found to update` };
+    }
+
+    await eventData.save();
+    await this.reloadEvent(guild, eventData);
+
+    return {
+      success: true,
+      message: `✅ Positions with number(s): \`${updatedPositions.join(
+        "`, `"
+      )}\` updated to have strict max: \`${newStrict ? "yes" : "no"}\`${
+        notUpdatedPositions.length > 0
+          ? `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``
+          : ""
+      }`,
+    };
   },
 };
 
