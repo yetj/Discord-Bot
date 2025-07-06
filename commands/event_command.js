@@ -2168,7 +2168,10 @@ const Event_Command = {
                 .join(" ")}`;
             }
             if (role.requiredSignedUps.length > 0) {
-              partyInfoMessage += `\n> Required signed ups: ${role.requiredSignedUps
+              let requiredSignedUpsCompressed = await this.compressNumberRanges(
+                role.requiredSignedUps
+              );
+              partyInfoMessage += `\n> Required signed ups: ${requiredSignedUpsCompressed
                 .map((r) => `\`${r}\``)
                 .join(", ")}`;
             }
@@ -2329,11 +2332,12 @@ const Event_Command = {
       const signedUpParticipants = role.participants.map((p) => p.participantNumber);
       for (const requiredSignedUp of role.requiredSignedUps) {
         if (!signedUpParticipants.includes(requiredSignedUp)) {
+          let requiredSignedUpsCompressed = await this.compressNumberRanges(role.requiredSignedUps);
           return {
             success: false,
             message: `You can't signup for **${
               role.roleName
-            }** before roles ${role.requiredSignedUps
+            }** before roles ${requiredSignedUpsCompressed
               .map((r) => `\`${r}\``)
               .join(", ")} are not filled.`,
             member,
@@ -2483,11 +2487,12 @@ const Event_Command = {
       const signedUpParticipants = role.participants.map((p) => p.participantNumber);
       for (const requiredSignedUp of role.requiredSignedUps) {
         if (!signedUpParticipants.includes(requiredSignedUp)) {
+          let requiredSignedUpsCompressed = await this.compressNumberRanges(role.requiredSignedUps);
           return {
             success: false,
             message: `You can't signup for **${
               role.roleName
-            }** before roles ${role.requiredSignedUps
+            }** before roles ${requiredSignedUpsCompressed
               .map((r) => `\`${r}\``)
               .join(", ")} are not filled.`,
             member,
@@ -2763,6 +2768,29 @@ const Event_Command = {
       success: true,
       message: messageOut,
     };
+  },
+  // Funkcja konwertująca tablicę liczb na zakresy, np. [1,2,3,4,23,25,26,27] => "1-4,23,25-27"
+  async compressNumberRanges(numbers) {
+    if (!Array.isArray(numbers) || numbers.length === 0) return "";
+    // Zamień na liczby, posortuj i usuń duplikaty
+    const sorted = Array.from(new Set(numbers.map(Number))).sort((a, b) => a - b);
+    let result = [];
+    let start = sorted[0];
+    let end = sorted[0];
+    for (let i = 1; i <= sorted.length; i++) {
+      if (sorted[i] === end + 1) {
+        end = sorted[i];
+      } else {
+        if (start === end) {
+          result.push(`${start}`);
+        } else {
+          result.push(`${start}-${end}`);
+        }
+        start = sorted[i];
+        end = sorted[i];
+      }
+    }
+    return result;
   },
 };
 
