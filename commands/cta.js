@@ -28,6 +28,7 @@ const fs = require("fs");
 const readline = require("readline");
 const { Readable } = require("stream");
 const path = require("path");
+const { Events } = require("../dbmodels/events");
 
 const CTA_Setup = {
   data: new SlashCommandBuilder()
@@ -1115,7 +1116,7 @@ const CTA_Setup = {
           },
           {
             title: `Updating attendance list`,
-            content: `Once the event is created you can use command \`/cta update\` to update the attendance list. It will ask you to select one of the existing event and choose one of the following \`action\`:\n> \`Add\` - to add people to the present list\n> \`Remove\` - to add people to the absent list\n> \`Skip\` - to mark people as skipped.\n\nAdditionally you need to select how do you want to add them, you can select from the following options:\n> \`members\` - you need to mention all members who you want to update\n> \`game_nicknames\` - you need to provide game nicknames of all members who you want to update\n> \`channel\` - you need to select one Voice channel and all members who are in that channel will be updates\n> \`channels\` - where you need to provide multiple Voice channel IDs and separate them with comma(,). All members who are in those channels will be updated.\n> \`battle_ids\` - where you need to provide battle board IDs separated with comma(,). All members who are registered in those battles will be added to the event.`,
+            content: `Once the event is created you can use command \`/cta update\` to update the attendance list. It will ask you to select one of the existing event and choose one of the following \`action\`:\n> \`Add\` - to add people to the present list\n> \`Remove\` - to add people to the absent list\n> \`Skip\` - to mark people as skipped.\n\nAdditionally you need to select how do you want to add them, you can select from the following options:\n> \`members\` - you need to mention all members who you want to update\n> \`game_nicknames\` - you need to provide game nicknames of all members who you want to update\n> \`channel\` - you need to select one Voice channel and all members who are in that channel will be updates\n> \`channels\` - where you need to provide multiple Voice channel IDs and separate them with comma(,). All members who are in those channels will be updated.\n> \`battle_ids\` - where you need to provide battle board IDs separated with comma(,). All members who are registered in those battles will be added to the event.\n> \`event_id\` - where you need to select one of the existing events and all members who are registered will be added to the event.`,
             file: `../images/cta/cta_update.png`,
           },
           {
@@ -3111,6 +3112,12 @@ const CTA_Event = {
         )
         .addStringOption((option) =>
           option
+            .setName("cta_event_id")
+            .setDescription("Get attendance from /event module")
+            .setAutocomplete(true)
+        )
+        .addStringOption((option) =>
+          option
             .setName("custom_date")
             .setDescription("Custom Event date (date format: YYYY-MM-DD HH:MM)")
         )
@@ -3170,6 +3177,12 @@ const CTA_Event = {
         )
         .addStringOption((option) =>
           option.setName("battle_ids").setDescription("Battle IDs from API (separated by comma)")
+        )
+        .addStringOption((option) =>
+          option
+            .setName("cta_event_id")
+            .setDescription("Get attendance from /event module")
+            .setAutocomplete(true)
         )
     )
     .addSubcommand((subcommand) =>
@@ -3305,6 +3318,32 @@ const CTA_Event = {
         limitedResults.map((choice) => ({ name: choice.name, value: choice.value }))
       );
     }
+
+    choices = [];
+    if (focusedOption.name === "cta_event_id") {
+      try {
+        const events = await Events.find({
+          gid: interaction.guildId,
+        }).sort({ event_id: -1 });
+
+        await events.forEach((event) => {
+          choices.push({
+            name: `#${event.event_id} ${event.name} (${formattedDate(event.startDate)})`,
+            value: event._id.toString(),
+          });
+        });
+      } catch (err) {
+        console.error("[ae6c11] ", err);
+      }
+
+      const filtered = choices.filter((choice) =>
+        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase())
+      );
+      const limitedResults = filtered.slice(0, 10);
+      await interaction.respond(
+        limitedResults.map((choice) => ({ name: choice.name, value: choice.value }))
+      );
+    }
   },
   async execute(interaction) {
     let cta_perms = false;
@@ -3378,15 +3417,16 @@ const CTA_Event = {
       const channel = interaction.options.getChannel("channel") ?? null;
       const channels = interaction.options.getString("channels") ?? null;
       const battle_ids = interaction.options.getString("battle_ids") ?? null;
+      const event_id = interaction.options.getString("cta_event_id") ?? null;
       const custom_date = interaction.options.getString("custom_date") ?? null;
 
       // check if only one option is selected
       if (
-        [members, game_nicknames, channel, channels, battle_ids].filter((v) => v !== null)
+        [members, game_nicknames, channel, channels, battle_ids, event_id].filter((v) => v !== null)
           .length !== 1
       ) {
         return await interaction.reply({
-          content: `> You can create CTA only from one option: \`members\`, \`game_nicknames\`, \`channel\`, \`channels\` or \`battle_ids\`.\n> You have to select only ONE option.`,
+          content: `> You can create CTA only from one option: \`members\`, \`game_nicknames\`, \`channel\`, \`channels\`, \`battle_ids\` or \`event_id\`.\n> You have to select only ONE option.`,
           ephemeral: true,
         });
       }
@@ -3538,6 +3578,41 @@ const CTA_Event = {
 
           availableMembers = battleData.availableMembers;
           not_registered_names = battleData.not_registered_names;
+        }
+
+        if (event_id !== null) {
+          try {
+            const eventData = await Events.findOne({
+              $and: [{ gid: interaction.guildId }, { _id: event_id }],
+            });
+
+            if (!eventData) {
+              return await interaction.reply({
+                content: `> Couldn't find event with selected ID.`,
+                ephemeral: true,
+              });
+            }
+
+            let participants = [];
+
+            if (Array.isArray(eventData.roles)) {
+              for (const role of eventData.roles) {
+                if (Array.isArray(role.participants)) {
+                  for (const p of role.participants) {
+                    if (p.discordId) participants.push(p.discordId);
+                  }
+                }
+              }
+            }
+
+            availableMembers = [...new Set(participants)];
+          } catch (err) {
+            console.error(err);
+            return await interaction.reply({
+              content: `> [1609ff] Error while fetching event data. Please try again later.`,
+              ephemeral: true,
+            });
+          }
         }
 
         if (availableMembers.length < 1) {
@@ -3710,13 +3785,14 @@ const CTA_Event = {
       const channel = interaction.options.getChannel("channel") ?? null;
       const channels = interaction.options.getString("channels") ?? null;
       const battle_ids = interaction.options.getString("battle_ids") ?? null;
+      const event_id = interaction.options.getString("cta_event_id") ?? null;
 
       if (
-        [members, game_nicknames, channel, channels, battle_ids].filter((v) => v !== null)
+        [members, game_nicknames, channel, channels, battle_ids, event_id].filter((v) => v !== null)
           .length !== 1
       ) {
         return await interaction.reply({
-          content: `> You can update CTA with only one option: \`members\`, \`game_nicknames\`, \`channel\`, \`channels\` or \`battle_ids\`.`,
+          content: `> You can update CTA with only one option: \`members\`, \`game_nicknames\`, \`channel\`, \`channels\`, \`battle_ids\` or \`event_id\`.`,
           ephemeral: true,
         });
       }
@@ -3730,7 +3806,7 @@ const CTA_Event = {
 
       if (
         (action === "remove" || action === "skip") &&
-        [channel, channels, battle_ids].filter((v) => v !== null).length > 0
+        [channel, channels, battle_ids, event_id].filter((v) => v !== null).length > 0
       ) {
         return await interaction.reply({
           content: `> Option to **remove** someone from CTA Event is available only with \`members\` or \`game_nicknames\` option.`,
@@ -3822,6 +3898,41 @@ const CTA_Event = {
 
           availableMembers = battleData.availableMembers;
           not_registered_names = battleData.not_registered_names;
+        }
+
+        if (event_id !== null) {
+          try {
+            const eventData = await Events.findOne({
+              $and: [{ gid: interaction.guildId }, { _id: event_id }],
+            });
+
+            if (!eventData) {
+              return await interaction.reply({
+                content: `> Couldn't find event with selected ID.`,
+                ephemeral: true,
+              });
+            }
+
+            let participants = [];
+
+            if (Array.isArray(eventData.roles)) {
+              for (const role of eventData.roles) {
+                if (Array.isArray(role.participants)) {
+                  for (const p of role.participants) {
+                    if (p.discordId) participants.push(p.discordId);
+                  }
+                }
+              }
+            }
+
+            availableMembers = [...new Set(participants)];
+          } catch (err) {
+            console.error(err);
+            return await interaction.reply({
+              content: `> [7c2c09] Error while fetching event data. Please try again later.`,
+              ephemeral: true,
+            });
+          }
         }
 
         const cta = await CTAEvents.findOne({
