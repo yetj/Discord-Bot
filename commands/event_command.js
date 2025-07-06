@@ -847,6 +847,7 @@ const Event_Command = {
           threadContent += `➡️ To **update** __required roles__, please type \`update reqRoles N / @role1, @role2\`, where \`N\` is a role number and @role is a role mention. You can provide multiple roles to update  by separating them with commas and multiple required roles by mentioning them and separating with spaces.\n> Example: \`update reqRoles 1,2,3 / @Role1 @Role2\`\n`;
           threadContent += `➡️ To **update** __max participants__ for a role, please type \`update max N / X\`, where \`N\` is a role number and \`X\` is a number of max participants. You can provide multiple roles to update by separating them with commas.\n> Example: \`update max 1,2,3 / 5\`\n`;
           threadContent += `➡️ To **update** __strict limit__ for a role, please type \`update strict N / yes or no\`, where \`N\` is a role number and \`no\` means no strict limit and \`yes\` means strict limit. You can provide multiple roles to update by separating them with commas.\n> Example: \`update strict 1,2,3 / yes\`\n`;
+          threadContent += `*You can update multiple positions by adding ranges like \`1-20\`.*\n`;
           threadContent += `*You can mention multiple users at the same time.*`;
 
           const embedMessageInstructions = new EmbedBuilder()
@@ -1353,21 +1354,30 @@ const Event_Command = {
       const matchInSelf = /^(\d{1,2})$/.exec(content);
 
       // update reqPositions X,X,X / Y,Y,Y or - (but not mixed)
+      // Pozwala na zakresy, np. 1-3,5,21-32,24
       const matchUpdateReqPositions =
-        /^update\s+reqPositions\s+([1-9][0-9]?(?:,[1-9][0-9]?)*|)\s*\/\s*((?:[1-9][0-9]?(?:,[1-9][0-9]?)*|-))$/i.exec(
+        /^update\s+reqPositions\s+([1-9][0-9]?(?:-[1-9][0-9]?)*(?:,[1-9][0-9]?(?:-[1-9][0-9]?)*|)*|)\s*\/\s*((?:[1-9][0-9]?(?:-[1-9][0-9]?)*(?:,[1-9][0-9]?(?:-[1-9][0-9]?)*|)*|\-))$/i.exec(
           content
         );
+
       // update reqRoles X,X,X / <@&423423> <@&423423> or - (but not mixed)
+      // Pozwala na zakresy dla X, np. 1-3,5,21-32,24
       const matchUpdateReqRoles =
-        /^update\s+reqRoles\s+([1-9][0-9]?(?:,[1-9][0-9]?)*|)\s*\/\s*((?:<@&\d+>\s*)+|-)$/i.exec(
+        /^update\s+reqRoles\s+([1-9][0-9]?(?:-[1-9][0-9]?)*(?:,[1-9][0-9]?(?:-[1-9][0-9]?)*|)*|)\s*\/\s*((?:<@&\d+>\s*)+|-)$/i.exec(
           content
         );
       // update max X,X,X / Z
+      // Pozwala na zakresy dla X, np. 1-3,5,21-32,24
       const matchUpdateMax =
-        /^update\s+max\s+([1-9][0-9]?(?:,[1-9][0-9]?)*|)\s*\/\s*([0-9]{1,2})$/i.exec(content);
+        /^update\s+max\s+([1-9][0-9]?(?:-[1-9][0-9]?)*(?:,[1-9][0-9]?(?:-[1-9][0-9]?)*|)*|)\s*\/\s*([0-9]{1,2})$/i.exec(
+          content
+        );
       // update strict X,X,X / W
+      // Pozwala na zakresy dla X, np. 1-3,5,21-32,24
       const matchUpdateStrict =
-        /^update\s+strict\s+([1-9][0-9]?(?:,[1-9][0-9]?)*|)\s*\/\s*(yes|no)$/i.exec(content);
+        /^update\s+strict\s+([1-9][0-9]?(?:-[1-9][0-9]?)*(?:,[1-9][0-9]?(?:-[1-9][0-9]?)*|)*|)\s*\/\s*(yes|no)$/i.exec(
+          content
+        );
 
       let event;
       let configEvent;
@@ -1637,21 +1647,15 @@ const Event_Command = {
       else if (matchUpdateReqPositions) {
         if (!perms.creator) return;
 
-        const positionsToUpdate = matchUpdateReqPositions[1]
-          .split(",")
-          .map((p) => p.trim())
-          .filter((p) => p !== "");
-        const newRequirementsRaw = matchUpdateReqPositions[2].trim();
+        const positionsToUpdate = await this.decompressNumberRanges(matchUpdateReqPositions[1]);
+        let newRequirementsRaw = matchUpdateReqPositions[2].trim();
 
         // Sprawdź czy podano tylko "-" lub tylko liczby
         let newRequirements = [];
         if (newRequirementsRaw === "-") {
           newRequirements = [];
         } else {
-          newRequirements = newRequirementsRaw
-            .split(",")
-            .map((r) => r.trim())
-            .filter((r) => r !== "");
+          newRequirements = await this.decompressNumberRanges(newRequirementsRaw);
         }
 
         let response = await this.updateRequiredPositions(
@@ -1680,10 +1684,7 @@ const Event_Command = {
       else if (matchUpdateReqRoles) {
         if (!perms.creator) return;
 
-        const positionsToUpdate = matchUpdateReqRoles[1]
-          .split(",")
-          .map((p) => p.trim())
-          .filter((p) => p !== "");
+        const positionsToUpdate = await this.decompressNumberRanges(matchUpdateReqRoles[1]);
         const newRolesRaw = matchUpdateReqRoles[2].trim();
 
         let newRoles = [];
@@ -1729,10 +1730,7 @@ const Event_Command = {
       else if (matchUpdateMax) {
         if (!perms.creator) return;
 
-        const positionsToUpdate = matchUpdateMax[1]
-          .split(",")
-          .map((p) => p.trim())
-          .filter((p) => p !== "");
+        const positionsToUpdate = await this.decompressNumberRanges(matchUpdateMax[1]);
         const newMaxString = matchUpdateMax[2].trim();
 
         const newMax = parseInt(newMaxString);
@@ -1760,10 +1758,7 @@ const Event_Command = {
       else if (matchUpdateStrict) {
         if (!perms.creator) return;
 
-        const positionsToUpdate = matchUpdateStrict[1]
-          .split(",")
-          .map((p) => p.trim())
-          .filter((p) => p !== "");
+        const positionsToUpdate = await this.decompressNumberRanges(matchUpdateStrict[1]);
         const newStrictString = matchUpdateStrict[2].trim();
 
         let newStrict = false;
@@ -2606,7 +2601,7 @@ const Event_Command = {
     let updatedPositions = [];
     let notUpdatedPositions = [];
     for (const pos of positionsToUpdate) {
-      const role = eventData.roles.find((r) => r.roleNumber.toString() === pos);
+      const role = eventData.roles.find((r) => r.roleNumber === pos);
       if (role) {
         role.requiredSignedUps = newRequirements;
         updated = true;
@@ -2623,6 +2618,9 @@ const Event_Command = {
     await eventData.save();
     await this.reloadRequirements(guild, eventData);
 
+    updatedPositions = await this.compressNumberRanges(updatedPositions);
+    newRequirements = await this.compressNumberRanges(newRequirements);
+
     let messageOut = ``;
     messageOut += `✅ Positions with number(s): \``;
     messageOut += updatedPositions.join("`, `");
@@ -2634,6 +2632,7 @@ const Event_Command = {
     }
 
     if (notUpdatedPositions.length > 0) {
+      notUpdatedPositions = await this.compressNumberRanges(notUpdatedPositions);
       messageOut += `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``;
     }
 
@@ -2654,7 +2653,7 @@ const Event_Command = {
     let updatedPositions = [];
     let notUpdatedPositions = [];
     for (const pos of positionsToUpdate) {
-      const role = eventData.roles.find((r) => r.roleNumber.toString() === pos);
+      const role = eventData.roles.find((r) => r.roleNumber === pos);
       if (role) {
         role.requiredRoles = newRoles;
         updated = true;
@@ -2671,6 +2670,8 @@ const Event_Command = {
     await eventData.save();
     await this.reloadRequirements(guild, eventData);
 
+    updatedPositions = await this.compressNumberRanges(updatedPositions);
+
     let messageOut = ``;
     messageOut += `✅ Positions with number(s): \``;
     messageOut += updatedPositions.join("`, `");
@@ -2682,6 +2683,7 @@ const Event_Command = {
     }
 
     if (notUpdatedPositions.length > 0) {
+      notUpdatedPositions = await this.compressNumberRanges(notUpdatedPositions);
       messageOut += `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``;
     }
 
@@ -2702,7 +2704,7 @@ const Event_Command = {
     let updatedPositions = [];
     let notUpdatedPositions = [];
     for (const pos of positionsToUpdate) {
-      const role = eventData.roles.find((r) => r.roleNumber.toString() === pos);
+      const role = eventData.roles.find((r) => r.roleNumber === pos);
       if (role) {
         role.maxParticipants = newMax;
         updated = true;
@@ -2719,11 +2721,14 @@ const Event_Command = {
     await eventData.save();
     await this.reloadEvent(guild, eventData);
 
+    updatedPositions = await this.compressNumberRanges(updatedPositions);
+
     let messageOut = ``;
     messageOut += `✅ Positions with number(s): \``;
     messageOut += updatedPositions.join("`, `");
     messageOut += `\` updated to have max participants: \`${newMax}\``;
     if (notUpdatedPositions.length > 0) {
+      notUpdatedPositions = await this.compressNumberRanges(notUpdatedPositions);
       messageOut += `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``;
     }
 
@@ -2739,7 +2744,7 @@ const Event_Command = {
     let updatedPositions = [];
     let notUpdatedPositions = [];
     for (const pos of positionsToUpdate) {
-      const role = eventData.roles.find((r) => r.roleNumber.toString() === pos);
+      const role = eventData.roles.find((r) => r.roleNumber === pos);
       if (role) {
         role.strictMax = newStrict;
         updated = true;
@@ -2756,11 +2761,14 @@ const Event_Command = {
     await eventData.save();
     await this.reloadEvent(guild, eventData);
 
+    updatedPositions = await this.compressNumberRanges(updatedPositions);
+
     let messageOut = ``;
     messageOut += `✅ Positions with number(s):`;
     messageOut += `\`` + updatedPositions.join("`, `") + `\``;
     messageOut += ` updated to have strict max: \`${newStrict ? "yes" : "no"}\``;
     if (notUpdatedPositions.length > 0) {
+      notUpdatedPositions = await this.compressNumberRanges(notUpdatedPositions);
       messageOut += `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``;
     }
 
@@ -2791,6 +2799,27 @@ const Event_Command = {
       }
     }
     return result;
+  },
+  // Funkcja konwertująca string zakresów (np. "1-3,23-30,34,45") na tablicę liczb [1,2,3,23,24,25,26,27,28,29,30,34,45]
+  decompressNumberRanges(input) {
+    if (!input || typeof input !== "string") return [];
+    const result = [];
+    const parts = input.split(",");
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (/^\d+-\d+$/.test(trimmed)) {
+        const [start, end] = trimmed.split("-").map(Number);
+        if (!isNaN(start) && !isNaN(end) && start <= end) {
+          for (let i = start; i <= end; i++) {
+            result.push(i);
+          }
+        }
+      } else if (/^\d+$/.test(trimmed)) {
+        result.push(Number(trimmed));
+      }
+    }
+    // Zwróć unikalne, posortowane liczby
+    return Array.from(new Set(result)).sort((a, b) => a - b);
   },
 };
 
