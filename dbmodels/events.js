@@ -66,6 +66,7 @@ const EventsSchema = new mongoose.Schema({
   signupSummaryInThread: { type: Boolean, default: false }, // Czy podsumowanie zapisów ma być w wątku
   channelId: { type: String, default: "" }, // ID kanału dla wydarzenia
   messageId: { type: String, default: "" },
+  requirementsMessageId: { type: String, default: "" }, // ID wiadomości z wymaganiami
   usedTemplateId: { type: String, default: "" },
   roles: [RoleSchema],
   unsignedParticipants: [

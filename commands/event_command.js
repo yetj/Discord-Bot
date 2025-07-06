@@ -816,6 +816,7 @@ const Event_Command = {
           await newEvent.save();
 
           const embeds = await this.eventEmbeds(newEvent);
+          const embedsRequirements = await this.eventEmbeds(newEvent, true);
 
           let eventMessage;
           if (message_content) {
@@ -858,7 +859,11 @@ const Event_Command = {
             reason: `Event thread created`,
           });
 
+          const requirementsMessage = await createdThread.send({ embeds: embedsRequirements });
+          await requirementsMessage.pin();
           await createdThread.send({ embeds: [embedMessageInstructions] });
+
+          newEvent.requirementsMessageId = requirementsMessage.id;
 
           await newEvent.save();
 
@@ -1127,9 +1132,10 @@ const Event_Command = {
         }
 
         await this.reloadEvent(interaction.guild, event);
+        await this.reloadRequirements(interaction.guild, event);
 
         return await interaction.followUp({
-          content: `> Events reloaded successfully.`,
+          content: `> Event reloaded successfully.`,
           ephemeral: true,
         });
       } catch (err) {
@@ -1516,6 +1522,8 @@ const Event_Command = {
             embedMessage.setColor(`#24da5b`);
           }
 
+          embedMessage.setFooter({ text: `Executed by: ${getDisplayName(messageMember)}` });
+
           return await message.reply({ embeds: [embedMessage] });
         }
         if (await this.isSignedOut(event, messageMember)) {
@@ -1523,6 +1531,7 @@ const Event_Command = {
 
           const embedMessage = new EmbedBuilder().setDescription(response);
           embedMessage.setColor(`#eb5151`);
+          embedMessage.setFooter({ text: `Executed by: ${getDisplayName(messageMember)}` });
           await message.react("❌");
 
           return await message.reply({ embeds: [embedMessage] });
@@ -1618,6 +1627,8 @@ const Event_Command = {
           await message.react("✅");
           embedMessage.setColor(`#24da5b`);
         }
+
+        embedMessage.setFooter({ text: `Executed by: ${getDisplayName(messageMember)}` });
 
         return await message.reply({ embeds: [embedMessage] });
       }
@@ -2035,31 +2046,33 @@ const Event_Command = {
     }
     return result.join("\n");
   },
-  async eventEmbeds(eventData) {
+  async eventEmbeds(eventData, requirements = false) {
     const embeds = [];
 
-    let eventInfoMessage = ``;
-    eventInfoMessage += `# ${eventData.name} [#${eventData.event_id}]\n`;
+    if (requirements === false) {
+      let eventInfoMessage = ``;
+      eventInfoMessage += `# ${eventData.name} [#${eventData.event_id}]\n`;
 
-    if (eventData.description && eventData.description.length > 0) {
-      eventInfoMessage += `\n\n${eventData.description}`;
-    }
+      if (eventData.description && eventData.description.length > 0) {
+        eventInfoMessage += `\n\n${eventData.description}`;
+      }
 
-    const eventInfo = new EmbedBuilder().setColor("#42d1eb").setDescription(eventInfoMessage);
+      const eventInfo = new EmbedBuilder().setColor("#42d1eb").setDescription(eventInfoMessage);
 
-    if (eventData?.usedTemplateId) {
-      try {
-        const eventTemplate = await EventTemplates.findOne({
-          $and: [{ gid: eventData.gid }, { _id: eventData.usedTemplateId }],
-        });
-
-        if (eventTemplate) {
-          eventInfo.setFooter({
-            text: `Used template: ${eventTemplate.name} (${eventTemplate.authorName})`,
+      if (eventData?.usedTemplateId) {
+        try {
+          const eventTemplate = await EventTemplates.findOne({
+            $and: [{ gid: eventData.gid }, { _id: eventData.usedTemplateId }],
           });
+
+          if (eventTemplate) {
+            eventInfo.setFooter({
+              text: `Used template: ${eventTemplate.name} (${eventTemplate.authorName})`,
+            });
+          }
+        } catch (error) {
+          console.error("[47abda] Event used template error: ", error);
         }
-      } catch (error) {
-        console.error("[47abda] Event used template error: ", error);
       }
 
       if (eventData.imageUrl) {
@@ -2101,23 +2114,23 @@ const Event_Command = {
         value: signupsField,
         inline: true,
       });
-    }
 
-    if (eventData.allowLateJoin) {
-      eventInfo.addFields({
-        name: `\u200B`,
-        value: `*Late Join allowed for **${eventData.lateJoinLimit}** minutes after the event start.*`,
-      });
-    }
-    if (eventData.imageUrl) {
-      try {
-        eventInfo.setImage(eventData.imageUrl);
-      } catch (error) {
-        console.error("[bc294c] Event setImage error: ", error);
+      if (eventData.allowLateJoin) {
+        eventInfo.addFields({
+          name: `\u200B`,
+          value: `*Late Join allowed for **${eventData.lateJoinLimit}** minutes after the event start.*`,
+        });
       }
-    }
+      if (eventData.imageUrl) {
+        try {
+          eventInfo.setImage(eventData.imageUrl);
+        } catch (error) {
+          console.error("[bc294c] Event setImage error: ", error);
+        }
+      }
 
-    embeds.push(eventInfo);
+      embeds.push(eventInfo);
+    }
 
     const uniquePartyNumbers = [
       ...new Set((eventData.roles || []).map((role) => role.partyNumber)),
@@ -2134,25 +2147,56 @@ const Event_Command = {
         let emoji = role.emoji ? `${role.emoji} ` : "";
         let maxParticipants = role.maxParticipants > 0 ? `/${role.maxParticipants}` : "";
 
-        partyInfoMessage += `\n${emoji}┊**${role.roleNumber}**┊ **${role.roleName}** (${role.participants.length}${maxParticipants})`;
+        if (requirements === false) {
+          partyInfoMessage += `\n${emoji}┊**${role.roleNumber}**┊ **${role.roleName}** (${
+            role.participants.length
+          }${maxParticipants})${role.strictMax && role.maxParticipants > 0 ? "!" : ""}`;
 
-        if (role.participants.length > 0) {
-          partyInfoMessage +=
-            `\n*  ` +
-            role.participants.map((p) => `\`${p.participantNumber}\` ${p.name}`).join(", ");
+          if (role.participants.length > 0) {
+            partyInfoMessage +=
+              `\n*  ` +
+              role.participants.map((p) => `\`${p.participantNumber}\` ${p.name}`).join(", ");
+          }
+        } else {
+          if (role.requiredRoles.length > 0 || role.requiredSignedUps.length > 0) {
+            partyInfoMessage += `\n${emoji}┊**${role.roleNumber}**┊ **${role.roleName}** (${
+              role.participants.length
+            }${maxParticipants})${role.strictMax && role.maxParticipants > 0 ? "!" : ""}`;
+            if (role.requiredRoles.length > 0) {
+              partyInfoMessage += `\n> Required roles: ${role.requiredRoles
+                .map((r) => `<@&${r}>`)
+                .join(" ")}`;
+            }
+            if (role.requiredSignedUps.length > 0) {
+              partyInfoMessage += `\n> Required signed ups: ${role.requiredSignedUps
+                .map((r) => `\`${r}\``)
+                .join(", ")}`;
+            }
+          }
         }
       }
 
-      const partyInfo = new EmbedBuilder().setColor("#1cff60").setDescription(partyInfoMessage);
+      const partyInfo = new EmbedBuilder().setColor("#1cff60");
 
-      if (uniquePartyNumbers.length == 1) {
+      if (uniquePartyNumbers.length == 1 && requirements === false) {
         partyInfo.setTitle(`Signed Up Participants`);
       }
 
-      embeds.push(partyInfo);
+      if (requirements === true && embeds.length === 0) {
+        partyInfo.setTitle(`Party requirements`);
+      }
+
+      if (partyInfoMessage.length > 0) {
+        partyInfo.setDescription(partyInfoMessage);
+        embeds.push(partyInfo);
+      }
     }
 
-    if (eventData?.unsignedParticipants && eventData.unsignedParticipants.length > 0) {
+    if (
+      eventData?.unsignedParticipants &&
+      eventData.unsignedParticipants.length > 0 &&
+      requirements === false
+    ) {
       let unsignedParticipantsMessage = ``;
 
       const reasons = {
@@ -2205,6 +2249,29 @@ const Event_Command = {
         embeds: embeds,
       });
     }
+  },
+  async reloadRequirements(guild, eventData) {
+    let embeds = await this.eventEmbeds(eventData, true);
+
+    const channel = await guild.channels.fetch(eventData.messageId);
+    if (!channel) return;
+
+    if (!eventData?.requirementsMessageId) return;
+
+    const message = await channel.messages.fetch(eventData.requirementsMessageId);
+    if (!message) return;
+
+    if (embeds.length === 0) {
+      const embedNoReq = new EmbedBuilder()
+        .setColor("#39dd18")
+        .setDescription(`*No requirements set*`);
+
+      embeds.push(embedNoReq);
+    }
+
+    await message.edit({
+      embeds: embeds,
+    });
   },
   async isSignedUp(eventData, member) {
     if (!eventData || !eventData.roles || !member) return false;
@@ -2549,21 +2616,30 @@ const Event_Command = {
     }
 
     await eventData.save();
-    await this.reloadEvent(guild, eventData);
+    await this.reloadRequirements(guild, eventData);
 
-    let newRequirementsString = newRequirements.length
-      ? `\`${newRequirements.join("`, `")}\``
-      : "`no requirements`";
+    let messageOut = ``;
+    messageOut += `✅ Positions with number(s): \``;
+    messageOut += updatedPositions.join("`, `");
+    messageOut += `\` updated to require:`;
+    if (newRequirements.length > 0) {
+      messageOut += `\`${newRequirements.join("`, `")}\``;
+    } else {
+      messageOut += "`no requirements`";
+    }
+
+    if (notUpdatedPositions.length > 0) {
+      messageOut += `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``;
+    }
+
+    if (eventData?.requirementsMessageId) {
+      let reqLink = `https://discord.com/channels/${guild.id}/${eventData.messageId}/${eventData?.requirementsMessageId}`;
+      messageOut += `\n\n> [**Requirements message**](${reqLink})`;
+    }
 
     return {
       success: true,
-      message: `✅ Positions with number(s): \`${updatedPositions.join(
-        "`, `"
-      )}\` updated to require: ${newRequirementsString}${
-        notUpdatedPositions.length > 0
-          ? `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``
-          : ""
-      }`,
+      message: messageOut,
     };
   },
   async updateRequiredRoles(guild, eventData, positionsToUpdate, newRoles) {
@@ -2588,19 +2664,30 @@ const Event_Command = {
     }
 
     await eventData.save();
-    await this.reloadEvent(guild, eventData);
+    await this.reloadRequirements(guild, eventData);
 
-    let newRolesString = newRoles.length ? `\`${newRoles.join("`, `")}\`` : "`no required roles`";
+    let messageOut = ``;
+    messageOut += `✅ Positions with number(s): \``;
+    messageOut += updatedPositions.join("`, `");
+    messageOut += `\` updated to require roles:`;
+    if (newRoles.length > 0) {
+      messageOut += `<@&${newRoles.join(">, <@&")}>`;
+    } else {
+      messageOut += "`no required roles`";
+    }
+
+    if (notUpdatedPositions.length > 0) {
+      messageOut += `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``;
+    }
+
+    if (eventData?.requirementsMessageId) {
+      let reqLink = `https://discord.com/channels/${guild.id}/${eventData.messageId}/${eventData?.requirementsMessageId}`;
+      messageOut += `\n\n> [**Requirements message**](${reqLink})`;
+    }
 
     return {
       success: true,
-      message: `Positions with number(s) \`${updatedPositions.join(
-        "`, `"
-      )}\` updated to require roles: ${newRolesString}${
-        notUpdatedPositions.length > 0
-          ? `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``
-          : ""
-      }`,
+      message: messageOut,
     };
   },
   async updateMaxParticipants(guild, eventData, positionsToUpdate, newMax) {
@@ -2627,15 +2714,17 @@ const Event_Command = {
     await eventData.save();
     await this.reloadEvent(guild, eventData);
 
+    let messageOut = ``;
+    messageOut += `✅ Positions with number(s): \``;
+    messageOut += updatedPositions.join("`, `");
+    messageOut += `\` updated to have max participants: \`${newMax}\``;
+    if (notUpdatedPositions.length > 0) {
+      messageOut += `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``;
+    }
+
     return {
       success: true,
-      message: `✅ Positions with number(s): \`${updatedPositions.join(
-        "`, `"
-      )}\` updated to have max participants: \`${newMax}\`${
-        notUpdatedPositions.length > 0
-          ? `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``
-          : ""
-      }`,
+      message: messageOut,
     };
   },
   async updateStrictMax(guild, eventData, positionsToUpdate, newStrict) {
@@ -2662,15 +2751,17 @@ const Event_Command = {
     await eventData.save();
     await this.reloadEvent(guild, eventData);
 
+    let messageOut = ``;
+    messageOut += `✅ Positions with number(s):`;
+    messageOut += `\`` + updatedPositions.join("`, `") + `\``;
+    messageOut += ` updated to have strict max: \`${newStrict ? "yes" : "no"}\``;
+    if (notUpdatedPositions.length > 0) {
+      messageOut += `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``;
+    }
+
     return {
       success: true,
-      message: `✅ Positions with number(s): \`${updatedPositions.join(
-        "`, `"
-      )}\` updated to have strict max: \`${newStrict ? "yes" : "no"}\`${
-        notUpdatedPositions.length > 0
-          ? `\n\n❌ Not updated positions: \`${notUpdatedPositions.join("`, `")}\``
-          : ""
-      }`,
+      message: messageOut,
     };
   },
 };
