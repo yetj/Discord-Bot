@@ -2585,16 +2585,18 @@ const CTA_Vacations = {
 
         let message = ``;
 
-        message += `### Vacations stopped for <@${newVacations.uid}> - ${getDisplayName(member)}\n`;
-        message += `**ID:** ${newVacations.vacations_id}\n`;
-        message += `**Start date:** ${formattedDate(newVacations.start, "date")}\n`;
-        message += `**End date:** ${formattedDate(newVacations.end, "date")}\n`;
-        message += `**Days:** ${newVacations.days}\n`;
+        message += `### Vacations stopped for <@${activeVacation.uid}> - ${getDisplayName(
+          member
+        )}\n`;
+        message += `**ID:** ${activeVacation.vacations_id}\n`;
+        message += `**Start date:** ${formattedDate(activeVacation.start, "date")}\n`;
+        message += `**End date:** ${formattedDate(activeVacation.end, "date")}\n`;
+        message += `**Days:** ${activeVacation.days}\n`;
         message += `**Total days:** ${totalDays}\n`;
-        message += `**Reason:** *${newVacations.reason}*\n`;
+        message += `**Reason:** *${activeVacation.reason}*\n`;
 
-        if (newVacations.uid !== newVacations.added_by) {
-          message += `\n**Added by:** <@${newVacations.added_by}>\n`;
+        if (activeVacation.uid !== activeVacation.added_by) {
+          message += `\n**Added by:** <@${activeVacation.added_by}>\n`;
         }
 
         message += `\n**Force stopped by:** <@${activeVacation.force_end_by}>\n`;
