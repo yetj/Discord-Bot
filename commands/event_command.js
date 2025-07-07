@@ -2187,6 +2187,9 @@ const Event_Command = {
       if (partyInfoMessage.length > 0) {
         partyInfo.setDescription(partyInfoMessage);
         embeds.push(partyInfo);
+      } else if (requirements === true && partyInfoMessage.length === 0) {
+        partyInfo.setDescription(`*No requirements set for this party*`);
+        embeds.push(partyInfo);
       }
     }
 
