@@ -14,6 +14,7 @@ const CTAConfigSchema = new mongoose.Schema({
   allow_self_registration: { type: Boolean, default: false },
   discord_roles_skip: { type: [String], default: [] },
   game_roles_skip: { type: [String], default: [] },
+  additional_roles: { type: [String], default: [] },
 });
 const CTAConfig = mongoose.model("CTAConfig", CTAConfigSchema);
 
@@ -108,7 +109,7 @@ const CTAEventStatsSchema = new mongoose.Schema({
   name: String,
   types: { type: [String], default: [] },
   start: { type: Date, default: 0 },
-  end: {type: Date, default: 0},
+  end: { type: Date, default: 0 },
   mandatory: { type: String, default: "" },
   weight: { type: [Number], default: [] },
   created_by: { type: [String], default: [] },

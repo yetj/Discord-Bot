@@ -116,6 +116,17 @@ const CTA_Setup = {
     )
     .addSubcommand((subcommand) =>
       subcommand
+        .setName("additional_roles")
+        .setDescription("Set additional roles for members after registration")
+        .addRoleOption((option) => option.setName("role").setDescription("Role").setRequired(true))
+        .addBooleanOption((option) =>
+          option
+            .setName("remove_instead")
+            .setDescription("Do you want to remove that role? (default: no)")
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
         .setName("guild_names")
         .setDescription(
           "Set guild names that should be checked when gettings results from Battleboard"
@@ -442,6 +453,55 @@ const CTA_Setup = {
           `> [6741ee] Error while modyfing registration role. Please try again later.`
         );
       }
+    } else if (interaction.options.getSubcommand() === "additional_roles") {
+      const role = interaction.options.getRole("role");
+      const remove_instead = interaction.options.getBoolean("remove_instead") ?? false;
+
+      try {
+        if (!configCTA && remove_instead) {
+          return await interaction.reply(`> Event roles are not set yet. Nothing to remove.`);
+        }
+
+        let action = "";
+
+        if (!configCTA) {
+          const newConfig = await new CTAConfig({
+            gid: interaction.guildId,
+            additional_roles: [role.id],
+          });
+          await newConfig.save();
+        } else {
+          if (remove_instead) {
+            action = "removed";
+            if (configCTA.additional_roles.indexOf(role.id) === -1) {
+              return await interaction.reply(
+                `> This role is not on the additional registration roles list.`
+              );
+            }
+
+            configCTA.additional_roles = configCTA.additional_roles.filter((id) => id !== role.id);
+
+            await configCTA.save();
+          } else {
+            action = "added";
+            if (configCTA.additional_roles.indexOf(role.id) !== -1) {
+              return await interaction.reply(
+                `> This role is already on the additional registration roles list.`
+              );
+            }
+
+            configCTA.additional_roles.push(role.id);
+            await configCTA.save();
+          }
+        }
+
+        return await interaction.reply(`> Additional registration role has been ${action}.`);
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply(
+          `> [6741ee] Error while modyfing additional role. Please try again later.`
+        );
+      }
     } else if (interaction.options.getSubcommand() === "guild_names") {
       const guild_name = interaction.options.getString("guild_name").trim();
       const remove_instead = interaction.options.getBoolean("remove_instead") ?? false;
@@ -674,6 +734,15 @@ const CTA_Setup = {
           message += `*not set*\n`;
         }
 
+        message += `### Additional roles assigned on registration:\n`;
+        if (configCTA.additional_roles.length > 0) {
+          configCTA.additional_roles.forEach((id) => {
+            message += `<@&${id}> - \`${id}\`\n`;
+          });
+        } else {
+          message += `*not set*\n`;
+        }
+
         message += `### Guild names:\n`;
         if (configCTA.guild_names.length > 0) {
           configCTA.guild_names.forEach((guild) => {
@@ -812,21 +881,6 @@ const CTA_Setup = {
           ],
         },
         {
-          id: "discord_roles_skip",
-          title: "Discord roles to Skip on Attendance",
-          description:
-            "If user have that role will be skipped while checking attendance. Usually used for alts.",
-          type: "role",
-        },
-        {
-          id: "game_roles_skip",
-          title: "Game roles to skip on attendance",
-          description:
-            "If user have that in-game role will, be skipped while checking attendance and won't be shown as unregistered nickname. Usually used for alts. If you want to provide more than 1 role use comma(,) to separate them. The case of letters doesn't matter.",
-          type: "text",
-          toLowerCase: true,
-        },
-        {
           id: "cta_types",
           title: "CTA Types",
           description:
@@ -864,8 +918,6 @@ const CTA_Setup = {
                 guild_names: answers["guild_names"],
                 ao_server: answers["ao_server"],
                 allow_self_registration: answers["self_registration"] === "true" ? true : false,
-                discord_roles_skip: answers["discord_roles_skip"] ?? [],
-                game_roles_skip: answers["game_roles_skip"] ?? [],
               },
               { upsert: true, new: true }
             );
@@ -1393,6 +1445,19 @@ const CTA_Register = {
           await member.roles.add(configCTA.member_role, "[AUTO] Registration");
         } catch (err) {
           console.error("[CTA_Register] Error while adding role to the member", err);
+        }
+
+        if (configCTA?.additional_roles && configCTA.additional_roles.length > 0) {
+          try {
+            for await (const role of configCTA.additional_roles) {
+              if (member.roles.cache.has(role)) {
+                continue;
+              }
+              await member.roles.add(role, "[AUTO] Additional role from registration");
+            }
+          } catch (err) {
+            console.error("[CTA_Register] Error while adding additional roles to the member", err);
+          }
         }
 
         try {
