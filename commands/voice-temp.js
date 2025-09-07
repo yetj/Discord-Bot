@@ -35,6 +35,16 @@ const VoiceTempSetup = {
             .setDescription("New channel name | Variables: {username} {displayname} {number}")
             .setRequired(true)
         )
+        .addBooleanOption((option) =>
+          option
+            .setName("can_edit_name")
+            .setDescription("Allow users to edit the channel name (default: true)")
+        )
+        .addBooleanOption((option) =>
+          option
+            .setName("can_edit_limit")
+            .setDescription("Allow users to edit the channel limit (default: true)")
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -57,6 +67,8 @@ const VoiceTempSetup = {
       const channel = interaction.options.getChannel("channel");
       const new_channel_name = interaction.options.getString("new_channel_name");
       const new_channel_category = interaction.options.getChannel("new_channel_category");
+      const can_edit_name = interaction.options.getBoolean("can_edit_name");
+      const can_edit_limit = interaction.options.getBoolean("can_edit_limit");
 
       if (!channel || !new_channel_name || !new_channel_category) {
         return await interaction.reply(`> *Please fill all required fields*`);
@@ -76,6 +88,8 @@ const VoiceTempSetup = {
         channel_id: channel.id,
         new_channel_name: new_channel_name,
         new_channel_category: new_channel_category.id,
+        can_edit_name: can_edit_name,
+        can_edit_limit: can_edit_limit,
       });
 
       await newDatabase.save();
@@ -83,7 +97,9 @@ const VoiceTempSetup = {
       let message = "";
       message += `> **Channel:** <#${newDatabase.channel_id}>\n`;
       message += `> **Parent category:** **<#${newDatabase.new_channel_category}>** - \`${newDatabase.new_channel_category}\`\n`;
-      message += `> **New channel name:** \`${newDatabase.new_channel_name}\``;
+      message += `> **New channel name:** \`${newDatabase.new_channel_name}\`\n`;
+      message += `> **Can edit name:** \`${newDatabase.can_edit_name}\`\n`;
+      message += `> **Can edit limit:** \`${newDatabase.can_edit_limit}\``;
 
       const embedMessage = new EmbedBuilder()
         .setColor("#009900")
@@ -135,7 +151,9 @@ const VoiceTempSetup = {
 
         message += `> **Channel:** <#${configuredChannel.channel_id}> - \`${configuredChannel.channel_id}\`\n`;
         message += `> **Parent category:** **<#${configuredChannel.new_channel_category}>** - \`${configuredChannel.new_channel_category}\`\n`;
-        message += `> **New channel name:** \`${configuredChannel.new_channel_name}\``;
+        message += `> **New channel name:** \`${configuredChannel.new_channel_name}\`\n`;
+        message += `> **Can edit name:** \`${configuredChannel.can_edit_name}\`\n`;
+        message += `> **Can edit limit:** \`${configuredChannel.can_edit_limit}\``;
       });
 
       const embedMessage = new EmbedBuilder()
@@ -195,12 +213,32 @@ const VoiceTempSetup = {
                 gid: newState.guild.id,
                 channel_id: createdChannel.id,
                 owner_id: newState.member.id,
+                can_edit_name: configuredNewChannel.can_edit_name,
+                can_edit_limit: configuredNewChannel.can_edit_limit,
               });
 
               await newDatabase.save();
 
               await createdChannel.setPosition(newPosition - 1);
               await newState.member.voice.setChannel(createdChannel);
+
+              let message = "";
+
+              if (configuredNewChannel.can_edit_name) {
+                message += `\n- \`/voice-temp name\` - to change the channel name`;
+              }
+
+              if (configuredNewChannel.can_edit_limit) {
+                message += `\n- \`/voice-temp limit\` - to change the member limit`;
+              }
+
+              if (message.length > 0) {
+                message = `\nUse these commands to edit your channel:${message}`;
+              }
+
+              await createdChannel.send(
+                `Welcome to your temporary voice channel, ${newState.member}!${message}`
+              );
             }
           }
         } catch (err) {
@@ -263,13 +301,24 @@ const VoiceTempChannelOptions = {
     .addSubcommand((subcommand) =>
       subcommand
         .setName("limit")
-        .setDescription("Set member limit for voice temp channels ")
+        .setDescription("Set member limit for voice temp channels")
         .addIntegerOption((option) =>
           option
             .setName("max-members")
             .setDescription(
               "Set max members limit for your voice temp channel (default: 0 - no limit)"
             )
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("name")
+        .setDescription("Set name for voice temp channel.")
+        .addStringOption((option) =>
+          option
+            .setName("name")
+            .setDescription("New channel name | Variables: {username} {displayname} {number}")
             .setRequired(true)
         )
     ),
@@ -280,7 +329,7 @@ const VoiceTempChannelOptions = {
       if (max_members < 0 || max_members > 99) {
         const embedMessage = new EmbedBuilder()
           .setColor("#ff0000")
-          .setDescription(`Please set the limit between 0 and 99`);
+          .setDescription(`Please set the limit between 0 and 99. (0 - no limit)`);
 
         return await interaction.reply({ embeds: [embedMessage], ephemeral: true });
       }
@@ -310,19 +359,90 @@ const VoiceTempChannelOptions = {
           return await interaction.reply({ embeds: [embedMessage], ephemeral: true });
         }
 
+        if (!tempChannel.can_edit_limit) {
+          const embedMessage = new EmbedBuilder()
+            .setColor("#ff0000")
+            .setDescription(`You are not allowed to edit the channel limit.`);
+
+          return await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+        }
+
         await interaction.guild.channels.edit(voiceChannelId, {
           userLimit: max_members,
         });
 
         const embedMessage = new EmbedBuilder()
           .setColor("#009900")
-          .setDescription(`Voice channel limit has been set to ${max_members}.`);
+          .setDescription(`Voice channel limit has been set to **${max_members}**.`);
 
         await interaction.reply({ embeds: [embedMessage], ephemeral: true });
       } catch (err) {
         console.error(err);
         return await interaction.reply({
           content: `> [3fbc95] Error while checking channel ownership. Please try again later.`,
+          ephemeral: true,
+        });
+      }
+    } else if (interaction.options.getSubcommand() === "name") {
+      const newName = interaction.options.getString("name");
+
+      const voiceChannelId = interaction.member.voice.channelId;
+
+      if (!voiceChannelId) {
+        const embedMessage = new EmbedBuilder()
+          .setColor("#ff0000")
+          .setDescription(`You are NOT connected to any voice channel`);
+
+        return await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+      }
+
+      try {
+        const tempChannel = await VoiceTempChannels.findOne({
+          gid: interaction.guildId,
+          channel_id: voiceChannelId,
+          owner_id: interaction.user.id,
+        });
+
+        if (!tempChannel) {
+          const embedMessage = new EmbedBuilder()
+            .setColor("#ff0000")
+            .setDescription(`Voice are not owner of the channel you are connected to.`);
+
+          return await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+        }
+
+        if (!tempChannel.can_edit_name) {
+          const embedMessage = new EmbedBuilder()
+            .setColor("#ff0000")
+            .setDescription(`You are not allowed to edit the channel name.`);
+
+          return await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+        }
+
+        let newChannelName = newName;
+        newChannelName = newChannelName.replace("{username}", interaction.user.username);
+        newChannelName = newChannelName.replace(
+          "{displayname}",
+          getDisplayName(interaction.member)
+        );
+        newChannelName = newChannelName.replace(
+          "{number}",
+          Math.floor(Math.random() * (9999 - 1000) + 1000)
+        );
+
+        await interaction.guild.channels.edit(voiceChannelId, {
+          name: newChannelName,
+        });
+
+        const embedMessage = new EmbedBuilder()
+          .setColor("#009900")
+          .setDescription(`Voice channel name has been set to **${newChannelName}**.`);
+
+        await interaction.reply({ embeds: [embedMessage], ephemeral: true });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply({
+          content: `> [c3a912] Error while checking channel ownership. Please try again later.`,
           ephemeral: true,
         });
       }
