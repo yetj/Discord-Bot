@@ -45,6 +45,11 @@ const VoiceTempSetup = {
             .setName("can_edit_limit")
             .setDescription("Allow users to edit the channel limit (default: true)")
         )
+        .addBooleanOption((option) =>
+          option
+            .setName("notify_owner")
+            .setDescription("Mention owner when the voice channel is created (default: false)")
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -69,6 +74,7 @@ const VoiceTempSetup = {
       const new_channel_category = interaction.options.getChannel("new_channel_category");
       const can_edit_name = interaction.options.getBoolean("can_edit_name");
       const can_edit_limit = interaction.options.getBoolean("can_edit_limit");
+      const notify_owner = interaction.options.getBoolean("notify_owner");
 
       if (!channel || !new_channel_name || !new_channel_category) {
         return await interaction.reply(`> *Please fill all required fields*`);
@@ -90,6 +96,7 @@ const VoiceTempSetup = {
         new_channel_category: new_channel_category.id,
         can_edit_name: can_edit_name,
         can_edit_limit: can_edit_limit,
+        notify_owner: notify_owner,
       });
 
       await newDatabase.save();
@@ -99,7 +106,8 @@ const VoiceTempSetup = {
       message += `> **Parent category:** **<#${newDatabase.new_channel_category}>** - \`${newDatabase.new_channel_category}\`\n`;
       message += `> **New channel name:** \`${newDatabase.new_channel_name}\`\n`;
       message += `> **Can edit name:** \`${newDatabase.can_edit_name}\`\n`;
-      message += `> **Can edit limit:** \`${newDatabase.can_edit_limit}\``;
+      message += `> **Can edit limit:** \`${newDatabase.can_edit_limit}\`\n`;
+      message += `> **Notify owner:** \`${newDatabase.notify_owner}\``;
 
       const embedMessage = new EmbedBuilder()
         .setColor("#009900")
@@ -153,7 +161,8 @@ const VoiceTempSetup = {
         message += `> **Parent category:** **<#${configuredChannel.new_channel_category}>** - \`${configuredChannel.new_channel_category}\`\n`;
         message += `> **New channel name:** \`${configuredChannel.new_channel_name}\`\n`;
         message += `> **Can edit name:** \`${configuredChannel.can_edit_name}\`\n`;
-        message += `> **Can edit limit:** \`${configuredChannel.can_edit_limit}\``;
+        message += `> **Can edit limit:** \`${configuredChannel.can_edit_limit}\`\n`;
+        message += `> **Notify owner:** \`${configuredChannel.notify_owner}\``;
       });
 
       const embedMessage = new EmbedBuilder()
@@ -223,6 +232,11 @@ const VoiceTempSetup = {
               await newState.member.voice.setChannel(createdChannel);
 
               let message = "";
+              let notifyMessage = "";
+
+              if (configuredNewChannel.notify_owner) {
+                notifyMessage += `, ${newState.member}`;
+              }
 
               if (configuredNewChannel.can_edit_name) {
                 message += `\n- \`/voice-temp name\` - to change the channel name`;
@@ -237,7 +251,7 @@ const VoiceTempSetup = {
               }
 
               await createdChannel.send(
-                `Welcome to your temporary voice channel, ${newState.member}!${message}`
+                `Welcome to your temporary voice channel${notifyMessage}!${message}`
               );
             }
           }

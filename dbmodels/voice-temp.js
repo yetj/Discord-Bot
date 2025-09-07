@@ -7,6 +7,7 @@ const VoiceTempSettingsSchema = new mongoose.Schema({
   new_channel_category: String,
   can_edit_name: { type: Boolean, default: true },
   can_edit_limit: { type: Boolean, default: true },
+  notify_owner: { type: Boolean, default: false },
 });
 
 const VoiceTempSettings = mongoose.model("VoiceTempSettings", VoiceTempSettingsSchema);
