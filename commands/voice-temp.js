@@ -72,9 +72,9 @@ const VoiceTempSetup = {
       const channel = interaction.options.getChannel("channel");
       const new_channel_name = interaction.options.getString("new_channel_name");
       const new_channel_category = interaction.options.getChannel("new_channel_category");
-      const can_edit_name = interaction.options.getBoolean("can_edit_name");
-      const can_edit_limit = interaction.options.getBoolean("can_edit_limit");
-      const notify_owner = interaction.options.getBoolean("notify_owner");
+      const can_edit_name = interaction.options.getBoolean("can_edit_name") ?? true;
+      const can_edit_limit = interaction.options.getBoolean("can_edit_limit") ?? true;
+      const notify_owner = interaction.options.getBoolean("notify_owner") ?? false;
 
       if (!channel || !new_channel_name || !new_channel_category) {
         return await interaction.reply(`> *Please fill all required fields*`);
