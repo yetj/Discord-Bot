@@ -339,7 +339,7 @@ const Event_Command = {
             id: "roles",
             title: "Advanced Roles",
             description:
-              "Please write roles that will be used in this event. Each role in new line.\nProvide each role in new line in format:\n`a/b/c/d/e/f/g/h/i`\nExample:\n`1/Role Name/1/1/1/🛡️/@Caller//<@1231423423>`\nWhere:\n`a` - role position from 1 to 99\n`b` - role name\n`c` - party number\n`d` - max participants (default: 1) | *(0 - no limit)*\n`e` - is that limit strict? if yes only provided number of participants can signup for that role (default: 1) *(0 - no, 1 - yes)*\n`f` - emoji assigned to that role (default: no emoji)\n`g` - required roles to be able to signup (default: empty) *(you need to mention all discord roles that can assign to that role)*\n`h` - requiured positions (default: empty) *you can provide here which positions has to be filled firstly, before users can signup for that role*\n`i` - pre signed up members (default: empty) *you can mentioin any member that you want to pre signup for the event*",
+              "Please write roles that will be used in this event. Each role in new line.\nProvide each role in new line in format:\n`a/b/c/d/e/f/g/h/i`\nExample:\n`1/Role Name/1/1/1/🛡️/@Caller//<@1231423423>`\nWhere:\n`a` - role position from 1 to 99\n`b` - role name\n`c` - party number\n`d` - max participants (default: 1) | *(0 - no limit)*\n`e` - is that limit strict? if yes only provided number of participants can signup for that role (default: 1) *(0 - no, 1 - yes)*\n`f` - emoji assigned to that role (default: no emoji)\n`g` - required roles to be able to signup (default: empty) *(you need to mention all discord roles that can assign to that role)*\n`h` - required positions (default: empty) *you can provide here which positions has to be filled firstly, before users can signup for that role*\n`i` - pre signed up members (default: empty) *you can mentioin any member that you want to pre signup for the event*",
             type: "text",
             isRaw: true,
             allowFiles: true,
@@ -2046,13 +2046,15 @@ const Event_Command = {
 
     if (requirements === false) {
       let eventInfoMessage = ``;
-      eventInfoMessage += `# ${eventData.name} [#${eventData.event_id}]\n`;
+      eventInfoMessage += `# ${eventData.name}\n`;
 
       if (eventData.description && eventData.description.length > 0) {
         eventInfoMessage += `\n\n${eventData.description}`;
       }
 
       const eventInfo = new EmbedBuilder().setColor("#42d1eb").setDescription(eventInfoMessage);
+
+      let footerText = `Event ID: #${eventData.event_id}`;
 
       if (eventData?.usedTemplateId) {
         try {
@@ -2061,14 +2063,14 @@ const Event_Command = {
           });
 
           if (eventTemplate) {
-            eventInfo.setFooter({
-              text: `Used template: ${eventTemplate.name} (${eventTemplate.authorName})`,
-            });
+            footerText += ` | Used template: ${eventTemplate.name} (${eventTemplate.authorName})`;
           }
         } catch (error) {
           console.error("[47abda] Event used template error: ", error);
         }
       }
+
+      eventInfo.setFooter({ text: footerText });
 
       if (eventData.imageUrl) {
         try {
