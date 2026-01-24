@@ -15,6 +15,7 @@ const CTAConfigSchema = new mongoose.Schema({
   discord_roles_skip: { type: [String], default: [] },
   game_roles_skip: { type: [String], default: [] },
   additional_roles: { type: [String], default: [] },
+  default_start_date: { type: Date, default: 0 },
 });
 const CTAConfig = mongoose.model("CTAConfig", CTAConfigSchema);
 
@@ -50,7 +51,7 @@ CTAVacationsSchema.pre("save", async function (next) {
       const counter = await Counter.findOneAndUpdate(
         { name: "vacations_id_" + this.gid },
         { $inc: { value: 1 } },
-        { new: true, upsert: true }
+        { new: true, upsert: true },
       );
       this.vacations_id = counter.value;
     } catch (error) {
@@ -92,7 +93,7 @@ CTAEventsSchema.pre("save", async function (next) {
       const counter = await Counter.findOneAndUpdate(
         { name: "cta_id_" + this.gid },
         { $inc: { value: 1 } },
-        { new: true, upsert: true }
+        { new: true, upsert: true },
       );
       this.cta_id = counter.value;
     } catch (error) {

@@ -42,21 +42,21 @@ const CTA_Setup = {
           option
             .setName("role")
             .setDescription("Role that every member should have")
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("manager_role")
         .setDescription(
-          "Set Manager role, that can manage this bot and have access to all commands"
+          "Set Manager role, that can manage this bot and have access to all commands",
         )
         .addRoleOption((option) => option.setName("role").setDescription("Role").setRequired(true))
         .addBooleanOption((option) =>
           option
             .setName("remove_instead")
-            .setDescription("Do you want to remove that role? (default: no)")
-        )
+            .setDescription("Do you want to remove that role? (default: no)"),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -70,10 +70,10 @@ const CTA_Setup = {
               ChannelType.GuildText,
               ChannelType.GuildForum,
               ChannelType.PrivateThread,
-              ChannelType.PublicThread
+              ChannelType.PublicThread,
             )
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -87,10 +87,10 @@ const CTA_Setup = {
               ChannelType.GuildText,
               ChannelType.GuildForum,
               ChannelType.PrivateThread,
-              ChannelType.PublicThread
+              ChannelType.PublicThread,
             )
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -100,8 +100,8 @@ const CTA_Setup = {
         .addBooleanOption((option) =>
           option
             .setName("remove_instead")
-            .setDescription("Do you want to remove that role? (default: no)")
-        )
+            .setDescription("Do you want to remove that role? (default: no)"),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -111,8 +111,8 @@ const CTA_Setup = {
         .addBooleanOption((option) =>
           option
             .setName("remove_instead")
-            .setDescription("Do you want to remove that role? (default: no)")
-        )
+            .setDescription("Do you want to remove that role? (default: no)"),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -122,23 +122,23 @@ const CTA_Setup = {
         .addBooleanOption((option) =>
           option
             .setName("remove_instead")
-            .setDescription("Do you want to remove that role? (default: no)")
-        )
+            .setDescription("Do you want to remove that role? (default: no)"),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("guild_names")
         .setDescription(
-          "Set guild names that should be checked when gettings results from Battleboard"
+          "Set guild names that should be checked when gettings results from Battleboard",
         )
         .addStringOption((option) =>
-          option.setName("guild_name").setDescription("Guild name").setRequired(true)
+          option.setName("guild_name").setDescription("Guild name").setRequired(true),
         )
         .addBooleanOption((option) =>
           option
             .setName("remove_instead")
-            .setDescription("Do you want to remove that guild? (default: no)")
-        )
+            .setDescription("Do you want to remove that guild? (default: no)"),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -152,61 +152,72 @@ const CTA_Setup = {
               { name: "Europe", value: "ams" },
               { name: "Asia", value: "sgp" },
               { name: "Americas", value: "us" },
-              { name: "Disable registration", value: "-" }
+              { name: "Disable registration", value: "-" },
             )
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("self_registration")
         .setDescription(
-          "Allow users to register themselves. If disabled, only managers can register users."
+          "Allow users to register themselves. If disabled, only managers can register users.",
         )
         .addBooleanOption((option) =>
           option
             .setName("allow_self_registration")
             .setDescription("Do you want to allow for self registration? (default: no)")
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("discord_roles_skip")
         .setDescription(
-          "Set Discord Roles Skip, that will be ignored while registering and checking attendance"
+          "Set Discord Roles Skip, that will be ignored while registering and checking attendance",
         )
         .addRoleOption((option) => option.setName("role").setDescription("Role").setRequired(true))
         .addBooleanOption((option) =>
           option
             .setName("remove_instead")
-            .setDescription("Do you want to remove that role? (default: no)")
-        )
+            .setDescription("Do you want to remove that role? (default: no)"),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("game_roles_skip")
         .setDescription(
-          "Set guild roles that should be ignored when checking attendance from killboard or online status."
+          "Set guild roles that should be ignored when checking attendance from killboard or online status.",
         )
         .addStringOption((option) =>
-          option.setName("game_role").setDescription("Game role").setRequired(true)
+          option.setName("game_role").setDescription("Game role").setRequired(true),
         )
         .addBooleanOption((option) =>
           option
             .setName("remove_instead")
-            .setDescription("Do you want to remove that role? (default: no)")
-        )
+            .setDescription("Do you want to remove that role? (default: no)"),
+        ),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("default_start_date")
+        .setDescription("Set default start date for /cta check, use 0 to remove custom start date.")
+        .addStringOption((option) =>
+          option
+            .setName("date")
+            .setDescription("Date in format YYYY-MM-DD or 0 to remove custom start date.")
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("interactive")
         .setDescription(
-          "Bot will ask you for all the settings. It will overwrite the current settings if they exist."
-        )
+          "Bot will ask you for all the settings. It will overwrite the current settings if they exist.",
+        ),
     )
     .addSubcommand((subcommand) =>
-      subcommand.setName("show").setDescription("Show config for this server")
+      subcommand.setName("show").setDescription("Show config for this server"),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -217,11 +228,11 @@ const CTA_Setup = {
             .setName("type")
             .setDescription("Select guide type")
             .addChoices(
-              { name: "[EN] CTA add", value: "en_cta_add" }
+              { name: "[EN] CTA add", value: "en_cta_add" },
               //{ name: "[PL] CTA add", value: "pl_cta_add" }
             )
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     ),
   async execute(interaction) {
     let configCTA;
@@ -258,7 +269,7 @@ const CTA_Setup = {
     } catch (err) {
       console.error(err);
       return await interaction.reply(
-        `> [1b62cd] Error while checking perms. Please try again later.`
+        `> [1b62cd] Error while checking perms. Please try again later.`,
       );
     }
 
@@ -269,14 +280,14 @@ const CTA_Setup = {
         await CTAConfig.updateOne(
           { gid: interaction.guildId },
           { member_role: role.id },
-          { upsert: true, new: true }
+          { upsert: true, new: true },
         );
 
         await interaction.reply({ content: `> Member role updated.`, ephemeral: true });
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [df9c57] Error while adding member role. Please try again later.`
+          `> [df9c57] Error while adding member role. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() === "manager_role") {
@@ -321,7 +332,7 @@ const CTA_Setup = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [d563b9] Error while modyfing manager role. Please try again later.`
+          `> [d563b9] Error while modyfing manager role. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() === "vacation_log_channel") {
@@ -331,14 +342,14 @@ const CTA_Setup = {
         await CTAConfig.updateOne(
           { gid: interaction.guildId },
           { vacation_log_channel: channel.id },
-          { upsert: true, new: true }
+          { upsert: true, new: true },
         );
 
         await interaction.reply({ content: `> Vacations log channel updated.`, ephemeral: true });
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [50d13f] Error while updating vacations log channel. Please try again later.`
+          `> [50d13f] Error while updating vacations log channel. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() === "vacation_channel") {
@@ -348,7 +359,7 @@ const CTA_Setup = {
         await CTAConfig.updateOne(
           { gid: interaction.guildId },
           { vacation_channel: channel.id },
-          { upsert: true, new: true }
+          { upsert: true, new: true },
         );
 
         await interaction.reply({
@@ -358,7 +369,7 @@ const CTA_Setup = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [50d13f] Error while updating vacations reporting channel. Please try again later.`
+          `> [50d13f] Error while updating vacations reporting channel. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() === "event_role") {
@@ -403,7 +414,7 @@ const CTA_Setup = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [6741ee] Error while modyfing event role. Please try again later.`
+          `> [6741ee] Error while modyfing event role. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() === "registration_role") {
@@ -431,7 +442,7 @@ const CTA_Setup = {
             }
 
             configCTA.registration_roles = configCTA.registration_roles.filter(
-              (id) => id !== role.id
+              (id) => id !== role.id,
             );
 
             await configCTA.save();
@@ -450,7 +461,7 @@ const CTA_Setup = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [6741ee] Error while modyfing registration role. Please try again later.`
+          `> [6741ee] Error while modyfing registration role. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() === "additional_roles") {
@@ -475,7 +486,7 @@ const CTA_Setup = {
             action = "removed";
             if (configCTA.additional_roles.indexOf(role.id) === -1) {
               return await interaction.reply(
-                `> This role is not on the additional registration roles list.`
+                `> This role is not on the additional registration roles list.`,
               );
             }
 
@@ -486,7 +497,7 @@ const CTA_Setup = {
             action = "added";
             if (configCTA.additional_roles.indexOf(role.id) !== -1) {
               return await interaction.reply(
-                `> This role is already on the additional registration roles list.`
+                `> This role is already on the additional registration roles list.`,
               );
             }
 
@@ -499,7 +510,7 @@ const CTA_Setup = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [6741ee] Error while modyfing additional role. Please try again later.`
+          `> [6741ee] Error while modyfing additional role. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() === "guild_names") {
@@ -552,14 +563,14 @@ const CTA_Setup = {
         await CTAConfig.updateOne(
           { gid: interaction.guildId },
           { ao_server: server },
-          { upsert: true, new: true }
+          { upsert: true, new: true },
         );
 
         await interaction.reply({ content: `> AO server updated.` });
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [a75105] Error while updating ao_server. Please try again later.`
+          `> [a75105] Error while updating ao_server. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() === "self_registration") {
@@ -570,7 +581,7 @@ const CTA_Setup = {
         await CTAConfig.updateOne(
           { gid: interaction.guildId },
           { allow_self_registration: allow_self_registration },
-          { upsert: true, new: true }
+          { upsert: true, new: true },
         );
 
         await interaction.reply({
@@ -579,7 +590,7 @@ const CTA_Setup = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [39d088] Error while updating allow_self_registration. Please try again later.`
+          `> [39d088] Error while updating allow_self_registration. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() === "discord_roles_skip") {
@@ -589,7 +600,7 @@ const CTA_Setup = {
       try {
         if (!configCTA && remove_instead) {
           return await interaction.reply(
-            `> Skipping Discord Roles are not set yet. Nothing to remove.`
+            `> Skipping Discord Roles are not set yet. Nothing to remove.`,
           );
         }
 
@@ -609,7 +620,7 @@ const CTA_Setup = {
             }
 
             configCTA.discord_roles_skip = configCTA.discord_roles_skip.filter(
-              (id) => id !== role.id
+              (id) => id !== role.id,
             );
 
             await configCTA.save();
@@ -628,7 +639,7 @@ const CTA_Setup = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [d0dc23] Error while modyfing registration role. Please try again later.`
+          `> [d0dc23] Error while modyfing registration role. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() === "game_roles_skip") {
@@ -656,7 +667,7 @@ const CTA_Setup = {
             }
 
             configCTA.game_roles_skip = configCTA.game_roles_skip.filter(
-              (role) => role !== game_role
+              (role) => role !== game_role,
             );
 
             await configCTA.save();
@@ -675,7 +686,42 @@ const CTA_Setup = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [be5395] Errror while modyfing Game role skip. Please try again later.`
+          `> [be5395] Errror while modyfing Game role skip. Please try again later.`,
+        );
+      }
+    } else if (interaction.options.getSubcommand() === "default_start_date") {
+      const date = interaction.options.getString("date") ?? null;
+
+      if (!date) {
+        return await interaction.reply({ content: `> \`Date\` can't be empty.`, ephemeral: true });
+      }
+
+      let date_timestamp = null;
+      if (date === "0") {
+        date_timestamp = null;
+      } else if (isValidDate(date, "YYYY-MM-DD")) {
+        date_timestamp = new Date(date).getTime();
+      } else {
+        return await interaction.reply({
+          content: `> Invalid date format. Please use \`YYYY-MM-DD\` or type \`0\` to remove default start date.`,
+          ephemeral: true,
+        });
+      }
+
+      try {
+        await CTAConfig.updateOne(
+          { gid: interaction.guildId },
+          { default_start_date: date_timestamp },
+          { upsert: true, new: true },
+        );
+
+        await interaction.reply({
+          content: `> Default start date has been set to: **${date == "0" ? "not set" : date}**.`,
+        });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply(
+          `> [3ab5d4] Error while updating default_start_date. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() === "show") {
@@ -791,6 +837,17 @@ const CTA_Setup = {
           message += `*not set*\n`;
         }
 
+        message += `### Default start date for /cta check:\n`;
+        if (
+          configCTA?.default_start_date &&
+          configCTA.default_start_date !== null &&
+          configCTA.default_start_date !== 0
+        ) {
+          message += `\`${formattedDate(configCTA.default_start_date, "date")}\`\n`;
+        } else {
+          message += `*not set*\n`;
+        }
+
         const embedMessage = new EmbedBuilder()
           .setColor("#ff99ff")
           .setTitle(`CTA Settings`)
@@ -800,7 +857,7 @@ const CTA_Setup = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [ebfd39] Error while displaying CTA config. Please try again later.`
+          `> [ebfd39] Error while displaying CTA config. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() === "interactive") {
@@ -896,7 +953,7 @@ const CTA_Setup = {
         new ButtonBuilder()
           .setCustomId("cta_cancel")
           .setLabel("Cancel configuration")
-          .setStyle(ButtonStyle.Danger)
+          .setStyle(ButtonStyle.Danger),
       );
 
       await interaction.reply({
@@ -919,7 +976,7 @@ const CTA_Setup = {
                 ao_server: answers["ao_server"],
                 allow_self_registration: answers["self_registration"] === "true" ? true : false,
               },
-              { upsert: true, new: true }
+              { upsert: true, new: true },
             );
 
             for await (const type of answers["cta_types"]) {
@@ -962,7 +1019,7 @@ const CTA_Setup = {
             new RoleSelectMenuBuilder()
               .setCustomId("cta_select_role")
               .setPlaceholder(question.title)
-              .setMaxValues(question.limit ?? 25)
+              .setMaxValues(question.limit ?? 25),
           );
 
           const embedMessage = new EmbedBuilder()
@@ -1000,7 +1057,7 @@ const CTA_Setup = {
             new ChannelSelectMenuBuilder()
               .setCustomId("cta_select_channel")
               .setPlaceholder("Select channel")
-              .setMaxValues(question.limit ?? 25)
+              .setMaxValues(question.limit ?? 25),
           );
 
           const embedMessage = new EmbedBuilder()
@@ -1071,8 +1128,8 @@ const CTA_Setup = {
                   msg.content
                     .split(",")
                     .map((option) => option.trim().toLowerCase())
-                    .filter((option) => option.length > 0)
-                )
+                    .filter((option) => option.length > 0),
+                ),
               );
             } else {
               options = Array.from(
@@ -1080,8 +1137,8 @@ const CTA_Setup = {
                   msg.content
                     .split(",")
                     .map((option) => option.trim())
-                    .filter((option) => option.length > 0)
-                )
+                    .filter((option) => option.length > 0),
+                ),
               );
             }
             questionEmbed.setDescription(`Provided options: ${options.join(", ")}`);
@@ -1107,7 +1164,7 @@ const CTA_Setup = {
             new StringSelectMenuBuilder()
               .setCustomId("cta_select")
               .setPlaceholder(question.title)
-              .addOptions(question.options)
+              .addOptions(question.options),
           );
 
           const embedMessage = new EmbedBuilder()
@@ -1227,7 +1284,7 @@ const CTA_Setup = {
             $set: {
               member_role: "",
             },
-          }
+          },
         );
       } catch (err) {
         console.error("[45e79c] Error while updating dabase for removed role", err);
@@ -1246,7 +1303,7 @@ const CTA_Setup = {
               vacation_channel: "",
               vacation_log_channel: "",
             },
-          }
+          },
         );
       } catch (err) {
         console.error("[4f2103] Error while updating dabase for removed channel", err);
@@ -1262,7 +1319,7 @@ const CTA_Setup = {
             unregistered: true,
             unregistered_date: Date.now(),
             unregistered_reason: "[AUTO] Player left the server",
-          }
+          },
         );
       } catch (err) {
         console.error("[4f2103] Error while updating dabase for removed member", err);
@@ -1292,7 +1349,7 @@ const CTA_Setup = {
                 force_end_reason: "[AUTO] Player left the server",
                 force_end_by: "",
               },
-            }
+            },
           );
         }
 
@@ -1308,7 +1365,7 @@ const CTA_Setup = {
 
     client.on("guildMemberUpdate", async (oldMember, newMember) => {
       const removedRoles = oldMember.roles.cache.filter(
-        (role) => !newMember.roles.cache.has(role.id)
+        (role) => !newMember.roles.cache.has(role.id),
       );
 
       try {
@@ -1326,7 +1383,7 @@ const CTA_Setup = {
                     unregistered: true,
                     unregistered_date: Date.now(),
                     unregistered_reason: "[AUTO] Member lost member role",
-                  }
+                  },
                 );
               }
             }
@@ -1348,10 +1405,10 @@ const CTA_Register = {
     .setName("register")
     .setDescription("User registration.")
     .addStringOption((option) =>
-      option.setName("game_nickname").setDescription("Nickname from the game").setRequired(true)
+      option.setName("game_nickname").setDescription("Nickname from the game").setRequired(true),
     )
     .addUserOption((option) =>
-      option.setName("member").setDescription("Select member you want to register")
+      option.setName("member").setDescription("Select member you want to register"),
     ),
   async execute(interaction) {
     await interaction.deferReply({ ephemeral: true });
@@ -1532,48 +1589,51 @@ const CTA_Registration = {
         .setName("show")
         .setDescription("Check registration status for game nickname or member")
         .addStringOption((option) =>
-          option.setName("game_nickname").setDescription("Nickname from the game")
+          option.setName("game_nickname").setDescription("Nickname from the game"),
         )
-        .addUserOption((option) => option.setName("member").setDescription("Select member"))
+        .addUserOption((option) => option.setName("member").setDescription("Select member")),
     )
     .addSubcommand((subcommand) =>
-      subcommand.setName("membership").setDescription("Check membership status of all members.")
+      subcommand.setName("membership").setDescription("Check membership status of all members."),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("register_all")
         .setDescription(
-          "Register all Members with in-game nickname based on their discord display name."
-        )
+          "Register all Members with in-game nickname based on their discord display name.",
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("update")
         .setDescription("Update registered game nickname for member")
         .addUserOption((option) =>
-          option.setName("member").setDescription("Select member").setRequired(true)
+          option.setName("member").setDescription("Select member").setRequired(true),
         )
         .addStringOption((option) =>
-          option.setName("game_nickname").setDescription("Nickname from the game").setRequired(true)
-        )
+          option
+            .setName("game_nickname")
+            .setDescription("Nickname from the game")
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("unregister")
         .setDescription("Unregister game nickname or member")
         .addUserOption((option) =>
-          option.setName("member").setDescription("Select member").setRequired(true)
+          option.setName("member").setDescription("Select member").setRequired(true),
         )
 
         .addStringOption((option) =>
-          option.setName("reason").setDescription("Reason for unregistering.").setRequired(true)
+          option.setName("reason").setDescription("Reason for unregistering.").setRequired(true),
         )
         .addStringOption((option) =>
-          option.setName("game_nickname").setDescription("Nickname from the game")
-        )
+          option.setName("game_nickname").setDescription("Nickname from the game"),
+        ),
     )
     .addSubcommand((subcommand) =>
-      subcommand.setName("whoami").setDescription("Show my registered nickname.")
+      subcommand.setName("whoami").setDescription("Show my registered nickname."),
     ),
   async execute(interaction) {
     let registration_perms = false;
@@ -1712,7 +1772,7 @@ const CTA_Registration = {
 
         await interaction.guild.members.fetch({ force: true }).then((members) => {
           guildMembersWithMemberRole = members.filter((member) =>
-            member._roles.includes(configCTA.member_role)
+            member._roles.includes(configCTA.member_role),
           );
         });
 
@@ -1808,7 +1868,7 @@ const CTA_Registration = {
 
         await interaction.guild.members.fetch({ force: true }).then((members) => {
           guildMembersWithMemberRole = members.filter((member) =>
-            member._roles.includes(configCTA.member_role)
+            member._roles.includes(configCTA.member_role),
           );
         });
 
@@ -2086,7 +2146,7 @@ const CTA_Registration = {
             role.managed == false &&
             role.id != interaction.guild.id &&
             role.id != member.roles.premiumSubscriberRole &&
-            interaction.guild.members.me.roles.highest.position > role.position
+            interaction.guild.members.me.roles.highest.position > role.position,
         );
 
         const rolesToRemoveMap = rolesToRemove.map((role) => role.id);
@@ -2164,20 +2224,20 @@ const CTA_Vacations = {
           option
             .setName("start_date")
             .setDescription("Start date (date format: YYYY-MM-DD)")
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) =>
           option
             .setName("end_date")
             .setDescription("End date (date format: YYYY-MM-DD)")
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) =>
-          option.setName("reason").setDescription("Reason for vacations").setRequired(true)
+          option.setName("reason").setDescription("Reason for vacations").setRequired(true),
         )
         .addUserOption((option) =>
-          option.setName("member").setDescription("Select member you want to add Vacation")
-        )
+          option.setName("member").setDescription("Select member you want to add Vacation"),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -2187,8 +2247,8 @@ const CTA_Vacations = {
           option
             .setName("vacations_id")
             .setDescription("Vacations ID to be removed")
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -2198,18 +2258,18 @@ const CTA_Vacations = {
           option
             .setName("reason")
             .setDescription("Reason for finishing vacations")
-            .setRequired(true)
+            .setRequired(true),
         )
         .addUserOption((option) =>
-          option.setName("member").setDescription("Select member you want to stop Vacations")
-        )
+          option.setName("member").setDescription("Select member you want to stop Vacations"),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("show")
         .setDescription("Show vacations details.")
         .addNumberOption((option) =>
-          option.setName("vacations_id").setDescription("Show specific vacations details")
+          option.setName("vacations_id").setDescription("Show specific vacations details"),
         )
         .addStringOption((option) =>
           option
@@ -2220,12 +2280,12 @@ const CTA_Vacations = {
               { name: "Past", value: "past" },
               { name: "Upcoming", value: "upcoming" },
               { name: "Active", value: "active" },
-              { name: "Active & Upcoming", value: "active_upcoming" }
-            )
+              { name: "Active & Upcoming", value: "active_upcoming" },
+            ),
         )
         .addUserOption((option) =>
-          option.setName("member").setDescription("Select member you want to check vacations")
-        )
+          option.setName("member").setDescription("Select member you want to check vacations"),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -2240,9 +2300,9 @@ const CTA_Vacations = {
               { name: "Past", value: "past" },
               { name: "Upcoming", value: "upcoming" },
               { name: "Active", value: "active" },
-              { name: "Active & Upcoming", value: "active_upcoming" }
-            )
-        )
+              { name: "Active & Upcoming", value: "active_upcoming" },
+            ),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -2252,17 +2312,17 @@ const CTA_Vacations = {
           option
             .setName("vacations_id")
             .setDescription("Vacations ID to be updated")
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) =>
-          option.setName("start_date").setDescription("Start date (date format: YYYY-MM-DD)")
+          option.setName("start_date").setDescription("Start date (date format: YYYY-MM-DD)"),
         )
         .addStringOption((option) =>
-          option.setName("end_date").setDescription("End date (date format: YYYY-MM-DD)")
+          option.setName("end_date").setDescription("End date (date format: YYYY-MM-DD)"),
         )
         .addStringOption((option) =>
-          option.setName("reason").setDescription("Reason for vacations")
-        )
+          option.setName("reason").setDescription("Reason for vacations"),
+        ),
     ),
   async execute(interaction) {
     let registration_perms = false;
@@ -2421,7 +2481,7 @@ const CTA_Vacations = {
           messageOverlaping += `**ID:** ${overlappingVacations.vacations_id}\n`;
           messageOverlaping += `**Start date:** ${formattedDate(
             overlappingVacations.start,
-            "date"
+            "date",
           )}\n`;
           messageOverlaping += `**End date:** ${formattedDate(overlappingVacations.end, "date")}\n`;
           messageOverlaping += `**Days:** ${overlappingVacations.days}\n`;
@@ -2481,7 +2541,7 @@ const CTA_Vacations = {
 
         if (configCTA.vacation_log_channel.length > 0) {
           const channel = await interaction.guild.channels.cache.get(
-            configCTA.vacation_log_channel
+            configCTA.vacation_log_channel,
           );
           if (channel) {
             let messageLog = ``;
@@ -2554,7 +2614,7 @@ const CTA_Vacations = {
 
         if (configCTA.vacation_log_channel.length > 0) {
           const channel = await interaction.guild.channels.cache.get(
-            configCTA.vacation_log_channel
+            configCTA.vacation_log_channel,
           );
           if (channel) {
             let messageLog = ``;
@@ -2651,7 +2711,7 @@ const CTA_Vacations = {
         let message = ``;
 
         message += `### Vacations stopped for <@${activeVacation.uid}> - ${getDisplayName(
-          member
+          member,
         )}\n`;
         message += `**ID:** ${activeVacation.vacations_id}\n`;
         message += `**Start date:** ${formattedDate(activeVacation.start, "date")}\n`;
@@ -2676,7 +2736,7 @@ const CTA_Vacations = {
 
         if (configCTA.vacation_log_channel.length > 0) {
           const channel = await interaction.guild.channels.cache.get(
-            configCTA.vacation_log_channel
+            configCTA.vacation_log_channel,
           );
           if (channel) {
             let messageLog = ``;
@@ -3043,7 +3103,7 @@ const CTA_Vacations = {
         if (start_date && formattedDate(vacations.start, "date") !== formattedDate(start, "date")) {
           message += `**Start date:** ${formattedDate(vacations.start, "date")} -> ${formattedDate(
             start,
-            "date"
+            "date",
           )}\n`;
           vacations.start = start;
         } else {
@@ -3053,7 +3113,7 @@ const CTA_Vacations = {
         if (end_date && formattedDate(vacations.end, "date") !== formattedDate(end, "date")) {
           message += `**End date:** ${formattedDate(vacations.end, "date")} -> ${formattedDate(
             end,
-            "date"
+            "date",
           )}\n`;
           vacations.end = end;
         } else {
@@ -3082,7 +3142,7 @@ const CTA_Vacations = {
 
         if (configCTA.vacation_log_channel.length > 0) {
           const channel = await interaction.guild.channels.cache.get(
-            configCTA.vacation_log_channel
+            configCTA.vacation_log_channel,
           );
           if (channel) {
             let messageLog = ``;
@@ -3093,14 +3153,14 @@ const CTA_Vacations = {
             if (start_date) {
               messageLog += `**Start date:** ${formattedDate(
                 vacations.start,
-                "date"
+                "date",
               )} -> ${formattedDate(start, "date")}\n`;
             }
 
             if (end_date) {
               messageLog += `**End date:** ${formattedDate(
                 vacations.end,
-                "date"
+                "date",
               )} -> ${formattedDate(end, "date")}\n`;
             }
 
@@ -3140,54 +3200,56 @@ const CTA_Event = {
         .setName("add")
         .setDescription("Creates new CTA event.")
         .addStringOption((option) =>
-          option.setName("name").setDescription("Event name").setRequired(true)
+          option.setName("name").setDescription("Event name").setRequired(true),
         )
         .addStringOption((option) =>
           option
             .setName("cta_type")
             .setDescription("Event type")
             .setAutocomplete(true)
-            .setRequired(true)
+            .setRequired(true),
         )
         .addBooleanOption((option) =>
-          option.setName("mandatory").setDescription("Is event mandatory? (default: no)")
+          option.setName("mandatory").setDescription("Is event mandatory? (default: no)"),
         )
         .addNumberOption((option) =>
-          option.setName("weight").setDescription("Event weight (default: 1)")
+          option.setName("weight").setDescription("Event weight (default: 1)"),
         )
         .addStringOption((option) =>
-          option.setName("members").setDescription("Multiple Members mentions (separated by space)")
+          option
+            .setName("members")
+            .setDescription("Multiple Members mentions (separated by space)"),
         )
         .addStringOption((option) =>
           option
             .setName("game_nicknames")
-            .setDescription("Multiple Game Nicknames (separated by comma)")
+            .setDescription("Multiple Game Nicknames (separated by comma)"),
         )
         .addChannelOption((option) =>
           option
             .setName("channel")
             .addChannelTypes(ChannelType.GuildVoice)
-            .setDescription("Voice channel")
+            .setDescription("Voice channel"),
         )
         .addStringOption((option) =>
           option
             .setName("channels")
-            .setDescription("Multiple Voice channel IDs (separated by comma)")
+            .setDescription("Multiple Voice channel IDs (separated by comma)"),
         )
         .addStringOption((option) =>
-          option.setName("battle_ids").setDescription("Battle IDs from API (separated by comma)")
+          option.setName("battle_ids").setDescription("Battle IDs from API (separated by comma)"),
         )
         .addStringOption((option) =>
           option
             .setName("cta_event_id")
             .setDescription("Get attendance from /event module")
-            .setAutocomplete(true)
+            .setAutocomplete(true),
         )
         .addStringOption((option) =>
           option
             .setName("custom_date")
-            .setDescription("Custom Event date (date format: YYYY-MM-DD HH:MM)")
-        )
+            .setDescription("Custom Event date (date format: YYYY-MM-DD HH:MM)"),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -3198,8 +3260,8 @@ const CTA_Event = {
             .setName("cta_id")
             .setDescription("Event ID")
             .setAutocomplete(true)
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -3210,7 +3272,7 @@ const CTA_Event = {
             .setName("cta_id")
             .setDescription("Event ID")
             .setAutocomplete(true)
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) =>
           option
@@ -3219,38 +3281,40 @@ const CTA_Event = {
             .addChoices(
               { name: "Add", value: "add" },
               { name: "Remove", value: "remove" },
-              { name: "Skip", value: "skip" }
+              { name: "Skip", value: "skip" },
             )
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) =>
-          option.setName("members").setDescription("Multiple Members mentions (separated by space)")
+          option
+            .setName("members")
+            .setDescription("Multiple Members mentions (separated by space)"),
         )
         .addStringOption((option) =>
           option
             .setName("game_nicknames")
-            .setDescription("Multiple Game Nicknames (separated by comma)")
+            .setDescription("Multiple Game Nicknames (separated by comma)"),
         )
         .addChannelOption((option) =>
           option
             .setName("channel")
             .addChannelTypes(ChannelType.GuildVoice)
-            .setDescription("Voice channel")
+            .setDescription("Voice channel"),
         )
         .addStringOption((option) =>
           option
             .setName("channels")
-            .setDescription("Multiple Voice channel IDs (separated by comma)")
+            .setDescription("Multiple Voice channel IDs (separated by comma)"),
         )
         .addStringOption((option) =>
-          option.setName("battle_ids").setDescription("Battle IDs from API (separated by comma)")
+          option.setName("battle_ids").setDescription("Battle IDs from API (separated by comma)"),
         )
         .addStringOption((option) =>
           option
             .setName("cta_event_id")
             .setDescription("Get attendance from /event module")
-            .setAutocomplete(true)
-        )
+            .setAutocomplete(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -3261,8 +3325,8 @@ const CTA_Event = {
             .setName("cta_id")
             .setDescription("Event ID")
             .setAutocomplete(true)
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -3273,21 +3337,21 @@ const CTA_Event = {
             .setName("cta_id")
             .setDescription("Event ID")
             .setAutocomplete(true)
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) => option.setName("name").setDescription("Event name"))
         .addStringOption((option) =>
-          option.setName("cta_type").setDescription("Event type").setAutocomplete(true)
+          option.setName("cta_type").setDescription("Event type").setAutocomplete(true),
         )
         .addBooleanOption((option) =>
-          option.setName("mandatory").setDescription("Is event mandatory? (default: no)")
+          option.setName("mandatory").setDescription("Is event mandatory? (default: no)"),
         )
         .addNumberOption((option) =>
-          option.setName("weight").setDescription("Event weight (default: 1)")
+          option.setName("weight").setDescription("Event weight (default: 1)"),
         )
         .addStringOption((option) =>
-          option.setName("date").setDescription("Event date (date format: YYYY-MM-DD HH:MM)")
-        )
+          option.setName("date").setDescription("Event date (date format: YYYY-MM-DD HH:MM)"),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -3298,22 +3362,22 @@ const CTA_Event = {
             .setName("cta_id")
             .setDescription("Event ID")
             .setAutocomplete(true)
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("check")
         .setDescription("Check your or other member CTA attendance.")
         .addStringOption((option) =>
-          option.setName("start_date").setDescription("Start date (date format: YYYY-MM-DD)")
+          option.setName("start_date").setDescription("Start date (date format: YYYY-MM-DD)"),
         )
         .addStringOption((option) =>
-          option.setName("end_date").setDescription("End date (date format: YYYY-MM-DD)")
+          option.setName("end_date").setDescription("End date (date format: YYYY-MM-DD)"),
         )
         .addUserOption((option) =>
-          option.setName("member").setDescription("Select member you want to check")
-        )
+          option.setName("member").setDescription("Select member you want to check"),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -3326,11 +3390,11 @@ const CTA_Event = {
             .addChoices(
               { name: "Add", value: "add" },
               { name: "Remove", value: "remove" },
-              { name: "List current types", value: "list" }
+              { name: "List current types", value: "list" },
             )
-            .setRequired(true)
+            .setRequired(true),
         )
-        .addStringOption((option) => option.setName("name").setDescription("Event type name"))
+        .addStringOption((option) => option.setName("name").setDescription("Event type name")),
     ),
   async autocomplete(interaction) {
     const focusedOption = interaction.options.getFocused(true);
@@ -3352,11 +3416,11 @@ const CTA_Event = {
       }
 
       const filtered = choices.filter((choice) =>
-        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase())
+        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase()),
       );
       const limitedResults = filtered.slice(0, 10);
       await interaction.respond(
-        limitedResults.map((choice) => ({ name: choice.name, value: choice.value }))
+        limitedResults.map((choice) => ({ name: choice.name, value: choice.value })),
       );
     }
 
@@ -3378,11 +3442,11 @@ const CTA_Event = {
       }
 
       const filtered = choices.filter((choice) =>
-        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase())
+        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase()),
       );
       const limitedResults = filtered.slice(0, 10);
       await interaction.respond(
-        limitedResults.map((choice) => ({ name: choice.name, value: choice.value }))
+        limitedResults.map((choice) => ({ name: choice.name, value: choice.value })),
       );
     }
 
@@ -3404,11 +3468,11 @@ const CTA_Event = {
       }
 
       const filtered = choices.filter((choice) =>
-        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase())
+        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase()),
       );
       const limitedResults = filtered.slice(0, 10);
       await interaction.respond(
-        limitedResults.map((choice) => ({ name: choice.name, value: choice.value }))
+        limitedResults.map((choice) => ({ name: choice.name, value: choice.value })),
       );
     }
   },
@@ -4040,11 +4104,11 @@ const CTA_Event = {
               if (memberName && cta.not_registered_names.indexOf(memberName.game_nickname) !== -1) {
                 cta.not_registered_names.splice(
                   cta.not_registered_names.indexOf(memberName.game_nickname),
-                  1
+                  1,
                 );
 
                 updates.push(
-                  `> \`${memberName.game_nickname}\` removed from not registered names.`
+                  `> \`${memberName.game_nickname}\` removed from not registered names.`,
                 );
               }
             }
@@ -4108,11 +4172,11 @@ const CTA_Event = {
               if (memberName && cta.not_registered_names.indexOf(memberName.game_nickname) !== -1) {
                 cta.not_registered_names.splice(
                   cta.not_registered_names.indexOf(memberName.game_nickname),
-                  1
+                  1,
                 );
 
                 updates.push(
-                  `> \`${memberName.game_nickname}\` removed from not registered names.`
+                  `> \`${memberName.game_nickname}\` removed from not registered names.`,
                 );
               }
             }
@@ -4157,11 +4221,11 @@ const CTA_Event = {
               if (memberName && cta.not_registered_names.indexOf(memberName.game_nickname) !== -1) {
                 cta.not_registered_names.splice(
                   cta.not_registered_names.indexOf(memberName.game_nickname),
-                  1
+                  1,
                 );
 
                 updates.push(
-                  `> \`${memberName.game_nickname}\` removed from not registered names.`
+                  `> \`${memberName.game_nickname}\` removed from not registered names.`,
                 );
               }
             }
@@ -4341,7 +4405,7 @@ const CTA_Event = {
             }
 
             const registeredMember = registeredMembers.find(
-              (m) => m.game_nickname === member.characterName
+              (m) => m.game_nickname === member.characterName,
             );
 
             if (registeredMember) {
@@ -4724,10 +4788,8 @@ const CTA_Event = {
           ephemeral: true,
         });
       }
-
-      //
     } else if (interaction.options.getSubcommand() === "check") {
-      const start_date = interaction.options.getString("start_date") ?? null;
+      let start_date = interaction.options.getString("start_date") ?? null;
       const end_date = interaction.options.getString("end_date") ?? null;
       let member = interaction.options.getMember("member") ?? null;
 
@@ -4746,6 +4808,10 @@ const CTA_Event = {
           content: `> Date format is incorrect. Please use: \`YYYY-MM-DD\``,
           ephemeral: true,
         });
+      }
+
+      if (!start_date && configCTA?.default_start_date && configCTA.default_start_date !== null) {
+        start_date = formattedDate(configCTA.default_start_date, "date");
       }
 
       let dateFilter = {};
@@ -4954,7 +5020,7 @@ const CTA_Event = {
 
         if (data.error) {
           errors.push(
-            `> Error while fetching battle data for battle **${battle_id.trim()}**: ${data.error}`
+            `> Error while fetching battle data for battle **${battle_id.trim()}**: ${data.error}`,
           );
           continue;
         }
@@ -4970,7 +5036,7 @@ const CTA_Event = {
         }
       } catch (err) {
         errors.push(
-          `> Error while fetching battle data for battle **${battle_id.trim()}**: *Battle doesn't exist or API server is not responding*`
+          `> Error while fetching battle data for battle **${battle_id.trim()}**: *Battle doesn't exist or API server is not responding*`,
         );
         continue;
       }
@@ -5139,7 +5205,7 @@ const CTA_EventStats = {
     .setName("cta_stats")
     .setDescription("CTA stats")
     .addSubcommand((subcommand) =>
-      subcommand.setName("create").setDescription("Create new CTA event stats group.")
+      subcommand.setName("create").setDescription("Create new CTA event stats group."),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -5150,8 +5216,8 @@ const CTA_EventStats = {
             .setName("cta_stats_id")
             .setDescription("CTA stats group you want to remove.")
             .setAutocomplete(true)
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -5162,8 +5228,8 @@ const CTA_EventStats = {
             .setName("cta_stats_id")
             .setDescription("CTA stats group you want to check.")
             .setAutocomplete(true)
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -5174,21 +5240,21 @@ const CTA_EventStats = {
             .setName("cta_stats_id")
             .setDescription("CTA stats group you want to get stats.")
             .setAutocomplete(true)
-            .setRequired(true)
+            .setRequired(true),
         )
         .addNumberOption((option) =>
           option
             .setName("min_attendance")
             .setDescription("Minimum percentage of attendance.")
             .setMinValue(0)
-            .setMaxValue(100)
+            .setMaxValue(100),
         )
         .addNumberOption((option) =>
           option
             .setName("max_attendance")
             .setDescription("Maximum percentage of attendance.")
             .setMinValue(0)
-            .setMaxValue(100)
+            .setMaxValue(100),
         )
         .addStringOption((option) =>
           option
@@ -5200,14 +5266,14 @@ const CTA_EventStats = {
               { name: "Absent", value: "absent" },
               { name: "Skip", value: "skip" },
               { name: "On vacations", value: "on_vacation" },
-              { name: "Activity Percent", value: "activity" }
-            )
+              { name: "Activity Percent", value: "activity" },
+            ),
         )
         .addStringOption((option) =>
           option
             .setName("order")
             .setDescription("Order (default: Ascending)")
-            .addChoices({ name: "Ascending", value: "asc" }, { name: "Descending", value: "desc" })
+            .addChoices({ name: "Ascending", value: "asc" }, { name: "Descending", value: "desc" }),
         )
         .addStringOption((option) =>
           option
@@ -5216,9 +5282,9 @@ const CTA_EventStats = {
             .addChoices(
               { name: "Tab", value: "tab" },
               { name: "Comma", value: "comma" },
-              { name: "Semicolon", value: "semicolon" }
-            )
-        )
+              { name: "Semicolon", value: "semicolon" },
+            ),
+        ),
     ),
   async autocomplete(interaction) {
     const focusedOption = interaction.options.getFocused(true);
@@ -5240,11 +5306,11 @@ const CTA_EventStats = {
       }
 
       const filtered = choices.filter((choice) =>
-        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase())
+        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase()),
       );
       const limitedResults = filtered.slice(0, 20);
       await interaction.respond(
-        limitedResults.map((choice) => ({ name: choice.name, value: choice.value }))
+        limitedResults.map((choice) => ({ name: choice.name, value: choice.value })),
       );
     }
   },
@@ -5377,14 +5443,14 @@ const CTA_EventStats = {
         new ButtonBuilder()
           .setCustomId("cta_stats_cancel")
           .setLabel("Cancel creation")
-          .setStyle(ButtonStyle.Danger)
+          .setStyle(ButtonStyle.Danger),
       );
 
       const skipButton = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId("cta_stats_skip")
           .setLabel("Skip question")
-          .setStyle(ButtonStyle.Primary)
+          .setStyle(ButtonStyle.Primary),
       );
 
       await interaction.followUp({
@@ -5476,7 +5542,7 @@ const CTA_EventStats = {
 
           if (answers?.created_by && answers.created_by.length > 0) {
             summaryMessage += `**Only events created by:** <@${answers.created_by.join(
-              ">, <@"
+              ">, <@",
             )}>\n`;
           }
 
@@ -5576,7 +5642,7 @@ const CTA_EventStats = {
               await askQuestion();
             } else {
               questionEmbed.setDescription(
-                `Provided answer **${msg.content}** is incorrect. Please try again.`
+                `Provided answer **${msg.content}** is incorrect. Please try again.`,
               );
               questionEmbed.setColor(`#DB0019`);
               await questionMessage.edit({ embeds: [questionEmbed], components: [] });
@@ -5605,7 +5671,7 @@ const CTA_EventStats = {
               .setCustomId("cta_stats_select")
               .setPlaceholder(question.title)
               .addOptions(question.options)
-              .setMaxValues(question.limit ?? 25)
+              .setMaxValues(question.limit ?? 25),
           );
 
           const questionMessage = await channel.send({
@@ -5626,7 +5692,7 @@ const CTA_EventStats = {
               });
 
               questionEmbed.setDescription(
-                `Selected option(s): **${formatedAnswers.join("**, **")}**`
+                `Selected option(s): **${formatedAnswers.join("**, **")}**`,
               );
 
               await i.update({ embeds: [questionEmbed], components: [] });
@@ -5666,7 +5732,7 @@ const CTA_EventStats = {
               .setCustomId("cta_stats_select")
               .setPlaceholder(question.title)
               .addOptions(options)
-              .setMaxValues(options.length)
+              .setMaxValues(options.length),
           );
 
           const questionMessage = await channel.send({
@@ -5708,7 +5774,7 @@ const CTA_EventStats = {
               .setCustomId("cta_stats_members")
               .setPlaceholder("Select members")
               .setMinValues(1)
-              .setMaxValues(25)
+              .setMaxValues(25),
           );
 
           const questionMessage = await channel.send({
@@ -5803,7 +5869,7 @@ const CTA_EventStats = {
         message += `**Only from this Date range:**\n`;
         if (ctaStats.start && ctaStats.end) {
           message += `> ${formattedDate(ctaStats.start, "date")} - ${formattedDate(
-            ctaStats.end
+            ctaStats.end,
           )}\n`;
         } else if (ctaStats.start && !ctaStats.end) {
           message += `> ${formattedDate(ctaStats.start, "date")} - Now\n`;
@@ -5986,7 +6052,7 @@ const CTA_EventStats = {
         });
 
         const filteredStats = sortedStats.filter(
-          (stat) => stat.activity >= min_attendance && stat.activity <= max_attendance
+          (stat) => stat.activity >= min_attendance && stat.activity <= max_attendance,
         );
 
         if (filteredStats.length < 1) {
