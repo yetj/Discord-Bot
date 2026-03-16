@@ -778,7 +778,7 @@ const Balance_Command = {
         const embedMessage = new EmbedBuilder()
           .setColor("#00DB19")
           .setTitle(`Balance for: ${getDisplayName(interactionUser)}`)
-          .setDescription(`**Balance:** 💲**${balanceAmout.toLocaleString()}**`);
+          .setDescription(`**Balance:** 💲**${balanceAmout}**`);
 
         return await interaction.followUp({ embeds: [embedMessage] });
       } catch (err) {
@@ -846,7 +846,7 @@ const Balance_Command = {
 
         if (balanceOrigin.balance < amount) {
           return await interaction.followUp({
-            content: `> ❌ You don't have enough balance to transfer. You have 💲**${balanceOrigin.balance.toLocaleString()}**.`,
+            content: `> ❌ You don't have enough balance to transfer. You have 💲**${balanceOrigin.balance}**.`,
             ephemeral: true,
           });
         }
@@ -895,7 +895,7 @@ const Balance_Command = {
           .setDescription(
             `User ${interactionUser} (${getDisplayName(
               interactionUser,
-            )}) has transfered 💲**${amount.toLocaleString()}** to ${receiverUser} (${getDisplayName(
+            )}) has transfered 💲**${amount}** to ${receiverUser} (${getDisplayName(
               receiverUser,
             )}).`,
           );
@@ -939,9 +939,7 @@ const Balance_Command = {
           .setTitle(`Balance Ranking`)
           .setDescription(
             balances
-              .map(
-                (b, index) => `\`#${index + 1}\` ${b.user_name} - 💲${b.balance.toLocaleString()}`,
-              )
+              .map((b, index) => `\`#${index + 1}\` ${b.user_name} - 💲${b.balance}`)
               .join("\n"),
           );
 
@@ -1034,7 +1032,7 @@ const Balance_Command = {
       let message = ``;
 
       if (usersWhoReceived.length > 0) {
-        message += `Added 💲**${amount.toLocaleString()}** to the following users:\n`;
+        message += `Added 💲**${amount}** to the following users:\n`;
 
         message += `> ` + usersWhoReceived.map((user) => `${getDisplayName(user)}`).join(", ");
       }
@@ -1145,7 +1143,7 @@ const Balance_Command = {
       let message = ``;
 
       if (usersToRemoveBalance.length > 0) {
-        message += `Removed 💲**${amount.toLocaleString()}** from the following users:\n`;
+        message += `Removed 💲**${amount}** from the following users:\n`;
 
         message += `> ` + usersToRemoveBalance.map((user) => `${getDisplayName(user)}`).join(", ");
       }
@@ -1221,7 +1219,7 @@ const Balance_Command = {
 
         if (balance.balance < amount) {
           return await interaction.followUp({
-            content: `> ❌ User ${payoutUser} has only 💲${balance.balance.toLocaleString()} available.`,
+            content: `> ❌ User ${payoutUser} has only 💲${balance.balance} available.`,
             ephemeral: true,
           });
         }
@@ -1229,9 +1227,7 @@ const Balance_Command = {
         const embedMessage = new EmbedBuilder()
           .setColor("#fffb2c")
           .setTitle(`Payout information`)
-          .setDescription(
-            `You need to payout 💲**${amount.toLocaleString()}** to ${getDisplayName(payoutUser)}.`,
-          );
+          .setDescription(`You need to payout 💲**${amount}** to ${getDisplayName(payoutUser)}.`);
 
         const buttonsRow = new ActionRowBuilder()
           .addComponents(
@@ -1281,7 +1277,7 @@ const Balance_Command = {
               embedMessage
                 .setTitle(`Payout successful`)
                 .setDescription(
-                  `💲**${amount.toLocaleString()}** has been successfully paid out to ${getDisplayName(
+                  `💲**${amount}** has been successfully paid out to ${getDisplayName(
                     payoutUser,
                   )}.`,
                 )
@@ -1335,7 +1331,7 @@ const Balance_Command = {
         const embedMessage = new EmbedBuilder()
           .setColor(`#4493fc`)
           .setTitle(`Balance Stats`)
-          .setDescription(`Total Balance: 💲**${stats[0]?.totalBalance.toLocaleString() || 0}**`);
+          .setDescription(`Total Balance: 💲**${stats[0]?.totalBalance || 0}**`);
 
         await interaction.followUp({ embeds: [embedMessage] });
       } catch (err) {
