@@ -565,6 +565,17 @@ const Balance_Command = {
     .addSubcommand((subcommand) =>
       subcommand
         .setName("add")
+        .setDescription("Add balance to the user.")
+        .addUserOption((option) =>
+          option.setName("user").setDescription("User to add balance to").setRequired(true),
+        )
+        .addIntegerOption((option) =>
+          option.setName("amount").setDescription("Amount to add").setRequired(true),
+        ),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("add_many")
         .setDescription("Add balance to the mentioned users.")
         .addStringOption((option) =>
           option.setName("users").setDescription("Users to add balance to").setRequired(true),
@@ -576,6 +587,17 @@ const Balance_Command = {
     .addSubcommand((subcommand) =>
       subcommand
         .setName("remove")
+        .setDescription("Remove balance from the user.")
+        .addUserOption((option) =>
+          option.setName("user").setDescription("User to remove balance from").setRequired(true),
+        )
+        .addIntegerOption((option) =>
+          option.setName("amount").setDescription("Amount to remove").setRequired(true),
+        ),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("remove_many")
         .setDescription("Remove balance from the mentioned users.")
         .addStringOption((option) =>
           option.setName("users").setDescription("Users to remove balance from").setRequired(true),
@@ -742,9 +764,17 @@ const Balance_Command = {
     }
 
     if (
-      ["add", "remove", "payout", "stats", "cta", "logs", "file"].indexOf(
-        interaction.options.getSubcommand(),
-      ) !== -1 &&
+      [
+        "add",
+        "add_many",
+        "remove",
+        "remove_many",
+        "payout",
+        "stats",
+        "cta",
+        "logs",
+        "file",
+      ].indexOf(interaction.options.getSubcommand()) !== -1 &&
       payout_perms === false
     ) {
       return await interaction.reply({
@@ -953,11 +983,21 @@ const Balance_Command = {
       }
     }
     // payout rights required
-    else if (interaction.options.getSubcommand() === "add") {
-      const users = interaction.options.getString("users");
+    else if (
+      interaction.options.getSubcommand() === "add" ||
+      interaction.options.getSubcommand() === "add_many"
+    ) {
+      const users = interaction.options.getString("users") || null;
+      const user = interaction.options.getUser("user") || null;
       const amount = interaction.options.getInteger("amount");
 
-      const usersArray = await extractUniqueMembers(users);
+      let usersArray = [];
+
+      if (users) {
+        usersArray = await extractUniqueMembers(users);
+      } else if (user) {
+        usersArray = [user.id];
+      }
 
       if (usersArray.length === 0) {
         return await interaction.followUp({
@@ -1060,11 +1100,21 @@ const Balance_Command = {
           await logChannel.send({ embeds: [embedMessage] });
         }
       }
-    } else if (interaction.options.getSubcommand() === "remove") {
-      const users = interaction.options.getString("users");
+    } else if (
+      interaction.options.getSubcommand() === "remove" ||
+      interaction.options.getSubcommand() === "remove_many"
+    ) {
+      const users = interaction.options.getString("users") || null;
+      const user = interaction.options.getUser("user") || null;
       const amount = interaction.options.getInteger("amount");
 
-      const usersArray = await extractUniqueMembers(users);
+      let usersArray = [];
+
+      if (users) {
+        usersArray = await extractUniqueMembers(users);
+      } else if (user) {
+        usersArray = [user.id];
+      }
 
       if (usersArray.length === 0) {
         return await interaction.followUp({
