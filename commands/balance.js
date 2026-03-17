@@ -646,7 +646,15 @@ const Balance_Command = {
         .addIntegerOption((option) => option.setName("amount").setDescription("Amount to payout")),
     )
     .addSubcommand((subcommand) =>
-      subcommand.setName("ranking").setDescription("Check the balance ranking."),
+      subcommand
+        .setName("ranking")
+        .setDescription("Check the balance ranking.")
+        .addIntegerOption((option) =>
+          option
+            .setName("page")
+            .setDescription("Page number for ranking - 15 results per page (default: 1)")
+            .setMinValue(1),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -973,14 +981,27 @@ const Balance_Command = {
         });
       }
     } else if (interaction.options.getSubcommand() === "ranking") {
+      const page = interaction.options.getInteger("page") || 1;
+
+      const perPage = 15;
+      let skip = (page - 1) * perPage;
+
       try {
         const balances = await Balance.find({ gid: interaction.guildId })
           .sort({ balance: -1 })
-          .limit(10);
+          .skip(skip)
+          .limit(perPage);
+
+        if (page > 1 && balances.length === 0) {
+          return await interaction.followUp({
+            content: `> *No results found for page **${page}**.*`,
+            ephemeral: true,
+          });
+        }
 
         if (balances.length === 0) {
           return await interaction.followUp({
-            content: `> No balances found for this server.`,
+            content: `> *No balances found for this server.*`,
             ephemeral: true,
           });
         }
@@ -990,9 +1011,13 @@ const Balance_Command = {
           .setTitle(`Balance Ranking`)
           .setDescription(
             balances
-              .map((b, index) => `\`#${index + 1}\` ${b.user_name} - 💲${b.balance}`)
+              .map((b, index) => `\`#${skip + index + 1}\` ${b.user_name} - 💲${b.balance}`)
               .join("\n"),
           );
+
+        if (page > 1) {
+          embedMessage.setFooter({ text: `Page ${page}` });
+        }
 
         return await interaction.followUp({ embeds: [embedMessage] });
       } catch (err) {
