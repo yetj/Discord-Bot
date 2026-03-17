@@ -710,6 +710,26 @@ const Balance_Command = {
         ),
     )
     .addSubcommand((subcommand) =>
+      subcommand
+        .setName("export")
+        .setDescription("Generate a file with balance information.")
+        .addStringOption((option) =>
+          option
+            .setName("type")
+            .setDescription("Select type of file to generate (default: txt)")
+            .addChoices(
+              { name: "txt", value: "txt" },
+              { name: "html", value: "html" },
+              { name: "csv", value: "csv" },
+            ),
+        )
+        .addBooleanOption((option) =>
+          option
+            .setName("above_zero")
+            .setDescription("Show only users with balance above 0? (default: yes)"),
+        ),
+    )
+    .addSubcommand((subcommand) =>
       subcommand.setName("import").setDescription("Import balance information from a file."),
     ),
   async execute(interaction) {
@@ -774,6 +794,7 @@ const Balance_Command = {
         "cta",
         "logs",
         "file",
+        "export",
       ].indexOf(interaction.options.getSubcommand()) !== -1 &&
       payout_perms === false
     ) {
@@ -1457,7 +1478,10 @@ const Balance_Command = {
           ephemeral: true,
         });
       }
-    } else if (interaction.options.getSubcommand() === "file") {
+    } else if (
+      interaction.options.getSubcommand() === "file" ||
+      interaction.options.getSubcommand() === "export"
+    ) {
       const type = interaction.options.getString("type") ?? "txt";
       const aboveZero = interaction.options.getBoolean("above_zero") ?? true;
 
