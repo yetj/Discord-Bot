@@ -9,9 +9,9 @@ const {
   ChannelSelectMenuBuilder,
   StringSelectMenuBuilder,
   ButtonStyle,
+  MessageFlags,
 } = require("discord.js");
 const { BalanceSettings, Balance, BalanceLogs } = require("../dbmodels/balance");
-const { CTAEvents } = require("../dbmodels/cta");
 const getDisplayName = require("../utils/getDisplayName");
 const extractUniqueMembers = require("../utils/extractUniqueMembers");
 const formattedDate = require("../utils/formattedDate");
@@ -352,7 +352,7 @@ const Balance_Setup = {
             console.error(err);
             return await interaction.followUp({
               content: `> [5498fd] Error while saving interactive Balance setup. Please try again later.`,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
           }
 
@@ -647,6 +647,18 @@ const Balance_Command = {
     )
     .addSubcommand((subcommand) =>
       subcommand
+        .setName("payout_offline")
+        .setDescription("Payout balance to the user who left the server.")
+        .addStringOption((option) =>
+          option.setName("nickname").setDescription("User nickname to payout balance to"),
+        )
+        .addStringOption((option) =>
+          option.setName("discord_id").setDescription("User Discord ID to payout balance to"),
+        )
+        .addIntegerOption((option) => option.setName("amount").setDescription("Amount to payout")),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
         .setName("ranking")
         .setDescription("Check the balance ranking.")
         .addIntegerOption((option) =>
@@ -739,6 +751,11 @@ const Balance_Command = {
     )
     .addSubcommand((subcommand) =>
       subcommand.setName("import").setDescription("Import balance information from a file."),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("offline_list")
+        .setDescription("Shows list of users that left the server but have balance above 0."),
     ),
   async execute(interaction) {
     let payout_perms = false;
@@ -758,7 +775,7 @@ const Balance_Command = {
       if (!configBalance || configBalance.enabled == false) {
         return await interaction.reply({
           content: `> Balance feature is **disabled**.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -787,7 +804,7 @@ const Balance_Command = {
       console.error(err);
       return await interaction.reply({
         content: `> [e21281] Error while checking perms. Please try again later.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -798,17 +815,19 @@ const Balance_Command = {
         "remove",
         "remove_many",
         "payout",
+        "payout_offline",
         "stats",
         "cta",
         "logs",
         "file",
         "export",
+        "offline_list",
       ].indexOf(interaction.options.getSubcommand()) !== -1 &&
       payout_perms === false
     ) {
       return await interaction.reply({
         content: `> You don't have permission to use this command.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -844,7 +863,7 @@ const Balance_Command = {
         console.error(err);
         return await interaction.followUp({
           content: `> [97b104] Error while checking balance. Please try again later.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     } else if (
@@ -857,7 +876,7 @@ const Balance_Command = {
       if (amount <= 0) {
         return await interaction.followUp({
           content: `> ❌ Amount must be greater than 0.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -872,21 +891,21 @@ const Balance_Command = {
       if (interaction.user.id === user.id) {
         return await interaction.followUp({
           content: `> ❌ You can't transfer balance to yourself.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (!interactionUser) {
         return await interaction.followUp({
           content: `> ❌ [505852] Something wen't wrong try again later.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (!receiverUser) {
         return await interaction.followUp({
           content: `> ❌ Receiver not found.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -899,21 +918,21 @@ const Balance_Command = {
         if (!balanceOrigin) {
           await interaction.followUp({
             content: `> ❌ You don't have any balance to transfer.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
         if (balanceOrigin.balance < amount) {
           return await interaction.followUp({
             content: `> ❌ You don't have enough balance to transfer. You have 💲**${balanceOrigin.balance}**.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
         if (amount < 100000) {
           return await interaction.followUp({
             content: `> ❌ You can't transfer less than 💲**100,000**.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -977,56 +996,15 @@ const Balance_Command = {
         console.error(err);
         return await interaction.followUp({
           content: `> [d3f4a2] Error while giving balance. Please try again later.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     } else if (interaction.options.getSubcommand() === "ranking") {
-      const page = interaction.options.getInteger("page") || 1;
+      const page = interaction.options.getInteger("page") ?? 1;
 
-      const perPage = 15;
-      let skip = (page - 1) * perPage;
+      const embedMessage = await this.rankingEmbed(interaction, page);
 
-      try {
-        const balances = await Balance.find({ gid: interaction.guildId })
-          .sort({ balance: -1 })
-          .skip(skip)
-          .limit(perPage);
-
-        if (page > 1 && balances.length === 0) {
-          return await interaction.followUp({
-            content: `> *No results found for page **${page}**.*`,
-            ephemeral: true,
-          });
-        }
-
-        if (balances.length === 0) {
-          return await interaction.followUp({
-            content: `> *No balances found for this server.*`,
-            ephemeral: true,
-          });
-        }
-
-        const embedMessage = new EmbedBuilder()
-          .setColor("#00DB19")
-          .setTitle(`Balance Ranking`)
-          .setDescription(
-            balances
-              .map((b, index) => `\`#${skip + index + 1}\` ${b.user_name} - 💲${b.balance}`)
-              .join("\n"),
-          );
-
-        if (page > 1) {
-          embedMessage.setFooter({ text: `Page ${page}` });
-        }
-
-        return await interaction.followUp({ embeds: [embedMessage] });
-      } catch (err) {
-        console.error(err);
-        return await interaction.followUp({
-          content: `> [cbed3d] Error while fetching balance ranking. Please try again later.`,
-          ephemeral: true,
-        });
-      }
+      await interaction.followUp(embedMessage);
     }
     // payout rights required
     else if (
@@ -1048,14 +1026,14 @@ const Balance_Command = {
       if (usersArray.length === 0) {
         return await interaction.followUp({
           content: `> ❌ No valid users found in the input.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (amount <= 0) {
         return await interaction.followUp({
           content: `> ❌ Amount must be greater than 0.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -1110,7 +1088,7 @@ const Balance_Command = {
           console.error(err);
           await interaction.followUp({
             content: `> [d3f4a2] Error while adding balance to user <@${userId}>. Please try again later.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
       }
@@ -1165,14 +1143,14 @@ const Balance_Command = {
       if (usersArray.length === 0) {
         return await interaction.followUp({
           content: `> ❌ No valid users found in the input.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (amount <= 0) {
         return await interaction.followUp({
           content: `> ❌ Amount must be greater than 0.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -1231,7 +1209,7 @@ const Balance_Command = {
           console.error(err);
           await interaction.followUp({
             content: `> [1799f9] Error while removing balance from user <@${userId}>. Please try again later.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
       }
@@ -1292,7 +1270,7 @@ const Balance_Command = {
       if (!payoutUser) {
         return await interaction.followUp({
           content: `> ❌ User not found.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -1305,7 +1283,7 @@ const Balance_Command = {
         if (!balance) {
           return await interaction.followUp({
             content: `> ❌ User ${payoutUser} has no balance to payout.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -1315,8 +1293,8 @@ const Balance_Command = {
 
         if (balance.balance < amount) {
           return await interaction.followUp({
-            content: `> ❌ User ${payoutUser} has only 💲${balance.balance} available.`,
-            ephemeral: true,
+            content: `> ❌ User ${payoutUser} has only 💲**${balance.balance}** available.`,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -1409,7 +1387,158 @@ const Balance_Command = {
         console.error(err);
         return await interaction.followUp({
           content: `> [9defd7] Error while processing payout. Please try again later.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+    } else if (interaction.options.getSubcommand() === "payout_offline") {
+      const discord_id = interaction.options.getString("discord_id") ?? null;
+      const nickname = interaction.options.getString("nickname") ?? null;
+      let amount = interaction.options.getInteger("amount") ?? null;
+
+      if (!discord_id && !nickname) {
+        return await interaction.followUp({
+          content: `> ❌ You must provide either a **Discord ID** or a **nickname**.`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      if (discord_id && nickname) {
+        return await interaction.followUp({
+          content: `> ❌ You can't provide both a **Discord ID** and a **nickname**. Please provide only one of them.`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
+        force: true,
+      });
+
+      try {
+        let balance = null;
+        let payoutUser = discord_id ?? nickname;
+
+        if (discord_id) {
+          balance = await Balance.findOne({
+            gid: interaction.guildId,
+            user_id: discord_id.trim(),
+          });
+        } else if (nickname) {
+          balance = await Balance.findOne({
+            gid: interaction.guildId,
+            user_name: nickname.trim(),
+          });
+        }
+
+        if (!balance) {
+          return await interaction.followUp({
+            content: `> ❌ User **${payoutUser}** has no balance to payout.`,
+            flags: MessageFlags.Ephemeral,
+          });
+        }
+
+        if (amount === null) {
+          amount = balance.balance;
+        }
+
+        if (balance.balance < amount) {
+          return await interaction.followUp({
+            content: `> ❌ User **${payoutUser}** has only 💲**${balance.balance}** available.`,
+            flags: MessageFlags.Ephemeral,
+          });
+        }
+
+        const embedMessage = new EmbedBuilder()
+          .setColor("#fffb2c")
+          .setTitle(`Payout information`)
+          .setDescription(`You need to payout 💲**${amount}** to **${payoutUser}**.`);
+
+        const buttonsRow = new ActionRowBuilder()
+          .addComponents(
+            new ButtonBuilder()
+              .setCustomId("balance_payout_offline_confirm")
+              .setLabel("Confirm payout")
+              .setStyle(ButtonStyle.Success),
+          )
+          .addComponents(
+            new ButtonBuilder()
+              .setCustomId("balance_payout_offline_cancel")
+              .setLabel("Cancel payout")
+              .setStyle(ButtonStyle.Danger),
+          );
+
+        const msg = await interaction.followUp({
+          embeds: [embedMessage],
+          components: [buttonsRow],
+        });
+
+        const collector = msg.createMessageComponentCollector({ time: 120000 });
+
+        collector.on("collect", async (i) => {
+          if (
+            i.customId === "balance_payout_offline_cancel" &&
+            i.user.id === interactionUser.user.id
+          ) {
+            embedMessage.setTitle("Payout canceled.");
+            embedMessage.setColor(`#DB0019`);
+            await i.update({ embeds: [embedMessage], components: [] });
+            collector.stop();
+          }
+          if (
+            i.customId === "balance_payout_offline_confirm" &&
+            i.user.id === interactionUser.user.id
+          ) {
+            try {
+              balance.balance -= amount;
+              await balance.save();
+
+              const logEntry = new BalanceLogs({
+                gid: interaction.guildId,
+                type: "payout",
+                payout_id: interactionUser.user.id,
+                payout_name: getDisplayName(interactionUser),
+                receiver_id: balance.user_id,
+                receiver_name: balance.user_name,
+                amount: amount,
+              });
+
+              await logEntry.save();
+
+              embedMessage
+                .setTitle(`Payout successful`)
+                .setDescription(`💲**${amount}** has been successfully paid out to ${payoutUser}.`)
+                .setColor(`#00DB19`);
+
+              await i.update({ embeds: [embedMessage], components: [] });
+
+              if (configBalance.log_channel) {
+                const logChannel = await interaction.guild.channels.fetch(
+                  configBalance.log_channel,
+                );
+                if (logChannel) {
+                  embedMessage.setFooter({
+                    text: `Balance payed out by ${getDisplayName(interactionUser)} (#${
+                      interactionUser.user.id
+                    })`,
+                  });
+                  await logChannel.send({ embeds: [embedMessage] });
+                }
+              }
+            } catch (err) {
+              console.error(err);
+              embedMessage
+                .setTitle("Payout failed")
+                .setDescription(`> [ae8148] Error while processing payout. Please try again later.`)
+                .setColor(`#DB0019`);
+              await i.update({ embeds: [embedMessage], components: [] });
+            }
+            collector.stop();
+          }
+        });
+      } catch (err) {
+        console.error(err);
+        return await interaction.followUp({
+          content: `> [5b6b58] Error while processing payout. Please try again later.`,
+          flags: MessageFlags.Ephemeral,
         });
       }
     } else if (interaction.options.getSubcommand() === "stats") {
@@ -1434,7 +1563,7 @@ const Balance_Command = {
         console.error(err);
         return await interaction.followUp({
           content: `> [26b31b] Error while fetching stats. Please try again later.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     } else if (interaction.options.getSubcommand() === "cta") {
@@ -1450,7 +1579,7 @@ const Balance_Command = {
       if (!logUser) {
         return await interaction.followUp({
           content: `> ❌ User not found.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -1464,7 +1593,7 @@ const Balance_Command = {
         if (logs.length === 0) {
           return await interaction.followUp({
             content: `> ❌ No logs found for this user.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -1490,7 +1619,7 @@ const Balance_Command = {
           .setColor("#ff99ff")
           .setTitle(`Balance Logs`)
           .setDescription(
-            `Generated balanced logs for **${getDisplayName(logUser)}** (#${
+            `Generated balance logs for **${getDisplayName(logUser)}** (#${
               logUser.user.id
             }).\n*Given times are in UTC timezone.*`,
           );
@@ -1500,7 +1629,7 @@ const Balance_Command = {
         console.error(err);
         return await interaction.followUp({
           content: `> [8f63c1] Error while fetching logs. Please try again later.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     } else if (
@@ -1519,7 +1648,7 @@ const Balance_Command = {
         if (balances.length === 0) {
           return await interaction.followUp({
             content: `> ❌ No balances found for this server.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -1566,7 +1695,7 @@ const Balance_Command = {
         console.error(err);
         return await interaction.followUp({
           content: `> [8f63c1] Error while generating balance file. Please try again later.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     } else if (interaction.options.getSubcommand() === "import") {
@@ -1577,14 +1706,14 @@ const Balance_Command = {
       if (!manager_perms) {
         return await interaction.followUp({
           content: `> You don't have permission to use this command.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       await interaction.followUp({
         content:
           "> Post balance list to import in format:\n> `display name;balance` (one per line).",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
 
       const filter = (m) => m.author.id === interaction.user.id;
@@ -1605,7 +1734,7 @@ const Balance_Command = {
             console.error(err);
             return await interaction.followUp({
               content: `> [e270f9] Error while processing online list. Please try again later.`,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
           }
         } else {
@@ -1621,7 +1750,7 @@ const Balance_Command = {
         if (parsedData.length < 1) {
           return await interaction.followUp({
             content: `> No data provided or provided in wrong format. Please try again.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -1768,6 +1897,47 @@ const Balance_Command = {
           }
         }
       });
+    } else if (interaction.options.getSubcommand() === "offline_list") {
+      try {
+        const balanceList = await Balance.find({
+          gid: interaction.guildId,
+          balance: { $gt: 0 },
+        }).sort({ balance: -1 });
+
+        let offlineUsers = [];
+        for await (const user of balanceList) {
+          try {
+            await interaction.guild.members.fetch(user.user_id);
+          } catch {
+            offlineUsers.push(user);
+          }
+        }
+
+        let message = ``;
+
+        const embedMessage = new EmbedBuilder()
+          .setColor(`#1cd2ff`)
+          .setTitle(`Users with balance who left the server`)
+          .setDescription(`> All users with balance are on the server.`);
+
+        if (offlineUsers.length > 0) {
+          embedMessage.setColor(`#fc5f5f`);
+          message += `The following users have a balance but are no longer on the server:\n\n`;
+          message += offlineUsers
+            .map((user) => `> ${user.user_name} \`${user.user_id}\` - 💲${user.balance}`)
+            .join("\n");
+
+          embedMessage.setDescription(message);
+        }
+
+        await interaction.followUp({ embeds: [embedMessage], flags: MessageFlags.Ephemeral });
+      } catch (err) {
+        console.error(err);
+        return await interaction.followUp({
+          content: `> [01cd88] Error while loading offline list. Please try again later.`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
     }
   },
   async parseText(content) {
@@ -1810,6 +1980,119 @@ const Balance_Command = {
       });
     }
     return data;
+  },
+  async rankingEmbed(interaction, page) {
+    const perPage = 15;
+    let skip = (page - 1) * perPage;
+
+    try {
+      const totalEntries = await Balance.countDocuments({
+        gid: interaction.guildId,
+        balance: { $gt: 0 },
+      });
+      const totalPages = Math.ceil(totalEntries / perPage);
+
+      const balances = await Balance.find({ gid: interaction.guildId, balance: { $gt: 0 } })
+        .sort({ balance: -1 })
+        .skip(skip)
+        .limit(perPage);
+
+      if (page > 1 && balances.length === 0) {
+        return {
+          content: `> *No results found for page **${page}**.*`,
+          flags: MessageFlags.Ephemeral,
+        };
+      }
+
+      if (balances.length === 0) {
+        return {
+          content: `> *No user has a balance above 0 on this server.*`,
+          flags: MessageFlags.Ephemeral,
+        };
+      }
+
+      const embedMessage = new EmbedBuilder()
+        .setColor("#00DB19")
+        .setTitle(`Balance Ranking`)
+        .setDescription(
+          balances
+            .map((b, index) => `\`#${skip + index + 1}\` ${b.user_name} - 💲${b.balance}`)
+            .join("\n"),
+        );
+
+      let buttonsRow = null;
+
+      if (totalPages > 1) {
+        buttonsRow = new ActionRowBuilder();
+        const ownerId = interaction.user.id;
+
+        const buttonPrev = new ButtonBuilder()
+          .setCustomId(`balance_ranking_prev_${page - 1}_${ownerId}`)
+          .setLabel("⏪")
+          .setStyle(ButtonStyle.Primary);
+
+        if (page - 1 < 1) {
+          buttonPrev.setDisabled(true);
+        }
+
+        const buttonNext = new ButtonBuilder()
+          .setCustomId(`balance_ranking_next_${page + 1}_${ownerId}`)
+          .setLabel("⏩")
+          .setStyle(ButtonStyle.Primary);
+
+        if (page + 1 > totalPages) {
+          buttonNext.setDisabled(true);
+        }
+
+        const buttonPages = new ButtonBuilder()
+          .setCustomId(`balance_ranking_pages`)
+          .setLabel(`Page ${page}/${totalPages}`)
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(true);
+
+        buttonsRow.addComponents(buttonPrev, buttonPages, buttonNext);
+        buttonsRow = [buttonsRow];
+      }
+
+      return { embeds: [embedMessage], components: buttonsRow };
+    } catch (err) {
+      console.error(err);
+      return await interaction.followUp({
+        content: `> [cbed3d] Error while fetching balance ranking. Please try again later.`,
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+  },
+  async autoload(client) {
+    client.on("interactionCreate", async (interaction) => {
+      if (!interaction.isButton()) return;
+
+      const clickedButton = interaction.customId;
+
+      if (!clickedButton.startsWith("balance_ranking_")) {
+        return;
+      }
+
+      if (
+        clickedButton.startsWith("balance_ranking_prev_") ||
+        clickedButton.startsWith("balance_ranking_next_")
+      ) {
+        const parts = clickedButton.split("_");
+        const page = Number(parts[3]);
+        const ownerId = parts[4];
+
+        if (interaction.user.id !== ownerId) {
+          return await interaction.reply({
+            content: "> Only the user who opened this ranking can use these buttons.",
+            flags: MessageFlags.Ephemeral,
+          });
+        }
+
+        const embers = await this.rankingEmbed(interaction, page);
+
+        interaction.update(embers);
+      }
+    });
   },
 };
 
