@@ -15,6 +15,7 @@ const { BalanceSettings, Balance, BalanceLogs } = require("../dbmodels/balance")
 const getDisplayName = require("../utils/getDisplayName");
 const extractUniqueMembers = require("../utils/extractUniqueMembers");
 const formattedDate = require("../utils/formattedDate");
+const tryCatch = require("../utils/tryCatch");
 
 const Balance_Setup = {
   data: new SlashCommandBuilder()
@@ -582,6 +583,11 @@ const Balance_Command = {
         )
         .addIntegerOption((option) =>
           option.setName("amount").setDescription("Amount to add").setRequired(true),
+        )
+        .addBooleanOption((option) =>
+          option
+            .setName("split")
+            .setDescription("Whether to split the amount among users (default: false)"),
         ),
     )
     .addSubcommand((subcommand) =>
@@ -1013,9 +1019,11 @@ const Balance_Command = {
     ) {
       const users = interaction.options.getString("users") || null;
       const user = interaction.options.getUser("user") || null;
-      const amount = interaction.options.getInteger("amount");
+      let amount = interaction.options.getInteger("amount");
+      const split = interaction.options.getBoolean("split") || false;
 
       let usersArray = [];
+      let initialAmount = amount;
 
       if (users) {
         usersArray = await extractUniqueMembers(users);
@@ -1037,6 +1045,46 @@ const Balance_Command = {
         });
       }
 
+      let validUsersCount = 0;
+
+      if (split && usersArray.length > 1) {
+        if (amount / usersArray.length < 0) {
+          return await interaction.followUp({
+            content: `> ❌ Amount per user must be greater than 0 when split is enabled.`,
+            flags: MessageFlags.Ephemeral,
+          });
+        }
+
+        let validUsers = [];
+
+        for await (const userId of usersArray) {
+          const [error, guildMember] = await tryCatch(
+            interaction.guild.members.fetch(userId, {
+              force: true,
+            }),
+          );
+
+          if (error) {
+            continue;
+          }
+
+          if (guildMember) {
+            validUsers.push(userId);
+          }
+        }
+
+        validUsersCount = new Set([...validUsers]).size;
+
+        if (validUsersCount === 0) {
+          return await interaction.followUp({
+            content: `> ❌ No valid users found in the input.`,
+            flags: MessageFlags.Ephemeral,
+          });
+        }
+
+        amount = Math.floor(initialAmount / validUsersCount);
+      }
+
       const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
         force: true,
       });
@@ -1046,11 +1094,13 @@ const Balance_Command = {
 
       for await (const userId of usersArray) {
         try {
-          const guildMember = await interaction.guild.members.fetch(userId, {
-            force: true,
-          });
+          const [error, guildMember] = await tryCatch(
+            interaction.guild.members.fetch(userId, {
+              force: true,
+            }),
+          );
 
-          if (!guildMember) {
+          if (!guildMember || error) {
             usersNotFound.push(userId);
             continue; // Skip if user not found
           }
@@ -1096,14 +1146,18 @@ const Balance_Command = {
       let message = ``;
 
       if (usersWhoReceived.length > 0) {
-        message += `Added 💲**${amount}** to the following users:\n`;
+        if (split) {
+          message += `Added 💲**${amount}** (split from 💲**${initialAmount}**) to the following users (**${validUsersCount}**):\n`;
+        } else {
+          message += `Added 💲**${amount}** to the following users:\n`;
+        }
 
         message += `> ` + usersWhoReceived.map((user) => `${getDisplayName(user)}`).join(", ");
       }
 
       if (usersNotFound.length > 0) {
         message += `\n\nThe following users were not found:\n`;
-        message += `> ` + usersNotFound.map((user) => `${user}`).join(", ");
+        message += `> ` + usersNotFound.map((user) => `<@${user}> \`#${user}\``).join("\n> ");
       }
 
       const embedMessage = new EmbedBuilder()
