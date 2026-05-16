@@ -38,19 +38,19 @@ module.exports = {
               SETTINGS_OPTIONS.default_reminder_time,
               SETTINGS_OPTIONS.reminders_channel,
               SETTINGS_OPTIONS.upcoming_objectives_channel,
-              SETTINGS_OPTIONS.manager_role
+              SETTINGS_OPTIONS.manager_role,
             )
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) =>
           option
             .setName("value")
             .setDescription("Please mention role or channel for specific option.")
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
-      subcommand.setName("setup_show").setDescription("Show bot setup")
+      subcommand.setName("setup_show").setDescription("Show bot setup"),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -61,8 +61,8 @@ module.exports = {
             .setName("setup_entry")
             .setDescription("Select option to remove.")
             .setAutocomplete(true)
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -72,11 +72,11 @@ module.exports = {
           option
             .setName("server_id")
             .setDescription("Discord server ID to duplicate.")
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
-      subcommand.setName("reload_summary").setDescription("Reload objective summary")
+      subcommand.setName("reload_summary").setDescription("Reload objective summary"),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -86,13 +86,13 @@ module.exports = {
           option
             .setName("objective_name")
             .setDescription("Write the objective name")
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) =>
           option
             .setName("thumbnail_url")
-            .setDescription("Optional thumbnail URL that will be added to the message")
-        )
+            .setDescription("Optional thumbnail URL that will be added to the message"),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -103,8 +103,8 @@ module.exports = {
             .setName("objective_name")
             .setDescription("Objective type to be removed")
             .setAutocomplete(true)
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -115,46 +115,46 @@ module.exports = {
             .setName("objective_type")
             .setDescription("Objective type")
             .setAutocomplete(true)
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) =>
           option
             .setName("map_name")
             .setDescription("Map name")
             .setAutocomplete(true)
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) =>
           option
             .setName("unlock_in")
             .setDescription("Unlock in (use format HH:MM for example, 1:40 or 0:40)")
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) =>
-          option.setName("additional_note").setDescription("Additional note")
-        )
+          option.setName("additional_note").setDescription("Additional note"),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("update")
         .setDescription("Update existing objective")
         .addStringOption((option) =>
-          option.setName("message_id").setDescription("Message ID").setRequired(true)
+          option.setName("message_id").setDescription("Message ID").setRequired(true),
         )
         .addStringOption((option) =>
           option
             .setName("unlock_in")
             .setDescription("Unlock in (use format HH:MM for example, 1:40 or 0:40)")
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("stats")
         .setDescription("Show objective stats")
         .addUserOption((option) =>
-          option.setName("user").setDescription("Check stats for sepcific user.")
-        )
+          option.setName("user").setDescription("Check stats for sepcific user."),
+        ),
     ),
   // .addSubcommand((subcommand) =>
   //   subcommand
@@ -194,7 +194,7 @@ module.exports = {
       const filtered = choices.filter((choice) => choice.name.startsWith(focusedOption.value));
 
       await interaction.respond(
-        filtered.map((choice) => ({ name: choice.name, value: choice.value }))
+        filtered.map((choice) => ({ name: choice.name, value: choice.value })),
       );
     }
 
@@ -230,11 +230,11 @@ module.exports = {
       }
 
       const filtered = choices.filter((choice) =>
-        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase())
+        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase()),
       );
       const limitedResults = filtered.slice(0, 20);
       await interaction.respond(
-        limitedResults.map((choice) => ({ name: choice.name, value: choice.value }))
+        limitedResults.map((choice) => ({ name: choice.name, value: choice.value })),
       );
     }
   },
@@ -285,7 +285,7 @@ module.exports = {
 
             if (settingDB) {
               return await interaction.reply(
-                `> ***${SETTINGS_OPTIONS.reminders_channel.name}** - is already set to: <#${settingDB.value}> \`#${settingDB.value}\`.*`
+                `> ***${SETTINGS_OPTIONS.reminders_channel.name}** - is already set to: <#${settingDB.value}> \`#${settingDB.value}\`.*`,
               );
             }
 
@@ -301,14 +301,14 @@ module.exports = {
               .setColor("#ff99ff")
               .setTitle(`Objective Settings`)
               .setDescription(
-                `**${SETTINGS_OPTIONS.reminders_channel.name}** has been set to: <#${newSetting.value}> \`#${newSetting.value}\`.`
+                `**${SETTINGS_OPTIONS.reminders_channel.name}** has been set to: <#${newSetting.value}> \`#${newSetting.value}\`.`,
               );
 
             await interaction.reply({ embeds: [embedMessage] });
           } catch (err) {
             console.error(err);
             return await interaction.reply(
-              `[g453f2] Error while creating new Objective Setting. Please try again later.`
+              `[g453f2] Error while creating new Objective Setting. Please try again later.`,
             );
           }
         } else {
@@ -335,7 +335,7 @@ module.exports = {
 
             if (settingDB) {
               return await interaction.reply(
-                `> ***${SETTINGS_OPTIONS.upcoming_objectives_channel.name}** - is already set to: <#${settingDB.value}> \`#${settingDB.value}\`.*`
+                `> ***${SETTINGS_OPTIONS.upcoming_objectives_channel.name}** - is already set to: <#${settingDB.value}> \`#${settingDB.value}\`.*`,
               );
             }
             const newSetting = await new ObjectivesSettings({
@@ -350,14 +350,14 @@ module.exports = {
               .setColor("#ff99ff")
               .setTitle(`Objective Settings`)
               .setDescription(
-                `**${SETTINGS_OPTIONS.upcoming_objectives_channel.name}** has been set to: <#${newSetting.value}> \`#${newSetting.value}\`.`
+                `**${SETTINGS_OPTIONS.upcoming_objectives_channel.name}** has been set to: <#${newSetting.value}> \`#${newSetting.value}\`.`,
               );
 
             await interaction.reply({ embeds: [embedMessage] });
           } catch (err) {
             console.error(err);
             return await interaction.reply(
-              `[u9h9d23] Error while creating new Objective Setting. Please try again later.`
+              `[u9h9d23] Error while creating new Objective Setting. Please try again later.`,
             );
           }
         } else {
@@ -375,7 +375,7 @@ module.exports = {
 
         if (!time || time < 5) {
           return await interaction.reply(
-            `> *Provided value [${time}] is not a number or is lower than 5.*`
+            `> *Provided value [${time}] is not a number or is lower than 5.*`,
           );
         }
 
@@ -387,7 +387,7 @@ module.exports = {
 
           if (settingDB) {
             return await interaction.reply(
-              `> ***${SETTINGS_OPTIONS.default_reminder_time.name}** - is already set to: <#${settingDB.value}> \`#${settingDB.value}\`.*`
+              `> ***${SETTINGS_OPTIONS.default_reminder_time.name}** - is already set to: <#${settingDB.value}> \`#${settingDB.value}\`.*`,
             );
           }
           const newSetting = await new ObjectivesSettings({
@@ -402,14 +402,14 @@ module.exports = {
             .setColor("#ff99ff")
             .setTitle(`Objective Settings`)
             .setDescription(
-              `**${SETTINGS_OPTIONS.default_reminder_time.name}** has been set to: **${time}**.`
+              `**${SETTINGS_OPTIONS.default_reminder_time.name}** has been set to: **${time}**.`,
             );
 
           await interaction.reply({ embeds: [embedMessage] });
         } catch (err) {
           console.error(err);
           return await interaction.reply(
-            `[u9h9d23] Error while creating new Objective Setting. Please try again later.`
+            `[u9h9d23] Error while creating new Objective Setting. Please try again later.`,
           );
         }
       } else if (option == SETTINGS_OPTIONS.manager_role.value) {
@@ -434,7 +434,7 @@ module.exports = {
 
             if (settingDB) {
               return await interaction.reply(
-                `> ***${SETTINGS_OPTIONS.manager_role.name}** - Role <@&${settingDB.value}> \`#${settingDB.value}\` is already added.*`
+                `> ***${SETTINGS_OPTIONS.manager_role.name}** - Role <@&${settingDB.value}> \`#${settingDB.value}\` is already added.*`,
               );
             }
 
@@ -450,14 +450,14 @@ module.exports = {
               .setColor("#ff99ff")
               .setTitle(`Objective Settings`)
               .setDescription(
-                `**${SETTINGS_OPTIONS.manager_role.name}** has been set to: <@&${newSetting.value}> \`#${newSetting.value}\`.`
+                `**${SETTINGS_OPTIONS.manager_role.name}** has been set to: <@&${newSetting.value}> \`#${newSetting.value}\`.`,
               );
 
             await interaction.reply({ embeds: [embedMessage] });
           } catch (err) {
             console.error(err);
             return await interaction.reply(
-              `[h4h45g] Error while creating new Objective Setting. Please try again later.`
+              `[h4h45g] Error while creating new Objective Setting. Please try again later.`,
             );
           }
         } else {
@@ -507,7 +507,7 @@ module.exports = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `[h4cdfa] Error while showing Objective Setting. Please try again later.`
+          `[h4cdfa] Error while showing Objective Setting. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() == "setup_remove") {
@@ -550,7 +550,7 @@ module.exports = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `[h4cdfa] Error while showing Objective Settings. Please try again later.`
+          `[h4cdfa] Error while showing Objective Settings. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() == "setup_objective_create") {
@@ -604,7 +604,7 @@ module.exports = {
       } catch (err) {
         console.error(err);
         await interaction.reply(
-          `[h5b45] Error while creating new Objective type Please try again later.`
+          `[h5b45] Error while creating new Objective type Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() == "setup_objective_remove") {
@@ -637,7 +637,7 @@ module.exports = {
       } catch (err) {
         console.error(err);
         await interaction.reply(
-          `[jn67hb4] Error while removing Objective type. Please try again later.`
+          `[jn67hb4] Error while removing Objective type. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() == "add") {
@@ -677,10 +677,10 @@ module.exports = {
 
       const time_now = new Date();
       const time_reset_utc = new Date(
-        Date.UTC(time_now.getFullYear(), time_now.getMonth(), time_now.getDate(), 10, 0)
+        Date.UTC(time_now.getFullYear(), time_now.getMonth(), time_now.getDate(), 10, 0),
       );
       const time_reset_next_day_utc = new Date(
-        Date.UTC(time_now.getFullYear(), time_now.getMonth(), time_now.getDate() + 1, 10, 0)
+        Date.UTC(time_now.getFullYear(), time_now.getMonth(), time_now.getDate() + 1, 10, 0),
       );
 
       // check if map name is valid
@@ -709,7 +709,7 @@ module.exports = {
       } catch (err) {
         console.error(err);
         return await interaction.followUp(
-          `[ndun923] Error while fetching Objective Types. Please try again later.`
+          `[ndun923] Error while fetching Objective Types. Please try again later.`,
         );
       }
 
@@ -727,13 +727,13 @@ module.exports = {
 
         if (wrongCount >= 3) {
           return await interaction.followUp(
-            `> ⛔***You've added 3 or more wrong Objectives in last 7 days.***\n> ⛔***You are not allowed to add new objectives now!***`
+            `> ⛔***You've added 3 or more wrong Objectives in last 7 days.***\n> ⛔***You are not allowed to add new objectives now!***`,
           );
         }
       } catch (err) {
         console.error(err);
         return await interaction.followUp(
-          `[ndun923] Error while checking user. Please try again later.`
+          `[ndun923] Error while checking user. Please try again later.`,
         );
       }
 
@@ -771,7 +771,7 @@ module.exports = {
       } catch (err) {
         console.error(err);
         return await interaction.followUp(
-          `[h45g4f] Error while fetching Objective Setting. Please try again later.`
+          `[h45g4f] Error while fetching Objective Setting. Please try again later.`,
         );
       }
 
@@ -800,7 +800,7 @@ module.exports = {
       } catch (err) {
         console.error(err);
         return await interaction.followUp(
-          `[j98j9j] Error while checking if objective already exist. Please try again later.`
+          `[j98j9j] Error while checking if objective already exist. Please try again later.`,
         );
       }
 
@@ -811,7 +811,7 @@ module.exports = {
         });
 
         const channelHandle = await interaction.client.channels.cache.get(
-          settings[SETTINGS_OPTIONS.upcoming_objectives_channel.value]
+          settings[SETTINGS_OPTIONS.upcoming_objectives_channel.value],
         );
 
         if (!channelHandle) {
@@ -860,7 +860,7 @@ module.exports = {
         desc += `**Map:** ${map_name}\n`;
         desc += `**Time:** <t:${Math.round(objective_time.getTime() / 1000)}:R>\n`;
         desc += `**Reporter:** <@${interactionUser.user.id}> - ${getDisplayName(
-          interactionUser
+          interactionUser,
         )}\n`;
         desc += `**Taken:** 🟡 *no info*\n`;
 
@@ -890,7 +890,7 @@ module.exports = {
         const actionButtons = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId("obj-taken").setLabel("Taken").setStyle("Success"),
           new ButtonBuilder().setCustomId("obj-not_taken").setLabel("Not taken").setStyle("Danger"),
-          new ButtonBuilder().setCustomId("obj-wrong").setLabel("⚠️ Wrong").setStyle("Secondary")
+          new ButtonBuilder().setCustomId("obj-wrong").setLabel("⚠️ Wrong").setStyle("Secondary"),
         );
 
         const messagePosted = await channelHandle.send({
@@ -911,7 +911,7 @@ module.exports = {
       } catch (err) {
         console.error(err);
         return await interaction.followUp(
-          `[g45d2f] Error while checking if objective already exist. Please try again later.`
+          `[g45d2f] Error while checking if objective already exist. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() == "update") {
@@ -957,7 +957,7 @@ module.exports = {
         let minutes = 0;
 
         let timecheck = new RegExp(
-          /^((([01]\d|2[0-3]|\d):)?([0-5]\d|[5-9])|([01]\d|2[0-3]|\d):\d)$/
+          /^((([01]\d|2[0-3]|\d):)?([0-5]\d|[5-9])|([01]\d|2[0-3]|\d):\d)$/,
         );
 
         if (timecheck.test(unlock_in) == true) {
@@ -1002,7 +1002,7 @@ module.exports = {
 
         await Objectives.updateOne(
           { _id: isObjectiveExist._id },
-          { time: objective_time, is_after_reset: false }
+          { time: objective_time, is_after_reset: false },
         );
 
         let desc = ``;
@@ -1033,7 +1033,7 @@ module.exports = {
         const actionButtons = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId("obj-taken").setLabel("Taken").setStyle("Success"),
           new ButtonBuilder().setCustomId("obj-not_taken").setLabel("Not taken").setStyle("Danger"),
-          new ButtonBuilder().setCustomId("obj-wrong").setLabel("⚠️ Wrong").setStyle("Secondary")
+          new ButtonBuilder().setCustomId("obj-wrong").setLabel("⚠️ Wrong").setStyle("Secondary"),
         );
 
         try {
@@ -1060,7 +1060,7 @@ module.exports = {
       } catch (err) {
         console.error(err);
         return await interaction.followUp(
-          `[mi90vf3] Error while manually updating Objective. Please try again later.`
+          `[mi90vf3] Error while manually updating Objective. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() == "setup_duplicate_types") {
@@ -1104,7 +1104,7 @@ module.exports = {
       } catch (err) {
         console.error(err);
         return await interaction.followUp(
-          `> [198534g] *Error while duplicating Objective types. Please try again later.*`
+          `> [198534g] *Error while duplicating Objective types. Please try again later.*`,
         );
       }
     } else if (interaction.options.getSubcommand() == "reload_summary") {
@@ -1148,7 +1148,7 @@ module.exports = {
       } catch (err) {
         console.error(err);
         return await interaction.followUp(
-          `[h45k8] Error while manually updating Objective summary. Please try again later.`
+          `[h45k8] Error while manually updating Objective summary. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() == "stats") {
@@ -1231,7 +1231,7 @@ module.exports = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `[mi90vf3] Error while manually updating Objective. Please try again later.`
+          `[mi90vf3] Error while manually updating Objective. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() == "top_stats") {
@@ -1317,13 +1317,13 @@ module.exports = {
               taken: taken,
               taken_user: interaction.user.id,
               taken_user_name: getDisplayName(interactionUser),
-            }
+            },
           );
 
           let desc = ``;
           desc += `**Map:** ${entryDB.map_name}\n`;
           desc += `**Time:** <t:${Math.round(entryDB.time.getTime() / 1000)}:R> <t:${Math.round(
-            entryDB.time.getTime() / 1000
+            entryDB.time.getTime() / 1000,
           )}:t>\n`;
           desc += `**Reporter:** <@${entryDB.user}> - ${entryDB.user_name}\n`;
           if (taken) {
@@ -1332,11 +1332,11 @@ module.exports = {
             desc += `**Taken:** 🔴 *not taken*\n`;
           }
           desc += `**Status changed by:** <@${interaction.user.id}> - ${getDisplayName(
-            interactionUser
+            interactionUser,
           )}\n`;
 
           if (entryDB.additional_note.length > 0) {
-            desc += `**Note:** *${additional_note}*`;
+            desc += `**Note:** *${entryDB.additional_note}*`;
           }
 
           const color = taken ? "#20ff00" : "#ff2000";
@@ -1397,13 +1397,13 @@ module.exports = {
                 new ButtonBuilder()
                   .setCustomId("obj-wrong")
                   .setLabel("⚠️ Wrong")
-                  .setStyle("Secondary")
+                  .setStyle("Secondary"),
               );
               interaction.editReply({ embeds: [embedMessage], components: [actionButtons] });
             },
             10 * 1000,
             interaction,
-            embedMessage
+            embedMessage,
           );
 
           const actionButtons = new ActionRowBuilder().addComponents(
@@ -1415,7 +1415,7 @@ module.exports = {
             new ButtonBuilder()
               .setCustomId(`obj-wrong_confirmation-${timeoutId}`)
               .setLabel("⚠️ Are you sure it's wrong? Confirm!")
-              .setStyle("Danger")
+              .setStyle("Danger"),
           );
 
           await interaction.editReply({ embeds: [embedMessage], components: [actionButtons] });
@@ -1427,14 +1427,14 @@ module.exports = {
             { _id: entryDB._id },
             {
               wrong: true,
-            }
+            },
           );
 
           let desc = ``;
           desc += `**Reporter:** <@${entryDB.user}> - ${entryDB.user_name}\n`;
           desc += `**Wrong:** *true*\n`;
           desc += `**Status changed by:** <@${interaction.user.id}> - ${getDisplayName(
-            interactionUser
+            interactionUser,
           )}\n`;
 
           const embedMessage = new EmbedBuilder()
@@ -1599,7 +1599,7 @@ module.exports = {
 
           summary += `**[${obj.objective}](https://discord.com/channels/${interaction.guild.id}/${obj.channel_id}/${obj.message_id})**`;
           summary += ` - ${obj.map_name} - <t:${Math.round(
-            obj.time.getTime() / 1000
+            obj.time.getTime() / 1000,
           )}:R> <t:${Math.round(obj.time.getTime() / 1000)}:t>`;
 
           if (additional_note.length > 0) {
@@ -1651,7 +1651,7 @@ module.exports = {
       await ObjectivesSettings.updateOne(
         { gid: interaction.guildId, option: SETTINGS_OPTIONS.last_summary_post.value },
         { value: `${channelHandle.id},${summaryPost.id}` },
-        { upsert: true, new: true }
+        { upsert: true, new: true },
       );
     } catch (err) {
       console.error(err);
