@@ -1564,7 +1564,26 @@ const CTA_Register = {
 
       await newRegistration.save();
 
-      member.roles.add(configCTA.member_role);
+      await member.roles.add(configCTA.member_role);
+
+      if (configCTA?.additional_roles && configCTA.additional_roles.length > 0) {
+        try {
+          for await (const role of configCTA.additional_roles) {
+            if (member.roles.cache.has(role)) {
+              continue;
+            }
+            await member.roles.add(role, "[AUTO] Additional role from registration");
+          }
+        } catch (err) {
+          console.error("[CTA_Register] Error while adding additional roles to the member", err);
+        }
+      }
+
+      try {
+        await member.setNickname(game_nickname, "[AUTO] Registration");
+      } catch (err) {
+        console.error("[CTA_Register] Error while setting nickname to the member");
+      }
 
       await interaction.followUp({
         content: `> Registration completed with game nickname: \`${game_nickname}\`!`,
