@@ -8,6 +8,7 @@ const VoiceTempSettingsSchema = new mongoose.Schema({
   can_edit_name: { type: Boolean, default: true },
   can_edit_limit: { type: Boolean, default: true },
   notify_owner: { type: Boolean, default: false },
+  position: { type: Number, default: -1 },
 });
 
 const VoiceTempSettings = mongoose.model("VoiceTempSettings", VoiceTempSettingsSchema);

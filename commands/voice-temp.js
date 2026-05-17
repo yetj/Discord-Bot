@@ -20,36 +20,45 @@ const VoiceTempSetup = {
             .setName("channel")
             .setDescription("Select channel that will be cloned")
             .addChannelTypes(ChannelType.GuildVoice)
-            .setRequired(true)
+            .setRequired(true),
         )
         .addChannelOption((option) =>
           option
             .setName("new_channel_category")
             .setDescription("Select category for new channels")
             .addChannelTypes(ChannelType.GuildCategory)
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) =>
           option
             .setName("new_channel_name")
             .setDescription("New channel name | Variables: {username} {displayname} {number}")
-            .setRequired(true)
+            .setRequired(true),
         )
         .addBooleanOption((option) =>
           option
             .setName("can_edit_name")
-            .setDescription("Allow users to edit the channel name (default: true)")
+            .setDescription("Allow users to edit the channel name (default: true)"),
         )
         .addBooleanOption((option) =>
           option
             .setName("can_edit_limit")
-            .setDescription("Allow users to edit the channel limit (default: true)")
+            .setDescription("Allow users to edit the channel limit (default: true)"),
         )
         .addBooleanOption((option) =>
           option
             .setName("notify_owner")
-            .setDescription("Mention owner when the voice channel is created (default: false)")
+            .setDescription("Mention owner when the voice channel is created (default: false)"),
         )
+        .addIntegerOption((option) =>
+          option
+            .setName("position")
+            .setDescription(
+              "Position of the new channel in the category (default: -1 - last position | 0 - first position).",
+            )
+            .setMinValue(-1)
+            .setMaxValue(99),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -60,11 +69,11 @@ const VoiceTempSetup = {
             .setName("channel")
             .setDescription("Select channel to be remove configuration")
             .addChannelTypes(ChannelType.GuildVoice)
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
-      subcommand.setName("list").setDescription("List all configured channels")
+      subcommand.setName("list").setDescription("List all configured channels"),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
   async execute(interaction) {
@@ -75,6 +84,7 @@ const VoiceTempSetup = {
       const can_edit_name = interaction.options.getBoolean("can_edit_name") ?? true;
       const can_edit_limit = interaction.options.getBoolean("can_edit_limit") ?? true;
       const notify_owner = interaction.options.getBoolean("notify_owner") ?? false;
+      const position = interaction.options.getInteger("position") ?? -1;
 
       if (!channel || !new_channel_name || !new_channel_category) {
         return await interaction.reply(`> *Please fill all required fields*`);
@@ -97,6 +107,7 @@ const VoiceTempSetup = {
         can_edit_name: can_edit_name,
         can_edit_limit: can_edit_limit,
         notify_owner: notify_owner,
+        position: position,
       });
 
       await newDatabase.save();
@@ -107,7 +118,8 @@ const VoiceTempSetup = {
       message += `> **New channel name:** \`${newDatabase.new_channel_name}\`\n`;
       message += `> **Can edit name:** \`${newDatabase.can_edit_name}\`\n`;
       message += `> **Can edit limit:** \`${newDatabase.can_edit_limit}\`\n`;
-      message += `> **Notify owner:** \`${newDatabase.notify_owner}\``;
+      message += `> **Notify owner:** \`${newDatabase.notify_owner}\`\n`;
+      message += `> **Position:** \`${newDatabase.position}\``;
 
       const embedMessage = new EmbedBuilder()
         .setColor("#009900")
@@ -140,7 +152,7 @@ const VoiceTempSetup = {
       } catch (e) {
         console.error(e);
         await interaction.followUp(
-          `[h564h] Error while removing channel configuration. Please try again later.`
+          `[h564h] Error while removing channel configuration. Please try again later.`,
         );
       }
     } else if (interaction.options.getSubcommand() === "list") {
@@ -162,7 +174,8 @@ const VoiceTempSetup = {
         message += `> **New channel name:** \`${configuredChannel.new_channel_name}\`\n`;
         message += `> **Can edit name:** \`${configuredChannel.can_edit_name}\`\n`;
         message += `> **Can edit limit:** \`${configuredChannel.can_edit_limit}\`\n`;
-        message += `> **Notify owner:** \`${configuredChannel.notify_owner}\``;
+        message += `> **Notify owner:** \`${configuredChannel.notify_owner}\`\n`;
+        message += `> **Position:** \`${configuredChannel.position}\``;
       });
 
       const embedMessage = new EmbedBuilder()
@@ -199,20 +212,27 @@ const VoiceTempSetup = {
             newChannelName = newChannelName.replace("{username}", newState.member.user.username);
             newChannelName = newChannelName.replace(
               "{displayname}",
-              getDisplayName(newState.member)
+              getDisplayName(newState.member),
             );
             newChannelName = newChannelName.replace(
               "{number}",
-              Math.floor(Math.random() * (9999 - 1000) + 1000)
+              Math.floor(Math.random() * (9999 - 1000) + 1000),
             );
 
             const createdChannel = await newChannel.clone({ name: newChannelName });
 
             if (createdChannel) {
               const category = await newState.guild.channels.cache.get(
-                configuredNewChannel.new_channel_category
+                configuredNewChannel.new_channel_category,
               );
-              const newPosition = category.children.cache.size;
+              const channelsInCategory = category.children.cache.size;
+              let newPosition = configuredNewChannel.position;
+
+              if (newPosition === -1) {
+                newPosition = channelsInCategory - 1;
+              } else if (newPosition > channelsInCategory) {
+                newPosition = channelsInCategory - 1;
+              }
 
               await createdChannel.setParent(configuredNewChannel.new_channel_category, {
                 lockPermissions: false,
@@ -228,7 +248,7 @@ const VoiceTempSetup = {
 
               await newDatabase.save();
 
-              await createdChannel.setPosition(newPosition - 1);
+              await createdChannel.setPosition(newPosition);
               await newState.member.voice.setChannel(createdChannel);
 
               let message = "";
@@ -251,7 +271,7 @@ const VoiceTempSetup = {
               }
 
               await createdChannel.send(
-                `Welcome to your temporary voice channel${notifyMessage}!${message}`
+                `Welcome to your temporary voice channel${notifyMessage}!${message}`,
               );
             }
           }
@@ -320,10 +340,10 @@ const VoiceTempChannelOptions = {
           option
             .setName("max-members")
             .setDescription(
-              "Set max members limit for your voice temp channel (default: 0 - no limit)"
+              "Set max members limit for your voice temp channel (default: 0 - no limit)",
             )
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -333,8 +353,8 @@ const VoiceTempChannelOptions = {
           option
             .setName("name")
             .setDescription("New channel name | Variables: {username} {displayname} {number}")
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     ),
   async execute(interaction) {
     if (interaction.options.getSubcommand() === "limit") {
@@ -437,11 +457,11 @@ const VoiceTempChannelOptions = {
         newChannelName = newChannelName.replace("{username}", interaction.user.username);
         newChannelName = newChannelName.replace(
           "{displayname}",
-          getDisplayName(interaction.member)
+          getDisplayName(interaction.member),
         );
         newChannelName = newChannelName.replace(
           "{number}",
-          Math.floor(Math.random() * (9999 - 1000) + 1000)
+          Math.floor(Math.random() * (9999 - 1000) + 1000),
         );
 
         await interaction.guild.channels.edit(voiceChannelId, {
