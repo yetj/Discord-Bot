@@ -756,7 +756,19 @@ const Balance_Command = {
         ),
     )
     .addSubcommand((subcommand) =>
-      subcommand.setName("import").setDescription("Import balance information from a file."),
+      subcommand
+        .setName("import")
+        .setDescription("Import balance information from a file.")
+        .addStringOption((option) =>
+          option
+            .setName("user_type")
+            .setDescription("Select type of user identifier in the file (default: Display name)")
+            .addChoices(
+              { name: "Display Name", value: "display_name" },
+              { name: "Discord ID", value: "discord_id" },
+              { name: "User Mention", value: "user_mention" },
+            ),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -1234,13 +1246,16 @@ const Balance_Command = {
           });
 
           if (!balance) {
+            balance = new Balance({
+              gid: interaction.guildId,
+              user_id: guildMember.id,
+              user_name: getDisplayName(guildMember),
+            });
             usersWithoutBalance.push(guildMember);
-            continue;
           }
 
           if (balance.balance < amount) {
             usersWithNotEnoughBalance.push(guildMember);
-            continue;
           }
 
           balance.balance -= amount;
@@ -1282,13 +1297,13 @@ const Balance_Command = {
       }
 
       if (usersWithNotEnoughBalance.length > 0) {
-        message += `\n\nThe following users did not have enough balance:\n`;
+        message += `\n\nThe following users have now negative balance:\n`;
         message +=
           `> ` + usersWithNotEnoughBalance.map((user) => `${getDisplayName(user)}`).join(", ");
       }
 
       if (usersNotFound.length > 0) {
-        message += `\n\nThe following users were not found:\n`;
+        message += `\n\nThe following users were not found and have now negative balance:\n`;
         message += `> ` + usersNotFound.map((user) => `${user}`).join(", ");
       }
 
@@ -1343,6 +1358,13 @@ const Balance_Command = {
 
         if (amount === null) {
           amount = balance.balance;
+        }
+
+        if (balance.balance < 0) {
+          return await interaction.followUp({
+            content: `> ❌ User ${payoutUser} has negative balance 💲**${balance.balance}**.`,
+            flags: MessageFlags.Ephemeral,
+          });
         }
 
         if (balance.balance < amount) {
@@ -1764,9 +1786,17 @@ const Balance_Command = {
         });
       }
 
+      const user_type = interaction.options.getString("user_type") ?? "display_name";
+
+      let type = "display name";
+      if (user_type === "discord_id") {
+        type = "discord ID";
+      } else if (user_type === "user_mention") {
+        type = "User Mention";
+      }
+
       await interaction.followUp({
-        content:
-          "> Post balance list to import in format:\n> `display name;balance` (one per line).",
+        content: `> Post balance list to import in format:\n> \`${type};balance\` (one per line).`,
         flags: MessageFlags.Ephemeral,
       });
 
@@ -1794,11 +1824,7 @@ const Balance_Command = {
         } else {
           parsedData = await this.parseText(collectedMessage.content);
         }
-        try {
-          collectedMessage.delete();
-        } catch (err) {
-          console.error(`> [38b574] (/balance impoort) No permissions to remove messages.`);
-        }
+
         collector.stop();
 
         if (parsedData.length < 1) {
@@ -1812,9 +1838,20 @@ const Balance_Command = {
         let usersAdded = [];
 
         for await (const user of parsedData) {
-          const member = await interaction.guild.members.cache.find(
-            (m) => getDisplayName(m) === user.displayName,
-          );
+          let member = null;
+
+          if (user_type === "display_name") {
+            member = await interaction.guild.members.cache.find(
+              (m) => getDisplayName(m) === user.displayName,
+            );
+          } else if (user_type === "discord_id") {
+            member = await interaction.guild.members.cache.get(user.displayName);
+          } else if (user_type === "user_mention") {
+            const mentionMatch = user.displayName.match(/^<@!?(\d+)>$/);
+            if (mentionMatch) {
+              member = await interaction.guild.members.cache.get(mentionMatch[1]);
+            }
+          }
 
           if (!member) {
             usersNotFound.push(user);
@@ -1839,7 +1876,7 @@ const Balance_Command = {
 
           const logEntry = new BalanceLogs({
             gid: interaction.guildId,
-            type: "add",
+            type: "import",
             payout_id: interaction.user.id,
             payout_name: getDisplayName(interactionUser),
             receiver_id: member.user.id,
@@ -1858,10 +1895,17 @@ const Balance_Command = {
         let message = ``;
 
         message += `### Updated balance for **${usersAdded.length}** user(s):\n`;
+        message += `*Import type: ${type}*\n`;
         let page = 1;
 
         for await (const user of usersAdded) {
-          message += `> **${user.displayName}** got 💲${user.amount}\n`;
+          if (user_type === "display_name") {
+            message += `> **${user.displayName}** got 💲${user.amount}\n`;
+          } else if (user_type === "discord_id") {
+            message += `> <@${user.displayName}> (\`#${user.displayName}\`) got 💲${user.amount}\n`;
+          } else if (user_type === "user_mention") {
+            message += `> **${user.displayName}** got 💲${user.amount}\n`;
+          }
 
           if (message.length > 3800) {
             const embedMessage = new EmbedBuilder()
@@ -1887,6 +1931,7 @@ const Balance_Command = {
             }
 
             message = `### Updated balance for **${usersAdded.length}** user(s):\n`;
+            message += `*Import type: ${type}*\n`;
             page++;
           }
         }
@@ -1920,6 +1965,7 @@ const Balance_Command = {
 
         if (usersNotFound.length > 0) {
           let notFoundMessage = `### The following users were not found:\n`;
+          notFoundMessage += `*Import type: ${type}*\n`;
           notFoundMessage += usersNotFound
             .map((user) => `> ${user.displayName};${user.amount}`)
             .join("\n");
@@ -1998,13 +2044,13 @@ const Balance_Command = {
     const lines = content.split("\n");
     return lines
       .map((line) => {
-        const match = line.match(/^(.+?);([\d., ]+)$/);
+        const match = line.match(/^(.+?);(-?[\d., ]+)$/);
         if (!match) return null;
 
         if (match[1].trim() === "" || match[2].trim() === "") return null;
 
         return {
-          displayName: match[1],
+          displayName: match[1].trim(),
           amount: parseInt(match[2].trim().replace(/[., ]/g, ""), 10),
         };
       })
@@ -2023,13 +2069,13 @@ const Balance_Command = {
     let data = [];
 
     for await (const line of rl) {
-      const match = line.match(/^(.+?);([\d., ]+)$/);
+      const match = line.match(/^(.+?);(-?[\d., ]+)$/);
       if (!match) return null;
 
       if (match[1].trim() === "" || match[2].trim() === "") return null;
 
       data.push({
-        displayName: match[1],
+        displayName: match[1].trim(),
         amount: parseInt(match[2].trim().replace(/[., ]/g, ""), 10),
       });
     }
@@ -2042,11 +2088,11 @@ const Balance_Command = {
     try {
       const totalEntries = await Balance.countDocuments({
         gid: interaction.guildId,
-        balance: { $gt: 0 },
+        balance: { $ne: 0 },
       });
       const totalPages = Math.ceil(totalEntries / perPage);
 
-      const balances = await Balance.find({ gid: interaction.guildId, balance: { $gt: 0 } })
+      const balances = await Balance.find({ gid: interaction.guildId, balance: { $ne: 0 } })
         .sort({ balance: -1 })
         .skip(skip)
         .limit(perPage);
@@ -2060,7 +2106,7 @@ const Balance_Command = {
 
       if (balances.length === 0) {
         return {
-          content: `> *No user has a balance above 0 on this server.*`,
+          content: `> *No user has a balance above or below 0 on this server.*`,
           flags: MessageFlags.Ephemeral,
         };
       }
