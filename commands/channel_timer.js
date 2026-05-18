@@ -62,12 +62,11 @@ const ChannelTimerCommand = {
             channel_id: channel.id,
             timezone: timezone ?? "UTC",
             text: text ?? "{clock} {time} {timezone}",
-            last_updated: new Date(),
           },
           { upsert: true, new: true },
         );
 
-        await this.updateChannelName(interaction.client, timer, true);
+        await this.updateChannelName(interaction.client, timer);
 
         let message = `Channel timer set up for ${channel} in timezone ${timezone || "UTC"} with text:\n\`${text || "{clock} {time} {timezone}"}\``;
 
@@ -119,7 +118,7 @@ const ChannelTimerCommand = {
     try {
       setInterval(async () => {
         await this.updateTime(client);
-      }, 1000 * 60);
+      }, 1000 * 30);
     } catch (err) {
       console.error(`> [c4d12a] Error on autoloading channel timer.`, err);
     }
@@ -129,13 +128,13 @@ const ChannelTimerCommand = {
       const timers = await ChannelTimer.find();
 
       for (const timer of timers) {
-        await this.updateChannelName(client, timer, false);
+        await this.updateChannelName(client, timer);
       }
     } catch (error) {
       console.error(`> [c4d42a] Error updating channel timer.`, error);
     }
   },
-  async updateChannelName(client, timer, force = false) {
+  async updateChannelName(client, timer) {
     const channel = await client.channels.fetch(timer.channel_id).catch(() => null);
     if (!channel) {
       // if channel doesn't exist, remove the timer from the database and notify in the system channel if possible
@@ -182,11 +181,6 @@ const ChannelTimerCommand = {
     const displayMinute = String(roundedMinute).padStart(2, "0");
     const displayTime = `${displayHour}:${displayMinute}`;
 
-    // Skip update if the last update was less than 10 minutes ago
-    if (!force && now - timer.last_updated < 1000 * 60 * 10) {
-      return;
-    }
-
     let clockEmoji = "🕒";
 
     (timezoneHour === 0 || timezoneHour === 12) && (clockEmoji = "🕛");
@@ -211,7 +205,6 @@ const ChannelTimerCommand = {
       // Only update if the name has actually changed to avoid unnecessary updates
       if (channel.name !== displayText) {
         await channel.setName(displayText);
-        await ChannelTimer.findByIdAndUpdate(timer._id, { last_updated: new Date() });
       }
     } catch (err) {
       console.error(`> [c4d32a] Error updating channel name for timer ${timer._id}.`, err);

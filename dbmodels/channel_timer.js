@@ -2,10 +2,9 @@ const mongoose = require("mongoose");
 
 const ChannelTimerSchema = new mongoose.Schema({
   gid: String,
-  last_updated: Date,
   channel_id: String,
   timezone: { type: String, default: "UTC" },
-  text: { type: String, default: "{clock} {time} UTC" },
+  text: { type: String, default: "{clock} {time} {timezone}" },
 });
 
 const ChannelTimer = mongoose.model("ChannelTimer", ChannelTimerSchema);
