@@ -31,7 +31,7 @@ const Event_Command = {
                 .setName("name")
                 .setDescription("Template name")
                 .setMaxLength(32)
-                .setRequired(true)
+                .setRequired(true),
             )
             .addStringOption((option) =>
               option
@@ -39,15 +39,15 @@ const Event_Command = {
                 .setDescription("Method of creating Template (default: simple)")
                 .addChoices(
                   { name: "Simple", value: "simple" },
-                  { name: "Advanced", value: "advanced" }
-                )
+                  { name: "Advanced", value: "advanced" },
+                ),
             )
             .addStringOption((option) =>
-              option.setName("image").setDescription("Link to the image")
+              option.setName("image").setDescription("Link to the image"),
             )
             .addStringOption((option) =>
-              option.setName("build").setDescription("Link to the builds")
-            )
+              option.setName("build").setDescription("Link to the builds"),
+            ),
         )
         .addSubcommand((subcommand) =>
           subcommand
@@ -58,26 +58,26 @@ const Event_Command = {
                 .setName("event_template_id")
                 .setDescription("Template name")
                 .setAutocomplete(true)
-                .setRequired(true)
+                .setRequired(true),
             )
             .addStringOption((option) =>
               option
                 .setName("name")
                 .setDescription("Template name")
                 .setMinLength(2)
-                .setMaxLength(32)
+                .setMaxLength(32),
             )
             .addStringOption((option) =>
-              option.setName("image").setDescription("Link to the image")
+              option.setName("image").setDescription("Link to the image"),
             )
             .addStringOption((option) =>
-              option.setName("build").setDescription("Link to the builds")
+              option.setName("build").setDescription("Link to the builds"),
             )
             .addBooleanOption((option) =>
               option
                 .setName("skip_updating_roles")
-                .setDescription("Skip updating roles? (default: true)")
-            )
+                .setDescription("Skip updating roles? (default: true)"),
+            ),
         )
         .addSubcommand((subcommand) =>
           subcommand
@@ -88,8 +88,8 @@ const Event_Command = {
                 .setName("event_template_id")
                 .setDescription("Template name")
                 .setAutocomplete(true)
-                .setRequired(true)
-            )
+                .setRequired(true),
+            ),
         )
         .addSubcommand((subcommand) =>
           subcommand
@@ -100,61 +100,61 @@ const Event_Command = {
                 .setName("event_template_id")
                 .setDescription("Template name")
                 .setAutocomplete(true)
-                .setRequired(true)
-            )
-        )
+                .setRequired(true),
+            ),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("create")
         .setDescription("Create a new event from template")
         .addStringOption((option) =>
-          option.setName("name").setDescription("Event name").setMaxLength(32).setRequired(true)
+          option.setName("name").setDescription("Event name").setMaxLength(32).setRequired(true),
         )
         .addStringOption((option) =>
           option
             .setName("event_template_id")
             .setDescription("Template name")
             .setAutocomplete(true)
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) =>
           option
             .setName("start_date")
             .setDescription("Start date in format YYYY-MM-DD HH:MM or HH:MM if today")
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) =>
           option
             .setName("message_content")
-            .setDescription("Custom message content for the event with mentions")
+            .setDescription("Custom message content for the event with mentions"),
         )
         .addChannelOption((option) =>
           option
             .setName("event_channel")
             .setDescription("Channel where the event will be created")
-            .addChannelTypes(ChannelType.GuildText)
+            .addChannelTypes(ChannelType.GuildText),
         )
         .addBooleanOption((option) =>
-          option.setName("allow_late_join").setDescription("Allow for late join? (default: true)")
+          option.setName("allow_late_join").setDescription("Allow for late join? (default: true)"),
         )
         .addNumberOption((option) =>
           option
             .setName("late_join_limit")
             .setDescription("How long after start date users can still sign-up? (default: 15)")
-            .setMaxValue(60)
+            .setMaxValue(60),
         )
         .addBooleanOption((option) =>
           option
             .setName("own_description")
-            .setDescription("Provide own event description (default: false)")
+            .setDescription("Provide own event description (default: false)"),
         )
         .addStringOption((option) =>
-          option.setName("own_image_url").setDescription("Custom image URL for the event")
+          option.setName("own_image_url").setDescription("Custom image URL for the event"),
         )
         .addStringOption((option) =>
-          option.setName("own_build_url").setDescription("Custom build URL for the event")
-        )
+          option.setName("own_build_url").setDescription("Custom build URL for the event"),
+        ),
     )
     // .addSubcommand((subcommand) =>
     //   subcommand.setName("create").setDescription("Create a new simple event with interactive form")
@@ -168,39 +168,39 @@ const Event_Command = {
             .setName("event_id")
             .setDescription("Event ID")
             .setAutocomplete(true)
-            .setRequired(true)
+            .setRequired(true),
         )
         .addStringOption((option) =>
-          option.setName("name").setDescription("Event name").setMaxLength(32)
+          option.setName("name").setDescription("Event name").setMaxLength(32),
         )
         .addBooleanOption((option) =>
           option
             .setName("description")
-            .setDescription("Event description (you will be asked to provide it later)")
+            .setDescription("Event description (you will be asked to provide it later)"),
         )
         .addStringOption((option) =>
           option
             .setName("message_content")
-            .setDescription("Custom message content for the event with mentions")
+            .setDescription("Custom message content for the event with mentions"),
         )
         .addStringOption((option) =>
           option
             .setName("start_date")
-            .setDescription("Start date in format YYYY-MM-DD HH:MM or HH:MM if today")
+            .setDescription("Start date in format YYYY-MM-DD HH:MM or HH:MM if today"),
         )
         .addBooleanOption((option) =>
-          option.setName("allow_late_join").setDescription("Allow for late join? (default: true)")
+          option.setName("allow_late_join").setDescription("Allow for late join? (default: true)"),
         )
         .addNumberOption((option) =>
           option
             .setName("late_join_limit")
             .setDescription("How long after start date users can still sign-up? (default: 15)")
-            .setMaxValue(60)
+            .setMaxValue(60),
         )
         .addUserOption((option) => option.setName("organizer").setDescription("Event Organizer"))
 
         .addStringOption((option) => option.setName("image_url").setDescription("Event image URL"))
-        .addStringOption((option) => option.setName("build_url").setDescription("Event build URL"))
+        .addStringOption((option) => option.setName("build_url").setDescription("Event build URL")),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -211,8 +211,8 @@ const Event_Command = {
             .setName("event_id")
             .setDescription("Event ID")
             .setAutocomplete(true)
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -223,8 +223,8 @@ const Event_Command = {
             .setName("event_id")
             .setDescription("Event name")
             .setAutocomplete(true)
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     ),
   async execute(interaction) {
     let manager_perms = false;
@@ -360,7 +360,7 @@ const Event_Command = {
             const { parsedRoles, errors } = await this.parseRoles(
               interaction,
               method === "simple",
-              answers["roles"] ?? ""
+              answers["roles"] ?? "",
             );
 
             if (errors.length > 0) {
@@ -532,7 +532,7 @@ const Event_Command = {
               const { parsedRoles, errors } = await this.parseRoles(
                 interaction,
                 eventTemplate.isSimple,
-                answers["roles"] ?? ""
+                answers["roles"] ?? "",
               );
 
               if (errors.length > 0) {
@@ -638,7 +638,7 @@ const Event_Command = {
             .setColor(`#00DB19`)
             .setTitle(`Event template deleted`)
             .setDescription(
-              `Event template **${eventTemplate.name}** has been deleted successfully.`
+              `Event template **${eventTemplate.name}** has been deleted successfully.`,
             );
           return await interaction.followUp({ embeds: [embedMessage] });
         } catch (err) {
@@ -688,7 +688,7 @@ const Event_Command = {
           now.getMonth(),
           now.getDate(),
           hour,
-          minute
+          minute,
         ).getTime();
       } else {
         return await interaction.followUp({
@@ -808,7 +808,7 @@ const Event_Command = {
             usedTemplateId: eventTemplate._id.toString(),
             participantCount: eventTemplate.roles.reduce(
               (sum, role) => sum + (role.participants ? role.participants.length : 0),
-              0
+              0,
             ),
             roles: eventTemplate.roles,
           });
@@ -874,7 +874,7 @@ const Event_Command = {
           .setColor(`#00DB19`)
           .setTitle(`Event created`)
           .setDescription(
-            `Event **${newEvent.name}** has been created successfully you can signup for it here ${createdThread}.`
+            `Event **${newEvent.name}** has been created successfully you can signup for it here ${createdThread}.`,
           );
 
         await interaction.deleteReply();
@@ -927,7 +927,7 @@ const Event_Command = {
             now.getMonth(),
             now.getDate(),
             hour,
-            minute
+            minute,
           ).getTime();
         } else {
           return await interaction.followUp({
@@ -1101,7 +1101,7 @@ const Event_Command = {
           .setColor(`#00DB19`)
           .setTitle(`Event edited`)
           .setDescription(
-            `Event **[${event.name}](https://discord.com/channels/${interaction.guild.id}/${event.channelId}/${event.messageId})** has been edited successfully.`
+            `Event **[${event.name}](https://discord.com/channels/${interaction.guild.id}/${event.channelId}/${event.messageId})** has been edited successfully.`,
           );
 
         return await interaction.followUp({ embeds: [embedMessage], ephemeral: true });
@@ -1270,11 +1270,11 @@ const Event_Command = {
       }
 
       const filtered = choices.filter((choice) =>
-        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase())
+        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase()),
       );
       const limitedResults = filtered.slice(0, 20);
       await interaction.respond(
-        limitedResults.map((choice) => ({ name: choice.name, value: choice.value }))
+        limitedResults.map((choice) => ({ name: choice.name, value: choice.value })),
       );
     }
     if (focusedOption.name === "event_id") {
@@ -1314,11 +1314,11 @@ const Event_Command = {
       }
 
       const filtered = choices.filter((choice) =>
-        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase())
+        choice.name.toLowerCase().includes(focusedOption.value.toLowerCase()),
       );
       const limitedResults = filtered.slice(0, 20);
       await interaction.respond(
-        limitedResults.map((choice) => ({ name: choice.name, value: choice.value }))
+        limitedResults.map((choice) => ({ name: choice.name, value: choice.value })),
       );
     }
   },
@@ -1357,26 +1357,26 @@ const Event_Command = {
       // Pozwala na zakresy, np. 1-3,5,21-32,24
       const matchUpdateReqPositions =
         /^update\s+reqPositions\s+([1-9][0-9]?(?:-[1-9][0-9]?)*(?:,[1-9][0-9]?(?:-[1-9][0-9]?)*|)*|)\s*\/\s*((?:[1-9][0-9]?(?:-[1-9][0-9]?)*(?:,[1-9][0-9]?(?:-[1-9][0-9]?)*|)*|\-))$/i.exec(
-          content
+          content,
         );
 
       // update reqRoles X,X,X / <@&423423> <@&423423> or - (but not mixed)
       // Pozwala na zakresy dla X, np. 1-3,5,21-32,24
       const matchUpdateReqRoles =
         /^update\s+reqRoles\s+([1-9][0-9]?(?:-[1-9][0-9]?)*(?:,[1-9][0-9]?(?:-[1-9][0-9]?)*|)*|)\s*\/\s*((?:<@&\d+>\s*)+|-)$/i.exec(
-          content
+          content,
         );
       // update max X,X,X / Z
       // Pozwala na zakresy dla X, np. 1-3,5,21-32,24
       const matchUpdateMax =
         /^update\s+max\s+([1-9][0-9]?(?:-[1-9][0-9]?)*(?:,[1-9][0-9]?(?:-[1-9][0-9]?)*|)*|)\s*\/\s*([0-9]{1,2})$/i.exec(
-          content
+          content,
         );
       // update strict X,X,X / W
       // Pozwala na zakresy dla X, np. 1-3,5,21-32,24
       const matchUpdateStrict =
         /^update\s+strict\s+([1-9][0-9]?(?:-[1-9][0-9]?)*(?:,[1-9][0-9]?(?:-[1-9][0-9]?)*|)*|)\s*\/\s*(yes|no)$/i.exec(
-          content
+          content,
         );
 
       let event;
@@ -1483,7 +1483,7 @@ const Event_Command = {
               responses.push(await this.signOutUpdateReason(guild, event, mentionedMember, "mor"));
             } else if (matchOut) {
               responses.push(
-                await this.signOutUpdateReason(guild, event, mentionedMember, "signed_out")
+                await this.signOutUpdateReason(guild, event, mentionedMember, "signed_out"),
               );
             }
           }
@@ -1662,7 +1662,7 @@ const Event_Command = {
           guild,
           event,
           positionsToUpdate,
-          newRequirements
+          newRequirements,
         );
 
         const embedMessage = new EmbedBuilder().setDescription(response.message);
@@ -1708,7 +1708,7 @@ const Event_Command = {
           guild,
           event,
           positionsToUpdate,
-          newValidRoles
+          newValidRoles,
         );
 
         const embedMessage = new EmbedBuilder().setDescription(response.message);
@@ -1924,7 +1924,7 @@ const Event_Command = {
               } else if (member && !signedUpParticipants.includes(member.user.id)) {
                 if (participants.length >= maxParticipants && maxParticipants > 0 && strictMax) {
                   errors.push(
-                    `> Only ${maxParticipants} participants can be sign up for role ${roleData[1]}. The rest are ignored.`
+                    `> Only ${maxParticipants} participants can be sign up for role ${roleData[1]}. The rest are ignored.`,
                   );
                   break;
                 }
@@ -1981,7 +1981,7 @@ const Event_Command = {
             const uniqueMembers = await extractUniqueMembers(lineSplit[1]);
             if (uniqueMembers.length > 1) {
               errors.push(
-                `> Only one member can be signed up per role. Ignored the rest.\n\`${line}\``
+                `> Only one member can be signed up per role. Ignored the rest.\n\`${line}\``,
               );
             }
             const memberId = uniqueMembers[0];
@@ -2035,7 +2035,7 @@ const Event_Command = {
         result.push(
           `${role.roleNumber}/${role.roleName}/${role.partyNumber}/${role.maxParticipants}/${
             role.strictMax ? 1 : 0
-          }/${role.emoji}/${requiredRoles}/${role.requiredSignedUps.join(", ")}/${participants}`
+          }/${role.emoji}/${requiredRoles}/${role.requiredSignedUps.join(", ")}/${participants}`,
         );
       }
     }
@@ -2092,13 +2092,13 @@ const Event_Command = {
         dateTimeField += `🗓️ <t:${timestamp}:d>\n`;
         dateTimeField += `⏱️ <t:${timestamp}:t>\n`;
         dateTimeField += `⏳ <t:${timestamp}:R>`;
-      }
 
-      eventInfo.addFields({
-        name: `Event Time:`,
-        value: dateTimeField,
-        inline: true,
-      });
+        eventInfo.addFields({
+          name: `Event Time:`,
+          value: dateTimeField,
+          inline: true,
+        });
+      }
 
       let signupsField = ``;
       signupsField += `👤 ${eventData.participantCount}\n`;
@@ -2166,7 +2166,7 @@ const Event_Command = {
             }
             if (role.requiredSignedUps.length > 0) {
               let requiredSignedUpsCompressed = await this.compressNumberRanges(
-                role.requiredSignedUps
+                role.requiredSignedUps,
               );
               partyInfoMessage += `\n> Required signed ups: ${requiredSignedUpsCompressed
                 .map((r) => `\`${r}\``)
@@ -2312,7 +2312,7 @@ const Event_Command = {
       const memberRoles = member.roles.cache.map((r) => r.id);
       // Check if the member has at least one required role
       const hasAnyRequiredRole = role.requiredRoles.some((requiredRole) =>
-        memberRoles.includes(requiredRole)
+        memberRoles.includes(requiredRole),
       );
       if (!hasAnyRequiredRole) {
         return {
@@ -2369,7 +2369,7 @@ const Event_Command = {
 
     // remove from participants
     const role = eventData.roles.find((r) =>
-      r.participants.some((p) => p.discordId === member.user.id)
+      r.participants.some((p) => p.discordId === member.user.id),
     );
 
     // Find the participant object
@@ -2399,7 +2399,7 @@ const Event_Command = {
 
     // Check if the member is signed out and return index
     const unsignedIndex = eventData.unsignedParticipants.findIndex(
-      (p) => p.discordId === member.user.id
+      (p) => p.discordId === member.user.id,
     );
 
     const reasons = {
@@ -2467,7 +2467,7 @@ const Event_Command = {
       const memberRoles = member.roles.cache.map((r) => r.id);
       // Check if the member has at least one required role
       const hasAnyRequiredRole = role.requiredRoles.some((requiredRole) =>
-        memberRoles.includes(requiredRole)
+        memberRoles.includes(requiredRole),
       );
       if (!hasAnyRequiredRole) {
         return {
@@ -2503,15 +2503,15 @@ const Event_Command = {
 
     // remove from current role
     const currentRole = eventData.roles.find((r) =>
-      r.participants.some((p) => p.discordId === member.user.id)
+      r.participants.some((p) => p.discordId === member.user.id),
     );
     const unsignedParticipant = eventData.unsignedParticipants.find(
-      (p) => p.discordId === member.user.id
+      (p) => p.discordId === member.user.id,
     );
 
     if (currentRole) {
       const participantIndex = currentRole.participants.findIndex(
-        (p) => p.discordId === member.user.id
+        (p) => p.discordId === member.user.id,
       );
       if (participantIndex !== -1) {
         const [participant] = currentRole.participants.splice(participantIndex, 1);
@@ -2521,7 +2521,7 @@ const Event_Command = {
       }
     } else if (unsignedParticipant) {
       const unsignedIndex = eventData.unsignedParticipants.findIndex(
-        (p) => p.discordId === member.user.id
+        (p) => p.discordId === member.user.id,
       );
 
       if (unsignedIndex !== -1) {
