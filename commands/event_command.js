@@ -2102,7 +2102,7 @@ const Event_Command = {
 
       let signupsField = ``;
       signupsField += `👤 ${eventData.participantCount}\n`;
-      if (eventData.roles && eventData.unsignedParticipants.length > 0) {
+      if (eventData.roles && eventData?.unsignedParticipants?.length > 0) {
         signupsField += `🚪 ${eventData.unsignedParticipants.length}`;
       }
 
