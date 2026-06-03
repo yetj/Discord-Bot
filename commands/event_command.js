@@ -2815,7 +2815,7 @@ const Event_Command = {
     return result;
   },
   // Funkcja konwertująca string zakresów (np. "1-3,23-30,34,45") na tablicę liczb [1,2,3,23,24,25,26,27,28,29,30,34,45]
-  decompressNumberRanges(input) {
+  async decompressNumberRanges(input) {
     if (!input || typeof input !== "string") return [];
     const result = [];
     const parts = input.split(",");
