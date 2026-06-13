@@ -951,13 +951,13 @@ const MultiThreadsCreatorCommands = {
 
       const modalSent = interaction.customId;
 
-      await interaction.deferReply({ ephemeral: true });
-
       if (!modalSent.startsWith("mtc-modal-")) {
         return;
       }
 
       if (modalSent.startsWith("mtc-modal-")) {
+        await interaction.deferReply({ ephemeral: true });
+
         const modalId = modalSent.split("-")[2];
         try {
           const mtrEntry = await MultiThreadsCreator.findOne({

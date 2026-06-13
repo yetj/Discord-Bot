@@ -8,6 +8,8 @@ const EventConfigSchema = new mongoose.Schema({
   manager_roles: { type: [String], default: [] }, // can manage everything
   creator_roles: { type: [String], default: [] }, // can crerate and manage events and templates
   helper_roles: { type: [String], default: [] }, // can manage signups
+  quick_create_roles: { type: [String], default: [] }, // can create simple events without template
+  default_timezone: { type: String, default: "UTC+0" },
 });
 const EventConfig = mongoose.model("EventConfig", EventConfigSchema);
 
@@ -79,7 +81,8 @@ const EventsSchema = new mongoose.Schema({
   ],
 });
 EventsSchema.pre("save", async function (next) {
-  if (!this.event_id) {
+  // assign event_id only for new documents that don't already have one
+  if (this.isNew && (this.event_id === undefined || this.event_id === null)) {
     try {
       const counter = await Counter.findOneAndUpdate(
         { name: "event_id_" + this.gid },

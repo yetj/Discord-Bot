@@ -5,6 +5,12 @@ const {
   EmbedBuilder,
   MessageFlags,
   ThreadAutoArchiveDuration,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  StringSelectMenuOptionBuilder,
+  StringSelectMenuBuilder,
+  LabelBuilder,
 } = require("discord.js");
 const { EventConfig, Events, EventTemplates } = require("../dbmodels/events");
 const isUrl = require("../utils/isUrl");
@@ -156,9 +162,11 @@ const Event_Command = {
           option.setName("own_build_url").setDescription("Custom build URL for the event")
         )
     )
-    // .addSubcommand((subcommand) =>
-    //   subcommand.setName("create").setDescription("Create a new simple event with interactive form")
-    // )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("quick_create")
+        .setDescription("Create a new simple event with interactive form")
+    )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("edit")
@@ -230,12 +238,15 @@ const Event_Command = {
     let manager_perms = false;
     let creator_perms = false;
     let helper_perms = false;
+    let quick_create_perms = false;
     let configEvent;
+    let eventTimezone;
 
     if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
       manager_perms = true;
       creator_perms = true;
       helper_perms = true;
+      quick_create_perms = true;
     }
 
     try {
@@ -250,6 +261,12 @@ const Event_Command = {
         });
       }
 
+      if (configEvent?.default_timezone) {
+        eventTimezone = configEvent.default_timezone;
+      } else {
+        eventTimezone = "UTC+2";
+      }
+
       const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
         cache: true,
         force: true,
@@ -261,6 +278,7 @@ const Event_Command = {
             manager_perms = true;
             creator_perms = true;
             helper_perms = true;
+            quick_create_perms = true;
           }
         });
       }
@@ -270,6 +288,7 @@ const Event_Command = {
           if (interactionUser.roles.cache.has(role)) {
             creator_perms = true;
             helper_perms = true;
+            quick_create_perms = true;
           }
         });
       }
@@ -281,6 +300,14 @@ const Event_Command = {
           }
         });
       }
+
+      if (!quick_create_perms) {
+        configEvent.quick_create_roles.forEach((role) => {
+          if (interactionUser.roles.cache.has(role)) {
+            quick_create_perms = true;
+          }
+        });
+      }
     } catch (err) {
       console.error(err);
       return await interaction.reply({
@@ -289,9 +316,10 @@ const Event_Command = {
       });
     }
 
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    //await interaction.deferReply({ flags: MessageFlags.Ephemeral }); // had to move it to specific commands, because of preview command that needs to be public and some commands that can have follow up messages after execution
 
     if (interaction.options.getSubcommandGroup() === "template") {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       if (interaction.options.getSubcommand() === "create") {
         if (!creator_perms) {
           return await interaction.followUp({
@@ -650,6 +678,7 @@ const Event_Command = {
         }
       }
     } else if (interaction.options.getSubcommand() === "create") {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       if (!creator_perms) {
         return await interaction.followUp({
           content: `> You don't have permissions to create events.`,
@@ -673,23 +702,34 @@ const Event_Command = {
       if (name.length > 20) {
         return await interaction.followUp({
           content: `> Event name is too long. Maximum length is 20 characters.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       let event_date_timestamp = null;
-      if (isValidDate(start_date, "YYYY-MM-DD HH:mm")) {
-        event_date_timestamp = new Date(start_date).getTime();
-      } else if (isValidDate(start_date, "HH:mm")) {
-        const [hour, minute] = start_date.split(":").map(Number);
-        let now = new Date();
-        event_date_timestamp = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
+      if (isValidDate(start_date, "YYYY-MM-DD HH:mm", eventTimezone)) {
+        const [datePart, timePart] = start_date.split(" ");
+        const [year, month, day] = datePart.split("-").map(Number);
+        const [hour, minute] = timePart.split(":").map(Number);
+        event_date_timestamp = this.timestampForTimezone(
+          year,
+          month,
+          day,
           hour,
-          minute
-        ).getTime();
+          minute,
+          eventTimezone
+        );
+      } else if (isValidDate(start_date, "HH:mm", eventTimezone)) {
+        const [hour, minute] = start_date.split(":").map(Number);
+        const now = this.getNowInTimezone(eventTimezone);
+        event_date_timestamp = this.timestampForTimezone(
+          now.year,
+          now.month,
+          now.day,
+          hour,
+          minute,
+          eventTimezone
+        );
       } else {
         return await interaction.followUp({
           content: `> Invalid date format. Please use \`YYYY-MM-DD HH:MM\` or \`HH:MM\` for today.`,
@@ -862,7 +902,10 @@ const Event_Command = {
 
           const requirementsMessage = await createdThread.send({ embeds: embedsRequirements });
           await requirementsMessage.pin();
-          await createdThread.send({ embeds: [embedMessageInstructions] });
+          const instructionsMessage = await createdThread.send({
+            embeds: [embedMessageInstructions],
+          });
+          await instructionsMessage.pin();
 
           newEvent.requirementsMessageId = requirementsMessage.id;
 
@@ -888,6 +931,7 @@ const Event_Command = {
         });
       }
     } else if (interaction.options.getSubcommand() === "edit") {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       if (!creator_perms) {
         return await interaction.followUp({
           content: `> You don't have permissions to edit events.`,
@@ -917,18 +961,29 @@ const Event_Command = {
 
       let event_date_timestamp = null;
       if (start_date) {
-        if (isValidDate(start_date, "YYYY-MM-DD HH:mm")) {
-          event_date_timestamp = new Date(start_date).getTime();
-        } else if (isValidDate(start_date, "HH:mm")) {
-          const [hour, minute] = start_date.split(":").map(Number);
-          let now = new Date();
-          event_date_timestamp = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate(),
+        if (isValidDate(start_date, "YYYY-MM-DD HH:mm", eventTimezone)) {
+          const [datePart, timePart] = start_date.split(" ");
+          const [year, month, day] = datePart.split("-").map(Number);
+          const [hour, minute] = timePart.split(":").map(Number);
+          event_date_timestamp = this.timestampForTimezone(
+            year,
+            month,
+            day,
             hour,
-            minute
-          ).getTime();
+            minute,
+            eventTimezone
+          );
+        } else if (isValidDate(start_date, "HH:mm", eventTimezone)) {
+          const [hour, minute] = start_date.split(":").map(Number);
+          const now = this.getNowInTimezone(eventTimezone);
+          event_date_timestamp = this.timestampForTimezone(
+            now.year,
+            now.month,
+            now.day,
+            hour,
+            minute,
+            eventTimezone
+          );
         } else {
           return await interaction.followUp({
             content: `> Invalid date format. Please use \`YYYY-MM-DD HH:MM\` or \`HH:MM\` for today.`,
@@ -1113,6 +1168,7 @@ const Event_Command = {
         });
       }
     } else if (interaction.options.getSubcommand() === "reload") {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       if (!manager_perms) {
         return await interaction.followUp({
           content: `> You don't have permissions to reload events.`,
@@ -1147,6 +1203,7 @@ const Event_Command = {
         });
       }
     } else if (interaction.options.getSubcommand() === "delete") {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       if (!creator_perms) {
         return await interaction.followUp({
           content: `> You don't have permissions to delete events.`,
@@ -1189,65 +1246,269 @@ const Event_Command = {
           ephemeral: true,
         });
       }
-    }
-    /*
-    else if (interaction.options.getSubcommand() === "create") {
-      const user = interaction.user;
+    } else if (interaction.options.getSubcommand() === "quick_create") {
+      if (!quick_create_perms) {
+        return await interaction.reply({
+          content: `> You don't have permissions to create events.`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
       const channel = interaction.channel;
+      const user = interaction.user;
 
-      const questions = [
-        // {
-        //   id: "name",
-        //   title: "Event Name",
-        //   description: "Name of the event.",
-        //   type: "text",
-        //   isRaw: true,
-        // },
-        // {
-        //   id: "message_content",
-        //   title: "Event Content message",
-        //   description:
-        //     "Content message of the event. You can use mentions here. This message will be sent when event is created.",
-        //   type: "text",
-        //   isRaw: true,
-        //   canBeSkipped: true,
-        // },
-        // {
-        //   id: "description",
-        //   title: "Event Description",
-        //   description: "Description of the event.",
-        //   type: "text",
-        //   isRaw: true,
-        //   canBeSkipped: true,
-        // },
-        // {
-        //   id: "event_type",
-        //   title: "Event type",
-        //   description:
-        //     "Select the type of event you want to create. You can choose between following options:\n- `1 member to 1 role` - You can provide multiple roles, but only one member can sign up for each role.\n- `∞ members to 1 roles` - You can provide multiple roles, and multiple members can sign up for each role.",
-        //   type: "select",
-        //   options: [
-        //     { label: "1 member to 1 role", value: "one_to_one" },
-        //     { label: "∞ members to 1 role", value: "many_to_one" },
-        //   ],
-        // },
-        {
-          id: "start_date",
-          title: "Event Start time",
-          description:
-            "When the event will start. Please use format: `YYYY-MM-DD HH:mm` or `HH:mm` for today.",
-          type: "date",
-          format: ["YYYY-MM-DD HH:mm", "HH:mm"],
-        },
-      ];
+      const modal = new ModalBuilder()
+        .setCustomId(`event_quick_create-${interaction.id}`)
+        .setTitle("Simple Event Creation");
 
-      let callbackFunction = async (answers) => {
-        console.log(answers);
-      };
+      const eventNameInput = new TextInputBuilder()
+        .setCustomId("name")
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder("Enter Event name")
+        .setMaxLength(20)
+        .setRequired(true);
 
-      await interactiveForm("event_create", interaction, questions, callbackFunction);
+      const evnetNameLabel = new LabelBuilder()
+        .setLabel("Event Name")
+        .setTextInputComponent(eventNameInput);
+
+      const now = this.getNowInTimezoneComponents(eventTimezone);
+      const defaultDate = `${now.year}-${String(now.month).padStart(2, "0")}-${String(now.day).padStart(2, "0")} ${String(
+        now.hour
+      ).padStart(2, "0")}:${String(now.minute).padStart(2, "0")}`;
+
+      const eventDateInput = new TextInputBuilder()
+        .setCustomId("start_date")
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder(`${defaultDate} ${eventTimezone}`)
+        .setRequired(true);
+
+      const evnetDateLabel = new LabelBuilder()
+        .setLabel("Event start Date and Time")
+        .setDescription(
+          `Please use format: YYYY-MM-DD HH:mm or HH:mm for today.\nEvent timezone is set to: ${eventTimezone}.`
+        )
+        .setTextInputComponent(eventDateInput);
+
+      const eventTypeSelect = new StringSelectMenuBuilder()
+        .setCustomId("event_type")
+        .setPlaceholder("Select event Type")
+        .setRequired(true)
+        .addOptions(
+          new StringSelectMenuOptionBuilder()
+            .setLabel("1 member to 1 role")
+            .setDescription("Only one member can sign up for each role.")
+            .setValue("one_to_one"),
+          new StringSelectMenuOptionBuilder()
+            .setLabel("∞ members to 1 role")
+            .setDescription("Multiple members can sign up for each role.")
+            .setValue("many_to_one")
+        );
+
+      const evnetTypeLabel = new LabelBuilder()
+        .setLabel("Event Type")
+        .setDescription("Please select the type of event you want to create.")
+        .setStringSelectMenuComponent(eventTypeSelect);
+
+      const eventDescriptionParagraph = new TextInputBuilder()
+        .setCustomId("description")
+        .setStyle(TextInputStyle.Paragraph)
+        .setPlaceholder("Enter event description here...")
+        .setRequired(false);
+
+      const evnetDescriptionLabel = new LabelBuilder()
+        .setLabel("Event Description")
+        .setTextInputComponent(eventDescriptionParagraph);
+
+      const eventRolesParagraph = new TextInputBuilder()
+        .setCustomId("roles")
+        .setStyle(TextInputStyle.Paragraph)
+        .setPlaceholder("Tank\nHealer\nDPS\nSupport")
+        .setValue("Tank\nHealer\nDPS\nSupport")
+        .setRequired(true);
+
+      const evnetRolesLabel = new LabelBuilder()
+        .setLabel("Event Roles")
+        .setDescription("Enter the roles for this event. Each role in new line.")
+        .setTextInputComponent(eventRolesParagraph);
+
+      modal.addLabelComponents(
+        evnetNameLabel,
+        evnetDateLabel,
+        evnetTypeLabel,
+        evnetDescriptionLabel,
+        evnetRolesLabel
+      );
+      await interaction.showModal(modal);
+
+      const filter = (i) =>
+        i.customId === `event_quick_create-${interaction.id}` && i.user.id === interaction.user.id;
+
+      interaction
+        .awaitModalSubmit({ filter, time: 60_000 })
+        .then(async (modalInteraction) => {
+          const name = modalInteraction.fields.getTextInputValue("name");
+          const start_date = modalInteraction.fields.getTextInputValue("start_date");
+          const eventType = modalInteraction.fields.getStringSelectValues("event_type");
+          const description = modalInteraction.fields.getTextInputValue("description");
+          let rolesText = modalInteraction.fields.getTextInputValue("roles");
+
+          let modalErrors = [];
+
+          //name
+          if (name.length > 20) {
+            modalErrors.push("> Event name is too long. Maximum length is 20 characters.");
+          }
+
+          //start date
+          let event_date_timestamp = null;
+          if (isValidDate(start_date, "YYYY-MM-DD HH:mm", eventTimezone)) {
+            const [datePart, timePart] = start_date.split(" ");
+            const [year, month, day] = datePart.split("-").map(Number);
+            const [hour, minute] = timePart.split(":").map(Number);
+            event_date_timestamp = this.timestampForTimezone(
+              year,
+              month,
+              day,
+              hour,
+              minute,
+              eventTimezone
+            );
+          } else if (isValidDate(start_date, "HH:mm", eventTimezone)) {
+            const [hour, minute] = start_date.split(":").map(Number);
+            const now = this.getNowInTimezone(eventTimezone);
+            event_date_timestamp = this.timestampForTimezone(
+              now.getFullYear(),
+              now.getMonth() + 1,
+              now.getDate(),
+              hour,
+              minute,
+              eventTimezone
+            );
+          } else {
+            modalErrors.push(
+              `> Invalid date format. Please use \`YYYY-MM-DD HH:MM\` or \`HH:MM\` for today.`
+            );
+          }
+
+          if (event_date_timestamp < new Date().getTime()) {
+            modalErrors.push(`> Event date cannot be in the past. Please provide a valid date.`);
+          }
+
+          let manyToOne = false;
+          if (eventType.length === 0) {
+            modalErrors.push("> Event type is required.");
+          } else if (eventType[0] === "many_to_one") {
+            manyToOne = true;
+          }
+
+          //roles
+          rolesText = rolesText.replace("/", " or ");
+          const { parsedRoles, errors } = await this.parseRoles(
+            interaction,
+            true,
+            rolesText,
+            manyToOne
+          );
+
+          modalErrors.push(...errors);
+
+          if (modalErrors.length > 0) {
+            return await modalInteraction.reply({
+              content: `❌**Event is not created!**❌\nPlease fix the following errors:\n${modalErrors.join("\n")}`,
+              flags: MessageFlags.Ephemeral,
+            });
+          }
+
+          const interactionUser = await interaction.guild.members.fetch(interaction.user.id, {
+            force: true,
+          });
+
+          try {
+            let { newEvent, createdThread } = await new Promise(async (resolve) => {
+              const newEvent = new Events({
+                gid: interaction.guildId,
+                name: name,
+                description: description ?? "",
+                startDate: event_date_timestamp,
+                organizerId: interaction.user.id,
+                organizerName: getDisplayName(interactionUser),
+                roles: parsedRoles,
+              });
+
+              await newEvent.save();
+
+              const embeds = await this.eventEmbeds(newEvent);
+
+              let eventMessage = await channel.send({
+                embeds: embeds,
+              });
+
+              newEvent.channelId = channel.id;
+              newEvent.messageId = eventMessage.id;
+
+              let threadContent = ``;
+              threadContent += `## **__Event instructions:__**\n`;
+              threadContent += `➡️ To **sign-up** for the event, please post a role number on this thread. Role number can be found in the event message between brackets \`┊N┊\` where N is a role number\n> Example: \`1\`\n`;
+              threadContent += `➡️ To **sign-out** from the event, please type \`-\` on this thread.\n> Example: \`-\`\n`;
+
+              threadContent += `## **__Event advanced usage (only for helpers and event organizers):__**\n`;
+              threadContent += `➡️ To **sign-up** someone else for the event, please type a role number and mention the user.\n> Example: \`1 @user\`\n`;
+              threadContent += `➡️ To **sign-out** someone else from the event, please type \`-\` and mention the user.\n> Example: \`- @user\`\n`;
+              threadContent += `➡️ To **update** __position restrictions__ for a role, please type \`update reqPositions N / N\`, where \`N\` is a position number. You can provide multiple positions separating them with commas.\n> Example: \`update reqPositions 10,11,12 / 1,2,3\`\n`;
+              threadContent += `➡️ To **update** __max participants__ for a role, please type \`update max N / X\`, where \`N\` is a role number and \`X\` is a number of max participants. You can provide multiple roles to update by separating them with commas.\n> Example: \`update max 1,2,3 / 5\`\n`;
+              threadContent += `➡️ To **update** __strict limit__ for a role, please type \`update strict N / yes or no\`, where \`N\` is a role number and \`no\` means no strict limit and \`yes\` means strict limit. You can provide multiple roles to update by separating them with commas.\n> Example: \`update strict 1,2,3 / yes\`\n`;
+              threadContent += `*You can update multiple positions by adding ranges like \`1-20\`.*\n`;
+              threadContent += `*You can mention multiple users at the same time.*`;
+
+              const embedMessageInstructions = new EmbedBuilder()
+                .setColor(`#c3ff37`)
+                .setDescription(threadContent);
+
+              const createdThread = await eventMessage.startThread({
+                name: `${newEvent.name} #${newEvent.event_id}`,
+                autoArchiveDuration: ThreadAutoArchiveDuration.ThreeDays,
+                reason: `Event thread created`,
+              });
+
+              const instructionsMessage = await createdThread.send({
+                embeds: [embedMessageInstructions],
+              });
+              await instructionsMessage.pin();
+
+              await newEvent.save();
+
+              resolve({ newEvent, createdThread });
+            });
+            const embedMessage = new EmbedBuilder()
+              .setColor(`#00DB19`)
+              .setTitle(`Event created`)
+              .setDescription(
+                `Event **${newEvent.name}** has been created successfully you can signup for it here ${createdThread}.`
+              );
+
+            //await interaction.deleteReply();
+
+            return await modalInteraction.reply({
+              embeds: [embedMessage],
+              flags: MessageFlags.Ephemeral,
+            });
+          } catch (err) {
+            console.error(err);
+            return await modalInteraction.reply({
+              content: `> [668d18] Error occurred while creating quick event. Please try again later.`,
+              flags: MessageFlags.Ephemeral,
+            });
+          }
+
+          // modalInteraction.reply({
+          //   content: `Event created with following details:\nName: ${name}\nDate: ${start_date}\nType: ${eventType} (${manyToOne})\nDescription: ${description}\nRoles:\n${rolesText} \n-----\n ${parsedRoles.map((r) => `\n- ${r.roleName} (max participants: ${r.maxParticipants ?? "∞"})`).join("")}`,
+          // });
+        })
+        .catch((err) => {
+          console.error(`[event_quick_create] Error while awaiting modal submit: `, err);
+        });
     }
-      */
   },
   async autocomplete(interaction) {
     const focusedOption = interaction.options.getFocused(true);
@@ -1804,7 +2065,7 @@ const Event_Command = {
     }
     return roleNumber;
   },
-  async parseRoles(interaction, isSimple, data) {
+  async parseRoles(interaction, isSimple, data, manyToOne = false) {
     let roles = [];
     let errors = [];
 
@@ -2022,6 +2283,7 @@ const Event_Command = {
           roleNumber: ++roleNumber,
           roleName: roleName,
           participants: participants,
+          maxParticipants: manyToOne ? 0 : 1,
         });
       }
     }
@@ -2834,6 +3096,55 @@ const Event_Command = {
     }
     // Zwróć unikalne, posortowane liczby
     return Array.from(new Set(result)).sort((a, b) => a - b);
+  },
+  parseTimezoneOffset(timezone) {
+    if (!timezone) return 0;
+    const s = String(timezone).trim();
+    if (/^local$/i.test(s)) return null;
+    if (/^(Z|UTC|GMT)$/i.test(s)) return 0;
+    const m = s.match(/(?:UTC|GMT)?([+-])(\d{1,2})(?::?(\d{2}))?$/i);
+    if (!m) return 0;
+    const sign = m[1] === "+" ? 1 : -1;
+    const hrs = parseInt(m[2], 10);
+    const mins = m[3] ? parseInt(m[3], 10) : 0;
+    return sign * (hrs * 60 + mins);
+  },
+  getNowInTimezone(timezone) {
+    const offset = this.parseTimezoneOffset(timezone);
+    if (offset === null) return new Date();
+    const now = new Date();
+    const utcMs = now.getTime();
+    return new Date(utcMs + offset * 60000);
+  },
+  getNowInTimezoneComponents(timezone) {
+    const offset = this.parseTimezoneOffset(timezone);
+    const now = new Date();
+    if (offset === null) {
+      return {
+        year: now.getFullYear(),
+        month: now.getMonth() + 1,
+        day: now.getDate(),
+        hour: now.getHours(),
+        minute: now.getMinutes(),
+        timestamp: now.getTime(),
+      };
+    }
+    const tzNow = new Date(now.getTime() + offset * 60000);
+    return {
+      year: tzNow.getUTCFullYear(),
+      month: tzNow.getUTCMonth() + 1,
+      day: tzNow.getUTCDate(),
+      hour: tzNow.getUTCHours(),
+      minute: tzNow.getUTCMinutes(),
+      timestamp: tzNow.getTime(),
+    };
+  },
+  timestampForTimezone(year, month, day, hour, minute, timezone) {
+    const offset = this.parseTimezoneOffset(timezone);
+    if (offset === null) {
+      return new Date(year, month - 1, day, hour, minute).getTime();
+    }
+    return Date.UTC(year, month - 1, day, hour, minute) - offset * 60000;
   },
 };
 
