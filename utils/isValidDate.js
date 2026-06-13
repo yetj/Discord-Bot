@@ -1,4 +1,4 @@
-module.exports = function isValidDate(dateString, format) {
+module.exports = function isValidDate(dateString, format, timezone = "UTC+2") {
   // Supported tokens: YYYY, MM, DD, HH, mm
   // Allow single-digit hour (H) and minute (m) for time-only formats
   let formatRegex = format
@@ -48,16 +48,60 @@ module.exports = function isValidDate(dateString, format) {
   const hour = values["HH"] || 0;
   const minute = values["mm"] || 0;
 
-  const date = new Date(year, month - 1, day, hour, minute);
+  // Parse timezone strings like: UTC+2, UTC+02:00, +02:00, Z, UTC, GMT, local
+  function parseTimezone(tz) {
+    if (!tz) return 0;
+    const s = String(tz).trim();
+    if (/^local$/i.test(s)) return null; // use system local timezone
+    if (/^(Z|UTC|GMT)$/i.test(s)) return 0;
+    const m = s.match(/(?:UTC|GMT)?([+-])(\d{1,2})(?::?(\d{2}))?$/i);
+    if (!m) return 0;
+    const sign = m[1] === "+" ? 1 : -1;
+    const hrs = parseInt(m[2], 10);
+    const mins = m[3] ? parseInt(m[3], 10) : 0;
+    return sign * (hrs * 60 + mins);
+  }
 
-  // Validate date parts if present in format
-  if (format.includes("YYYY") && date.getFullYear() !== year) return false;
-  if (format.includes("MM") && date.getMonth() !== month - 1) return false;
-  if (format.includes("DD") && date.getDate() !== day) return false;
+  const tzOffsetMinutes = parseTimezone(timezone);
 
-  // Validate time parts if present in format
-  if (format.includes("HH") && date.getHours() !== hour) return false;
-  if (format.includes("mm") && date.getMinutes() !== minute) return false;
+  // If timezone is null, use system local timezone (behaviour preserved)
+  if (tzOffsetMinutes === null) {
+    const localDate = new Date(year, month - 1, day, hour, minute);
+
+    // Validate date parts if present in format (local)
+    if (format.includes("YYYY") && localDate.getFullYear() !== year) return false;
+    if (format.includes("MM") && localDate.getMonth() !== month - 1) return false;
+    if (format.includes("DD") && localDate.getDate() !== day) return false;
+
+    // Validate time parts if present in format (local)
+    if (format.includes("HH") && localDate.getHours() !== hour) return false;
+    if (format.includes("mm") && localDate.getMinutes() !== minute) return false;
+
+    return true;
+  }
+
+  // For a fixed timezone offset, build a UTC-based timestamp then adjust
+  // so that the provided components are interpreted in the desired timezone.
+  const offsetMs = tzOffsetMinutes * 60 * 1000;
+
+  // baseUtcMs is the timestamp if the components were UTC. Subtracting
+  // the offset gives the actual UTC instant that corresponds to the
+  // components in the target timezone.
+  const baseUtcMs = Date.UTC(year, month - 1, day, hour, minute);
+  const actualUtcMs = baseUtcMs - offsetMs;
+  const date = new Date(actualUtcMs);
+
+  // To validate the original components (as they should appear in the
+  // target timezone) convert back by adding the offset and reading UTC
+  // fields.
+  const adjusted = new Date(date.getTime() + offsetMs);
+
+  if (format.includes("YYYY") && adjusted.getUTCFullYear() !== year) return false;
+  if (format.includes("MM") && adjusted.getUTCMonth() !== month - 1) return false;
+  if (format.includes("DD") && adjusted.getUTCDate() !== day) return false;
+
+  if (format.includes("HH") && adjusted.getUTCHours() !== hour) return false;
+  if (format.includes("mm") && adjusted.getUTCMinutes() !== minute) return false;
 
   return true;
 };
