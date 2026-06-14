@@ -723,9 +723,9 @@ const Event_Command = {
         const [hour, minute] = start_date.split(":").map(Number);
         const now = this.getNowInTimezone(eventTimezone);
         event_date_timestamp = this.timestampForTimezone(
-          now.year,
-          now.month,
-          now.day,
+          now.getFullYear(),
+          now.getMonth() + 1,
+          now.getDate(),
           hour,
           minute,
           eventTimezone
@@ -733,6 +733,13 @@ const Event_Command = {
       } else {
         return await interaction.followUp({
           content: `> Invalid date format. Please use \`YYYY-MM-DD HH:MM\` or \`HH:MM\` for today.`,
+          ephemeral: true,
+        });
+      }
+
+      if (!event_date_timestamp) {
+        return await interaction.followUp({
+          content: `> Failed to parse event date.`,
           ephemeral: true,
         });
       }
@@ -977,9 +984,9 @@ const Event_Command = {
           const [hour, minute] = start_date.split(":").map(Number);
           const now = this.getNowInTimezone(eventTimezone);
           event_date_timestamp = this.timestampForTimezone(
-            now.year,
-            now.month,
-            now.day,
+            now.getFullYear(),
+            now.getMonth() + 1,
+            now.getDate(),
             hour,
             minute,
             eventTimezone
