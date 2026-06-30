@@ -7,6 +7,21 @@ const BalanceSettingsSchema = new mongoose.Schema({
   enabled: { type: Boolean, default: false },
   allow_transfers: { type: Boolean, default: false },
   log_channel: { type: String, default: "" },
+  custom_permissions_enabled: { type: Boolean, default: false },
+  custom_permissions: {
+    add: { type: [String], default: [] },
+    add_many: { type: [String], default: [] },
+    remove: { type: [String], default: [] },
+    remove_many: { type: [String], default: [] },
+    payout: { type: [String], default: [] },
+    payout_offline: { type: [String], default: [] },
+    stats: { type: [String], default: [] },
+    cta: { type: [String], default: [] },
+    logs: { type: [String], default: [] },
+    file: { type: [String], default: [] },
+    export: { type: [String], default: [] },
+    offline_list: { type: [String], default: [] },
+  },
 });
 
 const BalanceSettings = mongoose.model("BalanceSettings", BalanceSettingsSchema);

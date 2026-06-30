@@ -17,6 +17,21 @@ const extractUniqueMembers = require("../utils/extractUniqueMembers");
 const formattedDate = require("../utils/formattedDate");
 const tryCatch = require("../utils/tryCatch");
 
+const BALANCE_PERMISSION_CATEGORIES = [
+  "add",
+  "add_many",
+  "remove",
+  "remove_many",
+  "payout",
+  "payout_offline",
+  "stats",
+  "cta",
+  "logs",
+  "file",
+  "export",
+  "offline_list",
+];
+
 const Balance_Setup = {
   data: new SlashCommandBuilder()
     .setName("setup_balance")
@@ -25,14 +40,14 @@ const Balance_Setup = {
       subcommand
         .setName("manager_roles")
         .setDescription(
-          "Set Manager role, that can manage balance bot and have access to all commands",
+          "Set Manager role, that can manage balance bot and have access to all commands"
         )
         .addRoleOption((option) => option.setName("role").setDescription("Role").setRequired(true))
         .addBooleanOption((option) =>
           option
             .setName("remove_instead")
-            .setDescription("Do you want to remove that role? (default: no)"),
-        ),
+            .setDescription("Do you want to remove that role? (default: no)")
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -42,8 +57,50 @@ const Balance_Setup = {
         .addBooleanOption((option) =>
           option
             .setName("remove_instead")
-            .setDescription("Do you want to remove that role? (default: no)"),
-        ),
+            .setDescription("Do you want to remove that role? (default: no)")
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("custom_permissions_enabled")
+        .setDescription("Enable or disable custom permissions by category")
+        .addBooleanOption((option) =>
+          option
+            .setName("custom_permissions_enabled")
+            .setDescription("Enable or disable custom permissions")
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("custom_permissions")
+        .setDescription("Assign or remove a role for a custom permission category")
+        .addStringOption((option) =>
+          option
+            .setName("permission_type")
+            .setDescription("Permission category")
+            .setRequired(true)
+            .addChoices(
+              { name: "Add", value: "add" },
+              { name: "Add Many", value: "add_many" },
+              { name: "Remove", value: "remove" },
+              { name: "Remove Many", value: "remove_many" },
+              { name: "Payout", value: "payout" },
+              { name: "Payout Offline", value: "payout_offline" },
+              { name: "Stats", value: "stats" },
+              { name: "CTA", value: "cta" },
+              { name: "Logs", value: "logs" },
+              { name: "File", value: "file" },
+              { name: "Export", value: "export" },
+              { name: "Offline List", value: "offline_list" }
+            )
+        )
+        .addRoleOption((option) => option.setName("role").setDescription("Role").setRequired(true))
+        .addBooleanOption((option) =>
+          option
+            .setName("remove_instead")
+            .setDescription("Do you want to remove that role? (default: no)")
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -53,8 +110,8 @@ const Balance_Setup = {
           option
             .setName("enabled")
             .setDescription("Enable or disable balance system (default: false)")
-            .setRequired(true),
-        ),
+            .setRequired(true)
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -68,10 +125,10 @@ const Balance_Setup = {
               ChannelType.GuildText,
               ChannelType.GuildForum,
               ChannelType.PrivateThread,
-              ChannelType.PublicThread,
+              ChannelType.PublicThread
             )
-            .setRequired(true),
-        ),
+            .setRequired(true)
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -81,18 +138,18 @@ const Balance_Setup = {
           option
             .setName("allow_transfers")
             .setDescription("Enable or disable transfers between users (default: false)")
-            .setRequired(true),
-        ),
+            .setRequired(true)
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("interactive")
         .setDescription(
-          "Bot will ask you for all the settings. It will overwrite the current settings if they exist.",
-        ),
+          "Bot will ask you for all the settings. It will overwrite the current settings if they exist."
+        )
     )
     .addSubcommand((subcommand) =>
-      subcommand.setName("show").setDescription("Show config for this server"),
+      subcommand.setName("show").setDescription("Show config for this server")
     ),
   async execute(interaction) {
     let configBalance;
@@ -129,7 +186,7 @@ const Balance_Setup = {
     } catch (err) {
       console.error(err);
       return await interaction.reply(
-        `> [3435d5] Error while checking perms. Please try again later.`,
+        `> [3435d5] Error while checking perms. Please try again later.`
       );
     }
 
@@ -158,7 +215,7 @@ const Balance_Setup = {
             }
 
             configBalance.manager_roles = configBalance.manager_roles.filter(
-              (id) => id !== role.id,
+              (id) => id !== role.id
             );
 
             await configBalance.save();
@@ -177,7 +234,7 @@ const Balance_Setup = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [873b96] Error while modifying manager role. Please try again later.`,
+          `> [873b96] Error while modifying manager role. Please try again later.`
         );
       }
     } else if (interaction.options.getSubcommand() === "payout_roles") {
@@ -222,7 +279,89 @@ const Balance_Setup = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [873b96] Error while modifying payout role. Please try again later.`,
+          `> [873b96] Error while modifying payout role. Please try again later.`
+        );
+      }
+    } else if (interaction.options.getSubcommand() === "custom_permissions_enabled") {
+      const enabled = interaction.options.getBoolean("custom_permissions_enabled") ?? false;
+
+      try {
+        await BalanceSettings.updateOne(
+          { gid: interaction.guildId },
+          { custom_permissions_enabled: enabled },
+          { upsert: true, new: true }
+        );
+
+        await interaction.reply({
+          content: `> Custom permissions have been **${enabled ? "enabled" : "disabled"}**.`,
+        });
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply(
+          `> [3a7d15] Error while toggling custom permissions. Please try again later.`
+        );
+      }
+    } else if (interaction.options.getSubcommand() === "custom_permissions") {
+      const permissionType = interaction.options.getString("permission_type");
+      const role = interaction.options.getRole("role");
+      const remove_instead = interaction.options.getBoolean("remove_instead") ?? false;
+
+      try {
+        if (!configBalance && remove_instead) {
+          return await interaction.reply(
+            `> Custom permissions are not configured yet. Nothing to remove.`
+          );
+        }
+
+        let action = "";
+        const key = permissionType;
+
+        if (!configBalance) {
+          const newConfig = await new BalanceSettings({
+            gid: interaction.guildId,
+            custom_permissions_enabled: true,
+            custom_permissions: {
+              [key]: [role.id],
+            },
+          });
+          await newConfig.save();
+        } else {
+          configBalance.custom_permissions = configBalance.custom_permissions || {};
+          configBalance.custom_permissions[key] = configBalance.custom_permissions[key] || [];
+
+          if (remove_instead) {
+            action = "removed";
+            if (configBalance.custom_permissions[key].indexOf(role.id) === -1) {
+              return await interaction.reply(
+                `> Role **${role.name}** doesn't have permission for category **${key}**.`
+              );
+            }
+
+            configBalance.custom_permissions[key] = configBalance.custom_permissions[key].filter(
+              (id) => id !== role.id
+            );
+            await configBalance.save();
+          } else {
+            action = "added";
+            if (configBalance.custom_permissions[key].indexOf(role.id) !== -1) {
+              return await interaction.reply(
+                `> Role **${role.name}** already has permission for category **${key}**.`
+              );
+            }
+
+            configBalance.custom_permissions[key].push(role.id);
+            configBalance.custom_permissions_enabled = true;
+            await configBalance.save();
+          }
+        }
+
+        return await interaction.reply(
+          `> Custom permission role **${role.name}** for category **${key}** has been **${action}**.`
+        );
+      } catch (err) {
+        console.error(err);
+        return await interaction.reply(
+          `> [623d9f] Error while modifying custom permissions. Please try again later.`
         );
       }
     } else if (interaction.options.getSubcommand() === "enabled") {
@@ -232,7 +371,7 @@ const Balance_Setup = {
         await BalanceSettings.updateOne(
           { gid: interaction.guildId },
           { enabled: enabled },
-          { upsert: true, new: true },
+          { upsert: true, new: true }
         );
 
         await interaction.reply({
@@ -241,7 +380,7 @@ const Balance_Setup = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [17bcd3] Error while turning on/off balance feature. Please try again later.`,
+          `> [17bcd3] Error while turning on/off balance feature. Please try again later.`
         );
       }
     } else if (interaction.options.getSubcommand() === "log_channel") {
@@ -251,7 +390,7 @@ const Balance_Setup = {
         await BalanceSettings.updateOne(
           { gid: interaction.guildId },
           { log_channel: channel.id },
-          { upsert: true, new: true },
+          { upsert: true, new: true }
         );
 
         await interaction.reply({
@@ -260,7 +399,7 @@ const Balance_Setup = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [6332c5] Error while updating balance logs channel. Please try again later.`,
+          `> [6332c5] Error while updating balance logs channel. Please try again later.`
         );
       }
     } else if (interaction.options.getSubcommand() === "allow_transfers") {
@@ -270,7 +409,7 @@ const Balance_Setup = {
         await BalanceSettings.updateOne(
           { gid: interaction.guildId },
           { allow_transfers: enabled },
-          { upsert: true, new: true },
+          { upsert: true, new: true }
         );
 
         await interaction.reply({
@@ -281,7 +420,7 @@ const Balance_Setup = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [783f22] Error while turning on/off transferring feature. Please try again later.`,
+          `> [783f22] Error while turning on/off transferring feature. Please try again later.`
         );
       }
     } else if (interaction.options.getSubcommand() === "interactive") {
@@ -328,7 +467,7 @@ const Balance_Setup = {
         new ButtonBuilder()
           .setCustomId("balance_cancel")
           .setLabel("Cancel configuration")
-          .setStyle(ButtonStyle.Danger),
+          .setStyle(ButtonStyle.Danger)
       );
 
       await interaction.reply({
@@ -347,7 +486,7 @@ const Balance_Setup = {
                 log_channel: answers["log_channel"] ? answers["log_channel"][0] : "",
                 enabled: true,
               },
-              { upsert: true, new: true },
+              { upsert: true, new: true }
             );
           } catch (err) {
             console.error(err);
@@ -375,7 +514,7 @@ const Balance_Setup = {
             new RoleSelectMenuBuilder()
               .setCustomId("balance_select_role")
               .setPlaceholder(question.title)
-              .setMaxValues(question.limit ?? 25),
+              .setMaxValues(question.limit ?? 25)
           );
 
           const embedMessage = new EmbedBuilder()
@@ -417,7 +556,7 @@ const Balance_Setup = {
             new ChannelSelectMenuBuilder()
               .setCustomId("balance_select_channel")
               .setPlaceholder("Select channel")
-              .setMaxValues(question.limit ?? 25),
+              .setMaxValues(question.limit ?? 25)
           );
 
           const embedMessage = new EmbedBuilder()
@@ -459,7 +598,7 @@ const Balance_Setup = {
             new StringSelectMenuBuilder()
               .setCustomId("balance_select")
               .setPlaceholder(question.title)
-              .addOptions(question.options),
+              .addOptions(question.options)
           );
 
           const embedMessage = new EmbedBuilder()
@@ -543,6 +682,33 @@ const Balance_Setup = {
           message += `*not set*\n`;
         }
 
+        message += `### Custom permissions:\n`;
+        message += configBalance.custom_permissions_enabled ? `✅ *enabled*\n` : `❌ *disabled*\n`;
+
+        if (configBalance.custom_permissions_enabled) {
+          message += `### Custom permissions settings:\n`;
+          if (configBalance.custom_permissions) {
+            BALANCE_PERMISSION_CATEGORIES.forEach((category) => {
+              const roles = configBalance.custom_permissions[category] || [];
+              if (roles.length > 0) {
+                message += `> **${category}**: <@&${roles.join("> <@&")}>\n`;
+              }
+            });
+            if (
+              Object.keys(configBalance.custom_permissions).every((key) => {
+                return (
+                  !configBalance.custom_permissions[key] ||
+                  configBalance.custom_permissions[key].length === 0
+                );
+              })
+            ) {
+              message += `*not set*\n`;
+            }
+          } else {
+            message += `*not set*\n`;
+          }
+        }
+
         const embedMessage = new EmbedBuilder()
           .setColor("#ff99ff")
           .setTitle(`Balance Settings`)
@@ -552,7 +718,7 @@ const Balance_Setup = {
       } catch (err) {
         console.error(err);
         return await interaction.reply(
-          `> [8f63c1] Error while displaying Balance config. Please try again later.`,
+          `> [8f63c1] Error while displaying Balance config. Please try again later.`
         );
       }
     }
@@ -568,100 +734,100 @@ const Balance_Command = {
         .setName("add")
         .setDescription("Add balance to the user.")
         .addUserOption((option) =>
-          option.setName("user").setDescription("User to add balance to").setRequired(true),
+          option.setName("user").setDescription("User to add balance to").setRequired(true)
         )
         .addIntegerOption((option) =>
-          option.setName("amount").setDescription("Amount to add").setRequired(true),
-        ),
+          option.setName("amount").setDescription("Amount to add").setRequired(true)
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("add_many")
         .setDescription("Add balance to the mentioned users.")
         .addStringOption((option) =>
-          option.setName("users").setDescription("Users to add balance to").setRequired(true),
+          option.setName("users").setDescription("Users to add balance to").setRequired(true)
         )
         .addIntegerOption((option) =>
-          option.setName("amount").setDescription("Amount to add").setRequired(true),
+          option.setName("amount").setDescription("Amount to add").setRequired(true)
         )
         .addBooleanOption((option) =>
           option
             .setName("split")
-            .setDescription("Whether to split the amount among users (default: false)"),
-        ),
+            .setDescription("Whether to split the amount among users (default: false)")
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("remove")
         .setDescription("Remove balance from the user.")
         .addUserOption((option) =>
-          option.setName("user").setDescription("User to remove balance from").setRequired(true),
+          option.setName("user").setDescription("User to remove balance from").setRequired(true)
         )
         .addIntegerOption((option) =>
-          option.setName("amount").setDescription("Amount to remove").setRequired(true),
-        ),
+          option.setName("amount").setDescription("Amount to remove").setRequired(true)
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("remove_many")
         .setDescription("Remove balance from the mentioned users.")
         .addStringOption((option) =>
-          option.setName("users").setDescription("Users to remove balance from").setRequired(true),
+          option.setName("users").setDescription("Users to remove balance from").setRequired(true)
         )
         .addIntegerOption((option) =>
-          option.setName("amount").setDescription("Amount to remove").setRequired(true),
-        ),
+          option.setName("amount").setDescription("Amount to remove").setRequired(true)
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("check")
         .setDescription("Check balance.")
         .addUserOption((option) =>
-          option.setName("user").setDescription("User to check balance for"),
-        ),
+          option.setName("user").setDescription("User to check balance for")
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("give")
         .setDescription("Give balance to the mentioned user.")
         .addUserOption((option) =>
-          option.setName("user").setDescription("User to give balance to").setRequired(true),
+          option.setName("user").setDescription("User to give balance to").setRequired(true)
         )
         .addIntegerOption((option) =>
-          option.setName("amount").setDescription("Amount to transfer").setRequired(true),
-        ),
+          option.setName("amount").setDescription("Amount to transfer").setRequired(true)
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("transfer")
         .setDescription("Transfer balance to the mentioned user.")
         .addUserOption((option) =>
-          option.setName("user").setDescription("User to transfer balance to").setRequired(true),
+          option.setName("user").setDescription("User to transfer balance to").setRequired(true)
         )
         .addIntegerOption((option) =>
-          option.setName("amount").setDescription("Amount to transfer").setRequired(true),
-        ),
+          option.setName("amount").setDescription("Amount to transfer").setRequired(true)
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("payout")
         .setDescription("Payout balance to the mentioned user.")
         .addUserOption((option) =>
-          option.setName("user").setDescription("User to payout balance to").setRequired(true),
+          option.setName("user").setDescription("User to payout balance to").setRequired(true)
         )
-        .addIntegerOption((option) => option.setName("amount").setDescription("Amount to payout")),
+        .addIntegerOption((option) => option.setName("amount").setDescription("Amount to payout"))
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("payout_offline")
         .setDescription("Payout balance to the user who left the server.")
         .addStringOption((option) =>
-          option.setName("nickname").setDescription("User nickname to payout balance to"),
+          option.setName("nickname").setDescription("User nickname to payout balance to")
         )
         .addStringOption((option) =>
-          option.setName("discord_id").setDescription("User Discord ID to payout balance to"),
+          option.setName("discord_id").setDescription("User Discord ID to payout balance to")
         )
-        .addIntegerOption((option) => option.setName("amount").setDescription("Amount to payout")),
+        .addIntegerOption((option) => option.setName("amount").setDescription("Amount to payout"))
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -671,13 +837,13 @@ const Balance_Command = {
           option
             .setName("page")
             .setDescription("Page number for ranking - 15 results per page (default: 1)")
-            .setMinValue(1),
-        ),
+            .setMinValue(1)
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("stats")
-        .setDescription("Check total amount of balance waiting to be paid out."),
+        .setDescription("Check total amount of balance waiting to be paid out.")
     )
     // .addSubcommand((subcommand) =>
     //   subcommand
@@ -700,7 +866,7 @@ const Balance_Command = {
         .setName("logs")
         .setDescription("View balance change logs.")
         .addUserOption((option) =>
-          option.setName("user").setDescription("User to view logs for").setRequired(true),
+          option.setName("user").setDescription("User to view logs for").setRequired(true)
         )
         .addStringOption((option) =>
           option
@@ -711,9 +877,9 @@ const Balance_Command = {
               { name: "Add", value: "add" },
               { name: "Remove", value: "remove" },
               { name: "Transfer", value: "transfer" },
-              { name: "Payout", value: "payout" },
-            ),
-        ),
+              { name: "Payout", value: "payout" }
+            )
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -726,14 +892,14 @@ const Balance_Command = {
             .addChoices(
               { name: "txt", value: "txt" },
               { name: "html", value: "html" },
-              { name: "csv", value: "csv" },
-            ),
+              { name: "csv", value: "csv" }
+            )
         )
         .addBooleanOption((option) =>
           option
             .setName("above_zero")
-            .setDescription("Show only users with balance above 0? (default: yes)"),
-        ),
+            .setDescription("Show only users with balance above 0? (default: yes)")
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -746,14 +912,14 @@ const Balance_Command = {
             .addChoices(
               { name: "txt", value: "txt" },
               { name: "html", value: "html" },
-              { name: "csv", value: "csv" },
-            ),
+              { name: "csv", value: "csv" }
+            )
         )
         .addBooleanOption((option) =>
           option
             .setName("above_zero")
-            .setDescription("Show only users with balance above 0? (default: yes)"),
-        ),
+            .setDescription("Show only users with balance above 0? (default: yes)")
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -766,24 +932,25 @@ const Balance_Command = {
             .addChoices(
               { name: "Display Name", value: "display_name" },
               { name: "Discord ID", value: "discord_id" },
-              { name: "User Mention", value: "user_mention" },
-            ),
-        ),
+              { name: "User Mention", value: "user_mention" }
+            )
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("offline_list")
-        .setDescription("Shows list of users that left the server but have balance above 0."),
+        .setDescription("Shows list of users that left the server but have balance above 0.")
     ),
   async execute(interaction) {
     let payout_perms = false;
     let manager_perms = false;
+    let custom_perms = false;
     let configBalance;
 
-    if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
-      payout_perms = true;
-      manager_perms = true;
-    }
+    // if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
+    //   payout_perms = true;
+    //   manager_perms = true;
+    // }
 
     try {
       configBalance = await BalanceSettings.findOne({
@@ -807,6 +974,7 @@ const Balance_Command = {
           if (interactionUser.roles.cache.has(role)) {
             manager_perms = true;
             payout_perms = true;
+            custom_perms = true;
           }
         });
       }
@@ -815,8 +983,23 @@ const Balance_Command = {
         configBalance.payout_roles.forEach((role) => {
           if (interactionUser.roles.cache.has(role)) {
             payout_perms = true;
+            custom_perms = true;
           }
         });
+      }
+
+      if (!custom_perms && configBalance.custom_permissions_enabled) {
+        if (BALANCE_PERMISSION_CATEGORIES.includes(interaction.options.getSubcommand())) {
+          const allowedRoles =
+            configBalance.custom_permissions[interaction.options.getSubcommand()] || [];
+
+          if (
+            Array.isArray(allowedRoles) &&
+            allowedRoles.some((roleId) => interactionUser.roles.cache.has(roleId))
+          ) {
+            custom_perms = true;
+          }
+        }
       }
     } catch (err) {
       console.error(err);
@@ -841,7 +1024,7 @@ const Balance_Command = {
         "export",
         "offline_list",
       ].indexOf(interaction.options.getSubcommand()) !== -1 &&
-      payout_perms === false
+      custom_perms === false
     ) {
       return await interaction.reply({
         content: `> You don't have permission to use this command.`,
@@ -990,10 +1173,10 @@ const Balance_Command = {
           .setTitle(`Balance transfer`)
           .setDescription(
             `User ${interactionUser} (${getDisplayName(
-              interactionUser,
+              interactionUser
             )}) has transfered 💲**${amount}** to ${receiverUser} (${getDisplayName(
-              receiverUser,
-            )}).`,
+              receiverUser
+            )}).`
           );
 
         await interaction.followUp({ embeds: [embedMessage] });
@@ -1073,7 +1256,7 @@ const Balance_Command = {
           const [error, guildMember] = await tryCatch(
             interaction.guild.members.fetch(userId, {
               force: true,
-            }),
+            })
           );
 
           if (error) {
@@ -1109,7 +1292,7 @@ const Balance_Command = {
           const [error, guildMember] = await tryCatch(
             interaction.guild.members.fetch(userId, {
               force: true,
-            }),
+            })
           );
 
           if (!guildMember || error) {
@@ -1384,13 +1567,13 @@ const Balance_Command = {
             new ButtonBuilder()
               .setCustomId("balance_payout_confirm")
               .setLabel("Confirm payout")
-              .setStyle(ButtonStyle.Success),
+              .setStyle(ButtonStyle.Success)
           )
           .addComponents(
             new ButtonBuilder()
               .setCustomId("balance_payout_cancel")
               .setLabel("Cancel payout")
-              .setStyle(ButtonStyle.Danger),
+              .setStyle(ButtonStyle.Danger)
           );
 
         const msg = await interaction.followUp({
@@ -1427,9 +1610,7 @@ const Balance_Command = {
               embedMessage
                 .setTitle(`Payout successful`)
                 .setDescription(
-                  `💲**${amount}** has been successfully paid out to ${getDisplayName(
-                    payoutUser,
-                  )}.`,
+                  `💲**${amount}** has been successfully paid out to ${getDisplayName(payoutUser)}.`
                 )
                 .setColor(`#00DB19`);
 
@@ -1437,7 +1618,7 @@ const Balance_Command = {
 
               if (configBalance.log_channel) {
                 const logChannel = await interaction.guild.channels.fetch(
-                  configBalance.log_channel,
+                  configBalance.log_channel
                 );
                 if (logChannel) {
                   embedMessage.setFooter({
@@ -1533,13 +1714,13 @@ const Balance_Command = {
             new ButtonBuilder()
               .setCustomId("balance_payout_offline_confirm")
               .setLabel("Confirm payout")
-              .setStyle(ButtonStyle.Success),
+              .setStyle(ButtonStyle.Success)
           )
           .addComponents(
             new ButtonBuilder()
               .setCustomId("balance_payout_offline_cancel")
               .setLabel("Cancel payout")
-              .setStyle(ButtonStyle.Danger),
+              .setStyle(ButtonStyle.Danger)
           );
 
         const msg = await interaction.followUp({
@@ -1588,7 +1769,7 @@ const Balance_Command = {
 
               if (configBalance.log_channel) {
                 const logChannel = await interaction.guild.channels.fetch(
-                  configBalance.log_channel,
+                  configBalance.log_channel
                 );
                 if (logChannel) {
                   embedMessage.setFooter({
@@ -1697,7 +1878,7 @@ const Balance_Command = {
           .setDescription(
             `Generated balance logs for **${getDisplayName(logUser)}** (#${
               logUser.user.id
-            }).\n*Given times are in UTC timezone.*`,
+            }).\n*Given times are in UTC timezone.*`
           );
 
         await interaction.followUp({ embeds: [embedMessage], files: files });
@@ -1744,7 +1925,7 @@ const Balance_Command = {
                 `<tr>${line
                   .split("\t")
                   .map((cell) => `<td>${cell}</td>`)
-                  .join("")}</tr>`,
+                  .join("")}</tr>`
             )
             .join("")}</table></body></html>`;
           fileName = `balance_info.html`;
@@ -1842,7 +2023,7 @@ const Balance_Command = {
 
           if (user_type === "display_name") {
             member = await interaction.guild.members.cache.find(
-              (m) => getDisplayName(m) === user.displayName,
+              (m) => getDisplayName(m) === user.displayName
             );
           } else if (user_type === "discord_id") {
             member = await interaction.guild.members.cache.get(user.displayName);
@@ -2117,7 +2298,7 @@ const Balance_Command = {
         .setDescription(
           balances
             .map((b, index) => `\`#${skip + index + 1}\` ${b.user_name} - 💲${b.balance}`)
-            .join("\n"),
+            .join("\n")
         );
 
       let buttonsRow = null;
