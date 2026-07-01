@@ -947,10 +947,10 @@ const Balance_Command = {
     let custom_perms = false;
     let configBalance;
 
-    // if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
-    //   payout_perms = true;
-    //   manager_perms = true;
-    // }
+    if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
+      payout_perms = true;
+      manager_perms = true;
+    }
 
     try {
       configBalance = await BalanceSettings.findOne({
