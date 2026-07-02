@@ -1057,7 +1057,7 @@ const Balance_Command = {
         const embedMessage = new EmbedBuilder()
           .setColor("#00DB19")
           .setTitle(`Balance for: ${getDisplayName(interactionUser)}`)
-          .setDescription(`**Balance:** 💲**${balanceAmout}**`);
+          .setDescription(`**Balance:** 💲**${balanceAmout.toLocaleString()}**`);
 
         return await interaction.followUp({ embeds: [embedMessage] });
       } catch (err) {
@@ -1174,7 +1174,7 @@ const Balance_Command = {
           .setDescription(
             `User ${interactionUser} (${getDisplayName(
               interactionUser
-            )}) has transfered 💲**${amount}** to ${receiverUser} (${getDisplayName(
+            )}) has transfered 💲**${amount.toLocaleString()}** to ${receiverUser} (${getDisplayName(
               receiverUser
             )}).`
           );
@@ -1762,7 +1762,9 @@ const Balance_Command = {
 
               embedMessage
                 .setTitle(`Payout successful`)
-                .setDescription(`💲**${amount}** has been successfully paid out to ${payoutUser}.`)
+                .setDescription(
+                  `💲**${amount.toLocaleString()}** has been successfully paid out to ${payoutUser}.`
+                )
                 .setColor(`#00DB19`);
 
               await i.update({ embeds: [embedMessage], components: [] });
@@ -1813,7 +1815,7 @@ const Balance_Command = {
         const embedMessage = new EmbedBuilder()
           .setColor(`#4493fc`)
           .setTitle(`Balance Stats`)
-          .setDescription(`Total Balance: 💲**${stats[0]?.totalBalance || 0}**`);
+          .setDescription(`Total Balance: 💲**${stats[0]?.totalBalance.toLocaleString() || 0}**`);
 
         await interaction.followUp({ embeds: [embedMessage] });
       } catch (err) {
