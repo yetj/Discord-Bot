@@ -6,12 +6,22 @@ module.exports = {
     .setName("regear")
     .setDescription("Displays regears without reacion.")
     .addStringOption((option) =>
-      option.setName("custom_string").setDescription("Custom string (default: H C)")
+      option.setName("custom_link").setDescription("Custom link (default: H C)")
+    )
+    .addStringOption((option) =>
+      option
+        .setName("output_string")
+        .setDescription(
+          "Options: {displayname} {userid} {post_link} | Default: {displayname}> `<@{userid}>` {post_link}"
+        )
     ),
   async execute(interaction) {
-    const custom_string = interaction.options.getString("custom_string");
+    const custom_link = interaction.options.getString("custom_link");
+    let output_string = interaction.options.getString("output_string");
 
-    const finalString = custom_string?.length > 0 ? custom_string : "H C";
+    const finalLinkString = custom_link?.length > 0 ? custom_link : "H C";
+    output_string =
+      output_string?.length > 0 ? output_string : "{displayname}> `<@{userid}>` {post_link}";
 
     await interaction.deferReply({ ephemeral: true });
 
@@ -30,14 +40,20 @@ module.exports = {
         force: true,
       });
 
-      contentArray.push(
-        `\n${getDisplayName(member)}> \`<@${
-          member.id
-        }>\` [${finalString}](https://discord.com/channels/${interaction.guildId}/${
-          interaction.channel.id
-        }/${message.id})`
-      );
-      todo++;
+      if (member) {
+        let finalOutputString = output_string
+          .replace(/{displayname}/g, getDisplayName(member))
+          .replace(/{userid}/g, member.id)
+          .replace(
+            /{post_link}/g,
+            `[${finalLinkString}](https://discord.com/channels/${interaction.guildId}/${
+              interaction.channel.id
+            }/${message.id})`
+          );
+
+        contentArray.push(`\n${finalOutputString}`);
+        todo++;
+      }
     } else if (message.attachments.size > 0 && message.reactions.cache.size > 0) {
       checked++;
     }
@@ -53,13 +69,18 @@ module.exports = {
               });
 
               if (member) {
-                contentArray.push(
-                  `\n${getDisplayName(member)}> \`<@${
-                    member.id
-                  }>\` [${finalString}](https://discord.com/channels/${interaction.guildId}/${
-                    interaction.channel.id
-                  }/${msg.id})`
-                );
+                let finalOutputString = output_string
+                  .replace(/{displayname}/g, getDisplayName(member))
+                  .replace(/{userid}/g, member.id)
+                  .replace(
+                    /{post_link}/g,
+                    `[${finalLinkString}](https://discord.com/channels/${interaction.guildId}/${
+                      interaction.channel.id
+                    }/${msg.id})`
+                  );
+
+                contentArray.push(`\n${finalOutputString}`);
+
                 todo++;
               }
             } else if (msg.attachments.size > 0 && msg.reactions.cache.size > 0) {
@@ -75,6 +96,10 @@ module.exports = {
 
     let page = 1;
     let content = "";
+    let header = output_string
+      .replace(/{displayname}/g, "Display Name")
+      .replace(/{userid}/g, "User ID")
+      .replace(/{post_link}/g, "Message Link");
 
     for (let i = contentArray.length - 1; i >= 0; i--) {
       content += contentArray[i];
@@ -83,7 +108,7 @@ module.exports = {
         const embed = new EmbedBuilder()
           .setColor("#22cc11")
           .setTitle("Regears:")
-          .setDescription(`Player name | Player mention | Location (post link)${content}`)
+          .setDescription(`${header}${content}`)
           .setFooter({ text: `Page ${page}` });
 
         content = "";
@@ -103,7 +128,7 @@ module.exports = {
           const embed = new EmbedBuilder()
             .setColor("#22cc11")
             .setTitle("Regears")
-            .setDescription(`Player name | Player mention | Location (post link)${content}`);
+            .setDescription(`${header}${content}`);
 
           if (page > 1) {
             embed.setFooter({ text: `Page ${page}` });
