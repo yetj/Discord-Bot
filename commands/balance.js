@@ -29,6 +29,7 @@ const BALANCE_PERMISSION_CATEGORIES = [
   "logs",
   "file",
   "export",
+  "import",
   "offline_list",
 ];
 
@@ -92,6 +93,7 @@ const Balance_Setup = {
               { name: "Logs", value: "logs" },
               { name: "File", value: "file" },
               { name: "Export", value: "export" },
+              { name: "Import", value: "import" },
               { name: "Offline List", value: "offline_list" }
             )
         )
@@ -950,6 +952,7 @@ const Balance_Command = {
     if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
       payout_perms = true;
       manager_perms = true;
+      custom_perms = true;
     }
 
     try {
@@ -1022,6 +1025,7 @@ const Balance_Command = {
         "logs",
         "file",
         "export",
+        "import",
         "offline_list",
       ].indexOf(interaction.options.getSubcommand()) !== -1 &&
       custom_perms === false
@@ -1962,7 +1966,7 @@ const Balance_Command = {
         force: true,
       });
 
-      if (!manager_perms) {
+      if (!manager_perms && !custom_perms) {
         return await interaction.followUp({
           content: `> You don't have permission to use this command.`,
           flags: MessageFlags.Ephemeral,

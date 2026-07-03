@@ -20,6 +20,7 @@ const BalanceSettingsSchema = new mongoose.Schema({
     logs: { type: [String], default: [] },
     file: { type: [String], default: [] },
     export: { type: [String], default: [] },
+    import: { type: [String], default: [] },
     offline_list: { type: [String], default: [] },
   },
 });
