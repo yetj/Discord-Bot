@@ -7,6 +7,7 @@ const {
   StringSelectMenuBuilder,
   UserSelectMenuBuilder,
   ButtonStyle,
+  MessageFlags,
 } = require("discord.js");
 const isValidDate = require("./isValidDate");
 
@@ -53,10 +54,6 @@ module.exports = async function interactiveForm(
     }
 
     let embeds = [];
-
-    await interaction.followUp({
-      content: `> ***Starting interactive form***`,
-    });
 
     const embedQuestion = new EmbedBuilder()
       .setColor(`#0000DB`)
@@ -470,7 +467,7 @@ module.exports = async function interactiveForm(
             content: `> Invalid date format. Please use one of the following formats: \`${
               Array.isArray(formats) ? formats.join("`, `") : formats
             }\``,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
           try {
             await msg.delete();
