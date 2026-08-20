@@ -499,6 +499,58 @@ module.exports = async function interactiveForm(
           channel.send("> *You didn't provide any answer. Canceled.*");
         }
       });
+    } else if (question.type === "boolean") {
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`${formName}_boolean_yes`)
+          .setLabel("Yes")
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId(`${formName}_boolean_no`)
+          .setLabel("No")
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      if (question?.currentValue) {
+        if (!Array.isArray(question.currentValue)) {
+          question.currentValue = [question.currentValue];
+        }
+        const options = question.currentValue.map((option) => `${option}`);
+        embedCurrentValue.setDescription(`\`${options.join(", ")}\``);
+      }
+
+      const msg = await channel.send({
+        embeds: [...embeds],
+        components: [row, buttonsRow],
+      });
+
+      const collector = msg.createMessageComponentCollector({ time: 120000 });
+
+      collector.on("collect", async (i) => {
+        if (i.customId == `${formName}_boolean_yes` && i.user.id === user.id) {
+          answers[question.id] = true;
+          embedQuestion.setDescription(`Selected option: **Yes**`);
+          await i.update({ embeds: [embedQuestion], components: [] });
+          currentQuestion++;
+          collector.stop();
+          await askQuestion();
+        } else if (i.customId == `${formName}_boolean_no` && i.user.id === user.id) {
+          answers[question.id] = false;
+          embedQuestion.setDescription(`Selected option: **No**`);
+        } else if (i.customId === `${formName}_cancel` && i.user.id === user.id) {
+          embedQuestion.setColor(`#DB0019`);
+          embedQuestion.setDescription("Canceled.");
+          await i.update({ embeds: [embedQuestion], components: [] });
+          collector.stop();
+        } else if (i.customId === `${formName}_skip` && i.user.id === user.id) {
+          embedQuestion.setDescription("Skipped.");
+          embedQuestion.setColor(`#dfb600`);
+          await i.update({ embeds: [embedQuestion], components: [] });
+          currentQuestion++;
+          collector.stop();
+          await askQuestion();
+        }
+      });
     }
   };
 
