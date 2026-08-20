@@ -257,7 +257,7 @@ const Event_Command = {
       if (!configEvent || configEvent.enabled == false) {
         return await interaction.reply({
           content: `> Event feature is **disabled**.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -312,21 +312,25 @@ const Event_Command = {
       console.error(err);
       return await interaction.reply({
         content: `> [e21281] Error while checking perms. Please try again later.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
-    //await interaction.deferReply({ flags: MessageFlags.Ephemeral }); // had to move it to specific commands, because of preview command that needs to be public and some commands that can have follow up messages after execution
-
     if (interaction.options.getSubcommandGroup() === "template") {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       if (interaction.options.getSubcommand() === "create") {
         if (!creator_perms) {
-          return await interaction.followUp({
+          return await interaction.reply({
             content: `> You don't have permissions to create event templates.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
+
+        const embedMessage = new EmbedBuilder()
+          .setColor(`#1af1ea`)
+          .setTitle(`Event template creation`)
+          .setDescription(`> Starting event template creation...`);
+
+        await interaction.reply({ embeds: [embedMessage] });
 
         const name = interaction.options.getString("name");
         const method = interaction.options.getString("method") ?? "simple";
@@ -340,14 +344,14 @@ const Event_Command = {
         if (image_url && !isUrl(image_url)) {
           return await interaction.followUp({
             content: `> Invalid image URL. Please provide a valid URL.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
         if (build_url && !isUrl(build_url)) {
           return await interaction.followUp({
             content: `> Invalid build URL. Please provide a valid URL.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -356,6 +360,15 @@ const Event_Command = {
             id: "description",
             title: "Event Description",
             description: "Description of the event.",
+            type: "text",
+            isRaw: true,
+            canBeSkipped: true,
+          },
+          {
+            id: "message_content",
+            title: "Event Content Message",
+            description:
+              "Content message of the event. You can use mentions here. This message will be sent when event is created.",
             type: "text",
             isRaw: true,
             canBeSkipped: true,
@@ -402,7 +415,7 @@ const Event_Command = {
                 .setTitle(`Errors`)
                 .setDescription(message);
 
-              await interaction.followUp({ embeds: [embedMessage], ephemeral: true });
+              await interaction.followUp({ embeds: [embedMessage], flags: MessageFlags.Ephemeral });
             }
 
             const newTemplate = await new EventTemplates({
@@ -426,14 +439,12 @@ const Event_Command = {
               .setTitle(`Event template created`)
               .setDescription(message);
 
-            await interaction.deleteReply();
-
             await interaction.followUp({ embeds: [embedMessage] });
           } catch (err) {
             console.error(err);
             return await interaction.followUp({
               content: `> [282a03] Error while creating new event template. Please try again later.`,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
           }
         };
@@ -441,11 +452,18 @@ const Event_Command = {
         await interactiveForm("template_create", interaction, questions, callbackFunction);
       } else if (interaction.options.getSubcommand() === "edit") {
         if (!creator_perms) {
-          return await interaction.followUp({
+          return await interaction.reply({
             content: `> You don't have permissions to create event templates.`,
             flags: MessageFlags.Ephemeral,
           });
         }
+
+        const embedMessage = new EmbedBuilder()
+          .setColor(`#1af1ea`)
+          .setTitle(`Event template editing`)
+          .setDescription(`> Starting event template editing...`);
+
+        await interaction.reply({ embeds: [embedMessage] });
 
         const event_template_id = interaction.options.getString("event_template_id");
         const name = interaction.options.getString("name") ?? null;
@@ -570,7 +588,10 @@ const Event_Command = {
                 }
 
                 const embedMessage = new EmbedBuilder().setColor(`#DB0000`).setTitle(`Errors`);
-                await interaction.followUp({ embeds: [embedMessage], ephemeral: true });
+                await interaction.followUp({
+                  embeds: [embedMessage],
+                  flags: MessageFlags.Ephemeral,
+                });
               }
 
               eventTemplate.roles = parsedRoles;
@@ -596,6 +617,7 @@ const Event_Command = {
           });
         }
       } else if (interaction.options.getSubcommand() === "preview") {
+        await interaction.deferReply();
         if (!creator_perms) {
           return await interaction.followUp({
             content: `> You don't have permissions to preview event templates.`,
@@ -622,7 +644,6 @@ const Event_Command = {
           return await interaction.followUp({
             content: `Preview of the event:`,
             embeds: embeds,
-            flags: MessageFlags.Ephemeral,
           });
         } catch (err) {
           console.error(err);
@@ -632,6 +653,7 @@ const Event_Command = {
           });
         }
       } else if (interaction.options.getSubcommand() === "delete") {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         if (!creator_perms) {
           return await interaction.followUp({
             content: `> You don't have permissions to delete event templates.`,
@@ -673,7 +695,7 @@ const Event_Command = {
           console.error(err);
           return await interaction.followUp({
             content: `> [18507c] Error occurred while deleting event template. Please try again later.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
       }
@@ -682,7 +704,7 @@ const Event_Command = {
       if (!creator_perms) {
         return await interaction.followUp({
           content: `> You don't have permissions to create events.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -733,49 +755,49 @@ const Event_Command = {
       } else {
         return await interaction.followUp({
           content: `> Invalid date format. Please use \`YYYY-MM-DD HH:MM\` or \`HH:MM\` for today.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (!event_date_timestamp) {
         return await interaction.followUp({
           content: `> Failed to parse event date.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (event_date_timestamp < Date.now()) {
         return await interaction.followUp({
           content: `> Event date cannot be in the past. Please provide a valid date.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (late_join_limit && (late_join_limit < 1 || late_join_limit > 60)) {
         return await interaction.followUp({
           content: `> Late join limit must be between 1 and 60 minutes.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if ((!allow_late_join || allow_late_join === false) && late_join_limit) {
         return await interaction.followUp({
           content: `> If you want to allow late join, you need to set \`allow_late_join\` to true.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (own_image_url && !isUrl(own_image_url)) {
         return await interaction.followUp({
           content: `> Image URL is not valid.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (own_build_url && !isUrl(own_build_url)) {
         return await interaction.followUp({
           content: `> Build URL is not valid.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -786,7 +808,7 @@ const Event_Command = {
           .setTitle(`Own Description`)
           .setDescription(`> Please provide your own description for the event.`);
 
-        await interaction.followUp({ embeds: [embedOwnDesc], ephemeral: true });
+        await interaction.followUp({ embeds: [embedOwnDesc], flags: MessageFlags.Ephemeral });
 
         const filter = (m) => m.author.id === interaction.user.id;
 
@@ -818,7 +840,7 @@ const Event_Command = {
         if (!own_description_text) {
           return await interaction.followUp({
             content: `> You didn't provide a description. Please try again.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
       }
@@ -831,7 +853,7 @@ const Event_Command = {
         if (!eventTemplate) {
           return await interaction.followUp({
             content: `> Event template with ID \`${event_template_id}\` not found.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -929,12 +951,15 @@ const Event_Command = {
 
         await interaction.deleteReply();
 
-        return await interaction.followUp({ embeds: [embedMessage], ephemeral: true });
+        return await interaction.followUp({
+          embeds: [embedMessage],
+          flags: MessageFlags.Ephemeral,
+        });
       } catch (err) {
         console.error(err);
         return await interaction.followUp({
           content: `> [5cec5e] Error occurred while creating event. Please try again later.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     } else if (interaction.options.getSubcommand() === "edit") {
@@ -942,7 +967,7 @@ const Event_Command = {
       if (!creator_perms) {
         return await interaction.followUp({
           content: `> You don't have permissions to edit events.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -962,7 +987,7 @@ const Event_Command = {
       if (name && name.length > 20) {
         return await interaction.followUp({
           content: `> Event name is too long. Maximum length is 20 characters.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -994,14 +1019,14 @@ const Event_Command = {
         } else {
           return await interaction.followUp({
             content: `> Invalid date format. Please use \`YYYY-MM-DD HH:MM\` or \`HH:MM\` for today.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
         if (event_date_timestamp < Date.now()) {
           return await interaction.followUp({
             content: `> Event date cannot be in the past. Please provide a valid date.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
       }
@@ -1009,35 +1034,35 @@ const Event_Command = {
       if (late_join_limit && (late_join_limit < 1 || late_join_limit > 60)) {
         return await interaction.followUp({
           content: `> Late join limit must be between 1 and 60 minutes.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (organizer && organizer.id === interaction.user.id) {
         return await interaction.followUp({
           content: `> You cannot set yourself as the organizer.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (image_url && !isUrl(image_url)) {
         return await interaction.followUp({
           content: `> Image URL is not valid.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (build_url && !isUrl(build_url)) {
         return await interaction.followUp({
           content: `> Build URL is not valid.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (message_content && message_content.length > 2000) {
         return await interaction.followUp({
           content: `> Message content is too long. Please limit it to 2000 characters.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -1048,7 +1073,7 @@ const Event_Command = {
           .setTitle(`New Description`)
           .setDescription(`> Please provide new description for the event.`);
 
-        await interaction.followUp({ embeds: [embedOwnDesc], ephemeral: true });
+        await interaction.followUp({ embeds: [embedOwnDesc], flags: MessageFlags.Ephemeral });
 
         const filter = (m) => m.author.id === interaction.user.id;
 
@@ -1080,7 +1105,7 @@ const Event_Command = {
         if (!description_text) {
           return await interaction.followUp({
             content: `> You didn't provide a description. Please try again.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
       }
@@ -1093,14 +1118,14 @@ const Event_Command = {
         if (!event) {
           return await interaction.followUp({
             content: `> Event with ID \`${event_id}\` not found.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
         if (event.organizerId !== interaction.user.id && !manager_perms) {
           return await interaction.followUp({
             content: `> You don't have permission to edit this event.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -1166,12 +1191,15 @@ const Event_Command = {
             `Event **[${event.name}](https://discord.com/channels/${interaction.guild.id}/${event.channelId}/${event.messageId})** has been edited successfully.`
           );
 
-        return await interaction.followUp({ embeds: [embedMessage], ephemeral: true });
+        return await interaction.followUp({
+          embeds: [embedMessage],
+          flags: MessageFlags.Ephemeral,
+        });
       } catch (err) {
         console.error(err);
         return await interaction.followUp({
           content: `> [ecff4f] Error occurred while editing event. Please try again later.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     } else if (interaction.options.getSubcommand() === "reload") {
@@ -1179,7 +1207,7 @@ const Event_Command = {
       if (!manager_perms) {
         return await interaction.followUp({
           content: `> You don't have permissions to reload events.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -1200,13 +1228,13 @@ const Event_Command = {
 
         return await interaction.followUp({
           content: `> Event reloaded successfully.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       } catch (err) {
         console.error(err);
         return await interaction.followUp({
           content: `> [b1c2d3] Error occurred while reloading events. Please try again later.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     } else if (interaction.options.getSubcommand() === "delete") {
@@ -1214,7 +1242,7 @@ const Event_Command = {
       if (!creator_perms) {
         return await interaction.followUp({
           content: `> You don't have permissions to delete events.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -1228,14 +1256,14 @@ const Event_Command = {
         if (!event) {
           return await interaction.followUp({
             content: `> Event with ID \`${event_id}\` not found.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
         if (event.organizerId !== interaction.user.id && !manager_perms) {
           return await interaction.followUp({
             content: `> You don't have permission to delete this event.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -1245,12 +1273,15 @@ const Event_Command = {
           .setColor(`#00DB19`)
           .setTitle(`Event deleted`)
           .setDescription(`Event **${event.name}** has been deleted successfully.`);
-        return await interaction.followUp({ embeds: [embedMessage], ephemeral: true });
+        return await interaction.followUp({
+          embeds: [embedMessage],
+          flags: MessageFlags.Ephemeral,
+        });
       } catch (err) {
         console.error(err);
         return await interaction.followUp({
           content: `> [ffb78a] Error occurred while deleting event. Please try again later.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     } else if (interaction.options.getSubcommand() === "quick_create") {
