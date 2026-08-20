@@ -1,5 +1,5 @@
 module.exports = {
-  name: "ready",
+  name: "clientReady",
   once: true,
   async execute(client, client2) {
     // load all members
