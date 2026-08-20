@@ -16,6 +16,7 @@ const {
 } = require("discord.js");
 const { MissingRoleNotification } = require("../dbmodels/missing-role-notification");
 const interactiveForm = require("../utils/interactiveForm");
+const getDisplayName = require("../utils/getDisplayName");
 
 const MissingRoleNotificationCommands = {
   data: new SlashCommandBuilder()
@@ -186,7 +187,7 @@ const MissingRoleNotificationCommands = {
       await interactiveForm("mrn", interaction, questions, callbackFunction, true);
     } else if (interaction.options.getSubcommand() == "remove") {
       const mrnId = interaction.options.getString("mrn_id");
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       try {
         const mrn = await MissingRoleNotification.findOneAndDelete({
           _id: mrnId,
@@ -219,7 +220,7 @@ const MissingRoleNotificationCommands = {
         });
       }
     } else if (interaction.options.getSubcommand() == "list") {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       try {
         const mrn = await MissingRoleNotification.find({ gid: interaction.guildId }).sort({
           name: 1,
@@ -285,7 +286,7 @@ const MissingRoleNotificationCommands = {
         });
       }
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       await interaction.followUp({ content: `Executed...`, flags: MessageFlags.Ephemeral });
 
       await this.checkMissingRoles(interaction.client, interaction.guildId);
@@ -423,19 +424,52 @@ const MissingRoleNotificationCommands = {
             message += `> *Protected roles:* ${mrn.protected_roles.map((id) => `<@&${id}>`).join(", ")}\n`;
           }
           message +=
-            `\n` + filteredMembers.map((m) => `<@${m.user.id}> \`${m.user.id}\``).join("\n");
+            `\n` +
+            filteredMembers
+              .map((m) => `<@${m.user.id}> ${getDisplayName(m)} \`${m.user.id}\``)
+              .join("\n");
 
-          const embedMessage = new EmbedBuilder()
-            .setColor(`#fad000`)
-            .setTitle(`Missing Role Notification: ${mrn.name}`)
-            .setDescription(message);
+          const messageLimit = 3900;
+          const messagePages = [];
+          let currentPage = "";
+
+          for (const line of message.split("\n")) {
+            const nextPage = currentPage ? `${currentPage}\n${line}` : line;
+
+            if (currentPage && nextPage.length > messageLimit) {
+              messagePages.push(currentPage);
+              currentPage = line;
+            } else {
+              currentPage = nextPage;
+            }
+          }
+
+          if (currentPage) {
+            messagePages.push(currentPage);
+          }
 
           let mentions = "";
           if (mrn.roles_to_notify.length > 0) {
             mentions = mrn.roles_to_notify.map((roleId) => `<@&${roleId}>`).join(" ");
           }
 
-          await channel.send({ content: mentions, embeds: [embedMessage] });
+          for (const [pageIndex, pageContent] of messagePages.entries()) {
+            const embedMessage = new EmbedBuilder()
+              .setColor(`#fad000`)
+              .setTitle(`Missing Role Notification: ${mrn.name}`)
+              .setDescription(pageContent);
+
+            if (messagePages.length > 1) {
+              embedMessage.setFooter({
+                text: `Page ${pageIndex + 1} of ${messagePages.length}`,
+              });
+            }
+
+            await channel.send({
+              content: pageIndex === 0 ? mentions : undefined,
+              embeds: [embedMessage],
+            });
+          }
         }
       }
     } catch (error) {
