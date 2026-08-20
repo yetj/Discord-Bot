@@ -75,6 +75,13 @@ const MissingRoleNotificationCommands = {
           canBeSkipped: true,
         },
         {
+          id: "require_all_roles",
+          title: "Require All Roles?",
+          description:
+            "Whether all required roles must be present for the missing role check to trigger.",
+          type: "boolean",
+        },
+        {
           id: "protected_roles",
           title: "Protected Roles",
           description:
@@ -153,6 +160,7 @@ const MissingRoleNotificationCommands = {
               ? answers["missing_role_to_check"][0]
               : "",
             required_roles: answers["required_roles"] ?? [],
+            require_all_roles: answers["require_all_roles"] ?? false,
             protected_roles: answers["protected_roles"] ?? [],
             channel_to_notify: answers["channel_to_notify"] ? answers["channel_to_notify"][0] : "",
             roles_to_notify: answers["roles_to_notify"] ?? [],
@@ -162,6 +170,7 @@ const MissingRoleNotificationCommands = {
           let message = `**Name:** ${newMRN["name"]}\n`;
           message += `**Missing Role to Check:** <@&${newMRN["missing_role_to_check"]}>\n`;
           message += `**Required Roles:** ${newMRN["required_roles"].length > 0 ? newMRN["required_roles"].map((id) => `<@&${id}>`).join(" ") : "*not set*"}\n`;
+          message += `**Require All Roles:** ${newMRN["require_all_roles"] ? "Yes" : "No"}\n`;
           message += `**Protected Roles:** ${newMRN["protected_roles"].length > 0 ? newMRN["protected_roles"].map((id) => `<@&${id}>`).join(" ") : "*not set*"}\n`;
           message += `**Notification Channel:** <#${newMRN["channel_to_notify"]}>\n`;
           message += `**Roles to Notify:** ${newMRN["roles_to_notify"].length > 0 ? newMRN["roles_to_notify"].map((id) => `<@&${id}>`).join(" ") : "*not set*"}\n`;
@@ -387,7 +396,12 @@ const MissingRoleNotificationCommands = {
           if (m.user.bot === true) return false;
 
           // check if member has any of the required roles
-          if (mrn.required_roles.length > 0) {
+          if (mrn.required_roles.length > 0 && mrn.require_all_roles) {
+            const hasAllRequiredRoles = mrn.required_roles.every((roleId) =>
+              m.roles.cache.has(roleId)
+            );
+            if (!hasAllRequiredRoles) return false;
+          } else if (mrn.required_roles.length > 0 && !mrn.require_all_roles) {
             const hasRequiredRoles = mrn.required_roles.some((roleId) => m.roles.cache.has(roleId));
             if (!hasRequiredRoles) return false;
           }
@@ -417,8 +431,9 @@ const MissingRoleNotificationCommands = {
           }
 
           let message = `Members listed below are missing the role <@&${mrn.missing_role_to_check}>:\n`;
+          let allRolesRequiredText = mrn.require_all_roles ? " (All roles are required)" : "";
           if (mrn.required_roles.length > 0) {
-            message += `> *Required roles:* ${mrn.required_roles.map((id) => `<@&${id}>`).join(", ")}\n`;
+            message += `> *Required roles${allRolesRequiredText}:* ${mrn.required_roles.map((id) => `<@&${id}>`).join(", ")}\n`;
           }
           if (mrn.protected_roles.length > 0) {
             message += `> *Protected roles:* ${mrn.protected_roles.map((id) => `<@&${id}>`).join(", ")}\n`;
