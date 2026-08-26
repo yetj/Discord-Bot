@@ -1078,6 +1078,13 @@ const Balance_Command = {
       const user = interaction.options.getUser("user");
       const amount = interaction.options.getInteger("amount");
 
+      if (!configBalance.allow_transfers && payout_perms === false) {
+        return await interaction.followUp({
+          content: `> ❌ Balance transfers are disabled.`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
       if (amount <= 0) {
         return await interaction.followUp({
           content: `> ❌ Amount must be greater than 0.`,
