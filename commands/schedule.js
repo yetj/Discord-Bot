@@ -4,6 +4,7 @@ const {
   EmbedBuilder,
   MessageFlags,
 } = require("discord.js");
+const mongoose = require("mongoose");
 
 const { ScheduledMessages } = require("../dbmodels/scheduled-messages.js");
 const getDisplayName = require("../utils/getDisplayName.js");
@@ -185,13 +186,23 @@ module.exports = {
     } else if (interaction.options.getSubcommand() === "show") {
       const id = interaction.options.getString("scheduled_message_id");
 
+      if (!mongoose.isObjectIdOrHexString(id)) {
+        return await interaction.reply({
+          content: `> *You've selected wrong scheduled message to show*`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
       const scheduledMessage = await ScheduledMessages.findOne({
         gid: interaction.guildId,
         _id: id,
       });
 
       if (!scheduledMessage) {
-        return await interaction.reply(`> *Can't find selected scheduled message*`);
+        return await interaction.reply({
+          content: `> *Can't find selected scheduled message*`,
+          flags: MessageFlags.Ephemeral,
+        });
       }
 
       let message = ``;
@@ -224,6 +235,13 @@ module.exports = {
     } else if (interaction.options.getSubcommand() === "remove") {
       const id = interaction.options.getString("scheduled_message_id");
 
+      if (!mongoose.isObjectIdOrHexString(id)) {
+        return await interaction.reply({
+          content: `> *You've selected wrong scheduled message to remove*`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
       try {
         const scheduledMessage = await ScheduledMessages.findOneAndDelete({
           gid: interaction.guildId,
@@ -231,7 +249,10 @@ module.exports = {
         });
 
         if (!scheduledMessage) {
-          return await interaction.reply(`> *Can't find selected scheduled message*`);
+          return await interaction.reply({
+            content: `> *Can't find selected scheduled message*`,
+            flags: MessageFlags.Ephemeral,
+          });
         }
 
         await interaction.reply({
